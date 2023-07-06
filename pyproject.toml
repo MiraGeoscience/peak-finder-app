@@ -1,0 +1,60 @@
+[tool.poetry]
+name = "peak_finder"
+version = "0.1.0"
+authors = ["Mira Geoscience Ltd."]
+description = "Peak Finder App"
+repository = "https://github.com/MiraGeoscience/peak-finder-app"
+homepage = "https://mirageoscience.com"
+
+[tool.poetry.dependencies]
+python = "^3.9, < 3.11"
+
+## dependencies for a minimal environment
+numpy = "~1.23.5"
+geoh5py = {version = "~0.8.0a3", source = "pypi", allow-prereleases = true}
+
+## about pip dependencies
+# to be specified to work with conda-lock
+# - from PyPI: my_package = { version = "1.2.3", source = "pypi" }
+# - from URL:
+#   - for a tags: my_package = { url = "https://github.com/ORGANISATION/REPO/archive/refs/tags/VERSION_TAG.zip#sha256=" }
+#   - for a branch: my_package = { url = "https://github.com/ORGANISATION/REPO/archive/refs/heads/BRANCH.zip#sha256=" }
+# Note - conda-lock does not support the syntax: my_package = { git = ... }
+#        while poetry2conda supports only { git = "...", tag = "..." }, and not { url = ... }
+
+
+[tool.poetry.group.dev.dependencies]
+pylint = "*"
+pytest = "*"
+pytest-cov = "*"
+toml = "*" # for tests only
+
+[tool.conda-lock]
+platforms = ['win-64', 'osx-64', 'linux-64']
+channels = ['conda-forge']
+
+[tool.conda-lock.dependencies]
+libblas = "*=*mkl"
+
+[tool.isort]
+# settings for compatibility between ``isort`` and ``black`` formatting
+multi_line_output = 3
+include_trailing_comma = true
+force_grid_wrap = 0
+use_parentheses = true
+line_length = 88
+
+[tool.black]
+# defaults are just fine
+
+[tool.poetry2conda]
+name = "peak_finder"
+## usage of poetry2conda
+# As poetry2conda does not support url sources for pip dependencies,
+# temporarily edit this file and use git sources instead, with 'tag=' indifferently whether it is actually a branch or rev.
+#> poetry2conda pyproject.toml -E full environment.yml
+#> poetry2conda pyproject.toml -E full --dev environment-dev.yml
+
+[build-system]
+requires = ["poetry-core>=1.0.0", "setuptools"]
+build-backend = "poetry.core.masonry.api"
