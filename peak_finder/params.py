@@ -9,46 +9,47 @@ from __future__ import annotations
 
 from copy import deepcopy
 
+from geoh5py.data import Data
+from geoh5py.objects import ObjectBase
 from geoh5py.ui_json import InputFile
 
 from peak_finder.base.params import BaseParams
+from peak_finder.constants import default_ui_json, defaults, template_dict, validations
 
-from .constants import default_ui_json, defaults, template_dict, validations
 
-
-class PeakFinderParams(BaseParams):
+class PeakFinderParams(BaseParams):  # pylint: disable=R0902, R0904
     """
     Parameter class for peak finder application.
     """
 
-    def __init__(self, input_file=None, **kwargs):
-        self._default_ui_json = deepcopy(default_ui_json)
-        self._defaults = deepcopy(defaults)
+    def __init__(self, input_file: InputFile | None = None, **kwargs):
+        self._default_ui_json: dict | None = deepcopy(default_ui_json)
+        self._defaults: dict | None = deepcopy(defaults)
         self._free_parameter_keys: list = ["data", "color"]
         self._free_parameter_identifier: str = "group"
-        self._validations = validations
-        self._objects = None
-        self._data = None
-        self._flip_sign = None
-        self._line_field = None
-        self._tem_checkbox = None
-        self._system = None
-        self._smoothing = None
-        self._min_amplitude = None
-        self._min_value = None
-        self._min_width = None
-        self._max_migration = None
-        self._min_channels = None
-        self._ga_group_name = None
-        self._structural_markers = None
-        self._line_id = None
-        self._group_auto = None
-        self._center = None
-        self._width = None
-        self._template_data = None
-        self._template_color = None
-        self._plot_result = True
-        self._title = None
+        self._validations: dict | None = validations
+        self._objects: ObjectBase | None = None
+        self._data: Data | None = None
+        self._flip_sign: bool | None = None
+        self._line_field: Data | None = None
+        self._tem_checkbox: bool | None = None
+        self._system: str | None = None
+        self._smoothing: int | None = None
+        self._min_amplitude: int | None = None
+        self._min_value: float | None = None
+        self._min_width: float | None = None
+        self._max_migration: float | None = None
+        self._min_channels: int | None = None
+        self._ga_group_name: str | None = None
+        self._structural_markers: bool | None = None
+        self._line_id: int | None = None
+        self._group_auto: bool | None = None
+        self._center: float | None = None
+        self._width: float | None = None
+        self._template_data: Data | None = None
+        self._template_color: str | None = None
+        self._plot_result: bool = True
+        self._title: str | None = None
 
         if input_file is None:
             free_param_dict = {}
@@ -63,8 +64,10 @@ class PeakFinderParams(BaseParams):
             ui_json = deepcopy(self._default_ui_json)
             for group, forms in free_param_dict.items():
                 for key, form in forms.items():
-                    form["group"] = group
-                    ui_json[f"{group} {key}"] = form
+                    if form is not None:
+                        form["group"] = group
+                    if ui_json is not None:
+                        ui_json[f"{group} {key}"] = form
                     self._defaults[f"{group} {key}"] = form["value"]
 
             input_file = InputFile(

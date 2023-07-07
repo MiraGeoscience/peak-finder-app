@@ -13,25 +13,29 @@ from scipy.interpolate import interp1d
 from peak_finder.base.utils import running_mean
 
 
-class LineDataDerivatives:
+class LineDataDerivatives:  # pylint: disable=R0902
     """
     Compute and store the derivatives of inline data values. The values are re-sampled at a constant
     interval, padded then transformed to the Fourier domain using the :obj:`numpy.fft` package.
 
     :param locations: An array of data locations, either as distance along line or 3D coordinates.
-        For 3D coordinates, the locations are automatically converted and sorted as distance from the origin.
+        For 3D coordinates, the locations are automatically converted and sorted as distance from
+        the origin.
     :param values: Data values used to compute derivatives over, shape(locations.shape[0],).
-    :param epsilon: Adjustable constant used in :obj:`scipy.interpolate.Rbf`. Defaults to 20x the average sampling
-    :param interpolation: Type on interpolation accepted by the :obj:`scipy.interpolate.Rbf` routine:
-        'multiquadric', 'inverse', 'gaussian', 'linear', 'cubic', 'quintic', 'thin_plate'
-    :param sampling_width: Number of padding values used in the FFT. By default, the entire array is used as
-        padding.
-    :param residual: Use the residual between the values and the running mean to compute derivatives.
-    :param sampling: Sampling interval length (m) used in the FFT. Defaults to the mean data separation.
+    :param epsilon: Adjustable constant used in :obj:`scipy.interpolate.Rbf`. Defaults to 20x the
+        average sampling
+    :param interpolation: Type on interpolation accepted by the :obj:`scipy.interpolate.Rbf`
+        routine: 'multiquadric', 'inverse', 'gaussian', 'linear', 'cubic', 'quintic', 'thin_plate'
+    :param sampling_width: Number of padding values used in the FFT. By default, the entire array is
+        used as padding.
+    :param residual: Use the residual between the values and the running mean to compute
+        derivatives.
+    :param sampling: Sampling interval length (m) used in the FFT. Defaults to the mean data
+        separation.
     :param smoothing: Number of neighbours used by the :obj:`geoapps.utils.running_mean` routine.
     """
 
-    def __init__(
+    def __init__(  # pylint: disable=R0913
         self,
         locations: np.ndarray | None = None,
         values: np.array | None = None,
@@ -55,9 +59,9 @@ class LineDataDerivatives:
         self._sampling = sampling
         self._values_resampled_raw = None
         self._values_resampled = None
-        self.Fx = None
-        self.Fy = None
-        self.Fz = None
+        self.Fx = None  # pylint: disable=C0103
+        self.Fy = None  # pylint: disable=C0103
+        self.Fz = None  # pylint: disable=C0103
 
         # if values is not None:
         #     self._values = values[self.sorting]
@@ -176,7 +180,9 @@ class LineDataDerivatives:
             if self._locations[0] == self._locations[-1]:
                 return
 
-            dx = np.mean(np.abs(self.locations[1:] - self.locations[:-1]))
+            dx = np.mean(  # pylint: disable=C0103
+                np.abs(self.locations[1:] - self.locations[:-1])
+            )
             self._sampling_width = np.ceil(
                 (self._locations[-1] - self._locations[0]) / dx
             ).astype(int)
@@ -223,8 +229,8 @@ class LineDataDerivatives:
         """
         if getattr(self, "_values_resampled", None) is None:
             # self._values_resampled = self.values_padded[self.sampling_width: -self.sampling_width]
-            F = interp1d(self.locations, self.values, fill_value="extrapolate")
-            self._values_resampled = F(self._locations_resampled)
+            interp = interp1d(self.locations, self.values, fill_value="extrapolate")
+            self._values_resampled = interp(self._locations_resampled)
             self._values_resampled_raw = self._values_resampled.copy()
             if self._smoothing > 0:
                 mean_values = running_mean(
@@ -309,7 +315,9 @@ class LineDataDerivatives:
         return deriv
 
 
-def default_groups_from_property_group(property_group, start_index=0):
+def default_groups_from_property_group(
+    property_group, start_index=0
+):  # pylint: disable=R0914
     _default_channel_groups = {
         "early": {"label": ["early"], "color": "#0000FF", "channels": []},
         "middle": {"label": ["middle"], "color": "#FFFF00", "channels": []},
@@ -365,7 +373,7 @@ def default_groups_from_property_group(property_group, start_index=0):
     return channel_groups
 
 
-def find_anomalies(
+def find_anomalies(  # pylint: disable=R0912, R0913, R0914, R0915 # noqa: C901
     locations,
     line_indices,
     channels,
@@ -406,8 +414,8 @@ def find_anomalies(
     if locs is None:
         return {}
 
-    xy = np.c_[profile.interp_x(locs), profile.interp_y(locs)]
-    angles = np.arctan2(xy[1:, 1] - xy[:-1, 1], xy[1:, 0] - xy[:-1, 0])
+    mat = np.c_[profile.interp_x(locs), profile.interp_y(locs)]
+    angles = np.arctan2(mat[1:, 1] - mat[:-1, 1], mat[1:, 0] - mat[:-1, 0])
     angles = np.r_[angles[0], angles].tolist()
     azimuth = (450.0 - np.rad2deg(running_mean(angles, width=5))) % 360.0
     anomalies = {
@@ -423,16 +431,16 @@ def find_anomalies(
         "channel_group": [],
     }
     data_uid = list(channels)
-    property_groups = [pg for pg in channel_groups.values()]
+    property_groups = list(channel_groups.values())
     group_prop_size = np.r_[[len(grp["properties"]) for grp in channel_groups.values()]]
-    for cc, (uid, params) in enumerate(channels.items()):
+    for chan, (uid, params) in enumerate(channels.items()):
         if "values" not in list(params):
             continue
 
         values = params["values"][line_indices].copy()
         profile.values = values
         values = profile.values_resampled
-        dx = profile.derivative(order=1)
+        dx = profile.derivative(order=1)  # pylint: disable=C0103
         ddx = profile.derivative(order=2)
         peaks = np.where(
             (np.diff(np.sign(dx)) != 0)
@@ -506,7 +514,7 @@ def find_anomalies(
                 * profile.sampling
             )
             if (delta_amp > min_amplitude) & (delta_x > min_width):
-                anomalies["channel"] += [cc]
+                anomalies["channel"] += [chan]
                 anomalies["start"] += [start]
                 anomalies["inflx_up"] += [inflx_up]
                 anomalies["peak"] += [peak]
@@ -528,8 +536,7 @@ def find_anomalies(
     if len(anomalies["peak"]) == 0:
         if return_profile:
             return {}, profile
-        else:
-            return {}
+        return {}
 
     groups = []
 
@@ -627,11 +634,11 @@ def find_anomalies(
             times = np.hstack(times)[values > 0]
             if len(times) > 2:
                 # Compute linear trend
-                A = np.c_[np.ones_like(times), times]
-                y0, slope = np.linalg.solve(
-                    np.dot(A.T, A), np.dot(A.T, np.log(values[values > 0]))
+                mat = np.c_[np.ones_like(times), times]
+                intercept, slope = np.linalg.solve(
+                    np.dot(mat.T, mat), np.dot(mat.T, np.log(values[values > 0]))
                 )
-                linear_fit = [y0, slope]
+                linear_fit = [intercept, slope]
 
         group = {
             "channels": gates,
@@ -693,5 +700,4 @@ def find_anomalies(
 
     if return_profile:
         return groups, profile
-    else:
-        return groups
+    return groups

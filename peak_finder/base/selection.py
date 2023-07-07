@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from geoh5py.data import ReferencedData
+from geoh5py.data import Data, ReferencedData
 from geoh5py.objects.object_base import ObjectBase
 from geoh5py.workspace import Workspace
 
@@ -28,14 +28,14 @@ class ObjectDataSelection(BaseApplication):
     Application to select an object and corresponding data
     """
 
-    _data = None
-    _objects = None
-    _add_groups = False
-    _select_multiple = False
-    _object_types = ()
-    _exclusion_types = ()
-    _add_xyz = True
-    _find_label = []
+    _data: Data | None = None
+    _objects: ObjectBase | None = None
+    _add_groups: bool | str = False
+    _select_multiple: bool = False
+    _object_types: tuple = ()
+    _exclusion_types: tuple = ()
+    _add_xyz: bool = True
+    _find_label: list = []
 
     def __init__(self, **kwargs):
         self._data_panel = None
@@ -43,7 +43,7 @@ class ObjectDataSelection(BaseApplication):
         super().__init__(**kwargs)
 
     @property
-    def add_groups(self) -> bool:
+    def add_groups(self) -> bool | str:
         """
         Add data groups to the list of data choices
         """
@@ -230,7 +230,7 @@ class ObjectDataSelection(BaseApplication):
         return self._workspace
 
     @workspace.setter
-    def workspace(self, workspace):
+    def workspace(self, workspace: Workspace | None):
         assert isinstance(
             workspace, Workspace
         ), f"Workspace must be of class {Workspace}"
@@ -243,8 +243,8 @@ class ObjectDataSelection(BaseApplication):
         """
         Get entities from an active geoh5py Workspace
         """
-        if getattr(self, "_workspace", None) is not None:
-            obj: ObjectBase | None = self._workspace.get_entity(self.objects.value)[0]
+        if self.workspace is not None:
+            obj = self.workspace.get_entity(self.objects.value)[0]
             if obj is None:
                 return None, None
 
@@ -256,7 +256,7 @@ class ObjectDataSelection(BaseApplication):
             data = []
             for value in values:
                 if obj.property_groups is not None and any(
-                    [pg.uid == value for pg in obj.property_groups]
+                    pg.uid == value for pg in obj.property_groups
                 ):
                     data += [
                         self.workspace.get_entity(prop)[0]
@@ -268,21 +268,19 @@ class ObjectDataSelection(BaseApplication):
                     data += self.workspace.get_entity(value)
 
             return obj, data
-        else:
-            return None, None
+        return None, None
 
-    def update_data_list(self, _):
+    def update_data_list(self, val: str | None):
         refresh = self.refresh.value
         self.refresh.value = False
-        if getattr(self, "_workspace", None) is not None:
+        if self._workspace is not None:
             obj: ObjectBase | None = self._workspace.get_entity(self.objects.value)[0]
             if obj is None or getattr(obj, "get_data_list", None) is None:
                 self.data.options = [["", None]]
                 self.refresh.value = refresh
                 return
 
-            options = [["", None]]
-
+            options = [["", None]]  # type: ignore
             if (self.add_groups or self.add_groups == "only") and obj.property_groups:
                 options = (
                     options
@@ -295,9 +293,10 @@ class ObjectDataSelection(BaseApplication):
 
                 children = sorted_children_dict(obj)
                 excl = ["visual parameter"]
-                options += [
-                    [k, v] for k, v in children.items() if k.lower() not in excl
-                ]
+                if children is not None:
+                    options += [
+                        [k, v] for k, v in children.items() if k.lower() not in excl  # type: ignore
+                    ]
 
                 if self.add_xyz:
                     options += [["X", "X"], ["Y", "Y"], ["Z", "Z"]]
@@ -307,9 +306,9 @@ class ObjectDataSelection(BaseApplication):
 
             self.update_uid_name_map()
 
-            if self.select_multiple and any([val in options for val in value]):
+            if self.select_multiple and any(val in options for val in value):
                 self.data.value = [val for val in value if val in options]
-            elif value in dict(options).values():
+            elif value in dict(options).values():  # type: ignore
                 self.data.value = value
             elif self.find_label:
                 self.data.value = find_value(self.data.options, self.find_label)
@@ -384,31 +383,30 @@ class LineOptions(ObjectDataSelection):
         self.data.observe(self.update_line_list, names="value")
         self.data.description = "Lines field"
 
-    def update_data_list(self, _):
+    def update_data_list(self, val: str | None):
         refresh = self.refresh.value
         self.refresh.value = False
-        if getattr(self, "_workspace", None) is not None:
+        if self._workspace is not None:
             obj: ObjectBase | None = self._workspace.get_entity(self.objects.value)[0]
             if obj is None or getattr(obj, "get_data_list", None) is None:
                 self.refresh.value = refresh
                 return
 
-            options = [["", None]]
-
+            options = [["", None]]  # type: ignore
             children = sorted_children_dict(obj)
-
-            options += [
-                [k, v]
-                for k, v in children.items()
-                if isinstance(obj.get_entity(v)[0], ReferencedData)
-            ]
+            if children is not None:
+                options += [
+                    [k, v]  # type: ignore
+                    for k, v in children.items()
+                    if isinstance(obj.get_entity(v)[0], ReferencedData)
+                ]
 
             value = self.data.value
             self.data.options = options
 
             self.update_uid_name_map()
 
-            if value in dict(options).values():
+            if value in dict(options).values():  # type: ignore
                 self.data.value = value
             elif self.find_label:
                 self.data.value = find_value(self.data.options, self.find_label)

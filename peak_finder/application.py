@@ -5,6 +5,8 @@
 #  All rights reserved.
 #
 
+# pylint: disable=C0302
+
 from __future__ import annotations
 
 import sys
@@ -22,19 +24,14 @@ from geoh5py.shared.utils import fetch_active_workspace
 from geoh5py.ui_json import InputFile
 from geoh5py.workspace import Workspace
 
-from peak_finder.base.application import BaseApplication
-from peak_finder.base.selection import LineOptions, ObjectDataSelection
-from peak_finder.constants import (
-    app_initializer,
-    default_ui_json,
-    template_dict,
-)
 from peak_finder.base import geophysical_systems
+from peak_finder.base.application import BaseApplication
 from peak_finder.base.importing import warn_module_not_found
-
-from . import PeakFinderParams
-from .driver import PeakFinderDriver
-from .utils import default_groups_from_property_group, find_anomalies
+from peak_finder.base.selection import LineOptions, ObjectDataSelection
+from peak_finder.constants import app_initializer, default_ui_json, template_dict
+from peak_finder.driver import PeakFinderDriver
+from peak_finder.params import PeakFinderParams
+from peak_finder.utils import default_groups_from_property_group, find_anomalies
 
 with warn_module_not_found():
     from matplotlib import pyplot as plt
@@ -61,46 +58,46 @@ with warn_module_not_found():
     from ipywidgets.widgets.widget_selection import TraitError
 
 
-class PeakFinder(ObjectDataSelection):
+class PeakFinder(ObjectDataSelection):  # pylint: disable=R0902, R0904
     """
     Application for the picking of targets along Time-domain EM profiles
     """
 
     _param_class = PeakFinderParams
-    _add_groups = "only"
-    _center = None
-    _flip_sign = None
-    _group_auto = None
-    _group_list = None
+    _add_groups: bool | str = "only"
+    _center: float | None = None
+    _flip_sign: bool | None = None
+    _group_auto: bool | None = None
+    _group_list: list | None = None
     _group_display = None
     _groups_setter = None
-    _lines = None
-    _markers = None
-    _max_migration = None
-    _min_amplitude = None
-    _min_channels = None
-    _min_value = None
-    _min_width = None
-    _plot_trigger = None
+    _lines: LineOptions | None = None
+    _markers: bool | None = None
+    _max_migration: float | None = None
+    _min_amplitude: int | None = None
+    _min_channels: int | None = None
+    _min_value: float | None = None
+    _min_width: float | None = None
+    _plot_trigger: bool | None = None
     _residual = None
     _scale_button = None
     _scale_value = None
     _show_decay = None
-    _smoothing = None
-    _structural_markers = None
-    _system = None
-    _tem_checkbox = None
+    _smoothing: int | None = None
+    _structural_markers: bool | None = None
+    _system: str | None = None
+    _tem_checkbox: bool | None = None
     _width = None
     _x_label = None
-    _object_types = (Curve,)
-    all_anomalies = []
-    active_channels = {}
+    _object_types: tuple = (Curve,)
+    all_anomalies: list = []
+    active_channels: dict = {}
     _survey = None
-    _channel_groups = {}
-    pause_refresh = False
+    _channel_groups: dict = {}
+    pause_refresh: bool = False
     decay_figure = None
-    marker = {"left": "<", "right": ">"}
-    plot_result = True
+    marker: dict = {"left": "<", "right": ">"}
+    plot_result: bool = True
 
     def __init__(self, ui_json=None, plot_result=True, **kwargs):
         self.figure = None
@@ -216,8 +213,8 @@ class PeakFinder(ObjectDataSelection):
             self._channel_groups = self.params.groups_from_free_params()
 
             group_list = []
-            for pg, params in self._channel_groups.items():
-                group_list += [self.add_group_widget(pg, params)]
+            for prop_group, params in self._channel_groups.items():
+                group_list += [self.add_group_widget(prop_group, params)]
             self.groups_panel.children = group_list
 
         else:
@@ -228,7 +225,7 @@ class PeakFinder(ObjectDataSelection):
 
     @property
     def main(self) -> VBox:
-        if getattr(self, "_main", None) is None:
+        if getattr(self, "_main", None) is None and self.lines is not None:
             self._main = VBox(
                 [
                     self.project_panel,
@@ -355,21 +352,25 @@ class PeakFinder(ObjectDataSelection):
         return self._groups_setter
 
     @property
-    def line_field(self) -> Dropdown:
+    def line_field(self) -> Dropdown | None:
         """
         Alias of lines.data widget
         """
-        return self.lines.data
+        if self.lines is not None:
+            return self.lines.data
+        return None
 
     @property
-    def line_id(self) -> Dropdown:
+    def line_id(self) -> Dropdown | None:
         """
         Alias of lines.lines widget
         """
-        return self.lines.lines
+        if self.lines is not None:
+            return self.lines.lines
+        return None
 
     @property
-    def lines(self) -> LineOptions:
+    def lines(self) -> LineOptions | None:
         """
         Line selection defining the profile used for plotting.
         """
@@ -733,8 +734,8 @@ class PeakFinder(ObjectDataSelection):
                     group_list = []
                     self.update_data_list(None)
                     self.pause_refresh = True
-                    for pg, params in self._channel_groups.items():
-                        group_list += [self.add_group_widget(pg, params)]
+                    for prop_group, params in self._channel_groups.items():
+                        group_list += [self.add_group_widget(prop_group, params)]
 
                     self.pause_refresh = False
                     self.groups_panel.children = group_list
@@ -774,12 +775,12 @@ class PeakFinder(ObjectDataSelection):
         line_data = self.workspace.get_entity(self.lines.data.value)[0]
 
         if not isinstance(line_data, ReferencedData):
-            return
+            return None
 
         indices = np.where(np.asarray(line_data.values) == line_id)[0]
 
         if len(indices) == 0:
-            return
+            return None
 
         return indices
 
@@ -868,7 +869,8 @@ class PeakFinder(ObjectDataSelection):
 
     def objects_change(self, _):
         """
-        Observer of :obj:`geoapps.processing.peak_finder.objects`: Reset data and auto-detect AEM system
+        Observer of :obj:`geoapps.processing.peak_finder.objects`:
+        Reset data and auto-detect AEM system
         """
         obj = self.workspace.get_entity(self.objects.value)[0]
         if obj is None:
@@ -884,7 +886,7 @@ class PeakFinder(ObjectDataSelection):
 
         for aem_system, specs in self.em_system_specs.items():
             if specs["flag"] is not None and any(
-                [specs["flag"] in channel for channel in self._survey.get_data_list()]
+                specs["flag"] in channel for channel in self._survey.get_data_list()
             ):
                 if aem_system in self.system.options:
                     self.system.value = aem_system
@@ -903,7 +905,7 @@ class PeakFinder(ObjectDataSelection):
         self.show_decay.value = False
         self.system.disabled = not self.tem_checkbox.value
 
-    def plot_data_selection(
+    def plot_data_selection(  # pylint: disable=R0912, R0913, R0914, R0915 # noqa: C901
         self,
         residual,
         markers,
@@ -957,17 +959,17 @@ class PeakFinder(ObjectDataSelection):
         up_markers_x, up_markers_y = [], []
         dwn_markers_x, dwn_markers_y = [], []
 
-        for cc, channel in enumerate(self.active_channels.values()):
-            if "values" not in channel:
+        for channel, channel_dict in enumerate(self.active_channels.values()):
+            if "values" not in channel_dict:
                 continue
 
-            self.lines.profile.values = channel["values"][self.survey.line_indices]
+            self.lines.profile.values = channel_dict["values"][self.survey.line_indices]
             values = self.lines.profile.values_resampled
             y_min = np.nanmin([values[sub_ind].min(), y_min])
             y_max = np.nanmax([values[sub_ind].max(), y_max])
             axs.plot(locs, values, color=[0.5, 0.5, 0.5, 1])
             for group in self.lines.anomalies:
-                query = np.where(group["channels"] == cc)[0]
+                query = np.where(group["channels"] == channel)[0]
 
                 if (
                     len(query) == 0
@@ -1302,16 +1304,16 @@ class PeakFinder(ObjectDataSelection):
 
         temp_geoh5 = f"{self.ga_group_name.value}_{time():.0f}.geoh5"
 
-        ws, self.live_link.value = BaseApplication.get_output_workspace(
+        new_workspace, self.live_link.value = BaseApplication.get_output_workspace(
             self.live_link.value, self.export_directory.selected_path, temp_geoh5
         )
-        with ws as new_workspace:
+        with new_workspace as new_ws:
             with self.workspace.open("r"):
                 for key, value in param_dict.items():
                     if isinstance(value, ObjectBase):
-                        if new_workspace.get_entity(value.uid)[0] is None:
+                        if new_ws.get_entity(value.uid)[0] is None:
                             param_dict[key] = value.copy(
-                                parent=new_workspace, copy_children=True
+                                parent=new_ws, copy_children=True
                             )
                             line_field = [
                                 c for c in param_dict[key].children if c.name == "Line"
@@ -1324,7 +1326,7 @@ class PeakFinder(ObjectDataSelection):
                             "objects"
                         ].find_or_create_property_group(name=p_g_uid[value])
 
-            param_dict["geoh5"] = new_workspace
+            param_dict["geoh5"] = new_ws
             if self.live_link.value:
                 param_dict["monitoring_directory"] = self.monitoring_directory
 
@@ -1343,7 +1345,7 @@ class PeakFinder(ObjectDataSelection):
             self.center.value = self.group_display.value
 
     @classmethod
-    def run(cls, params: PeakFinderParams):
+    def run(cls, params: PeakFinderParams):  # type: ignore
         """
         Create an octree mesh from input values
         """
@@ -1364,11 +1366,11 @@ class PeakFinder(ObjectDataSelection):
 
 
 if __name__ == "__main__":
-    file = sys.argv[1]
+    FILE = sys.argv[1]
     warnings.warn(
         "'geoapps.peak_finder.application' replaced by "
         "'geoapps.peak_finder.driver' in version 0.7.0. "
         "This warning is likely due to the execution of older ui.json files. Please update."
     )
-    params_class = PeakFinderParams(InputFile(file))
+    params_class = PeakFinderParams(InputFile(FILE))
     PeakFinder.run(params_class)

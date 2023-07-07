@@ -18,7 +18,7 @@ from geoh5py.workspace import Workspace
 from peak_finder import base
 
 
-class BaseParams:
+class BaseParams:  # pylint: disable=R0902, R0904
     """
     Stores input parameters to drive a ui.json application.
 
@@ -35,41 +35,41 @@ class BaseParams:
 
     """
 
-    _defaults = None
-    _default_ui_json = None
+    _defaults: dict | None = None
+    _default_ui_json: dict | None = None
     _free_parameter_keys: list[str] | None = None
     _free_parameter_identifier: str | None = None
-    _input_file: InputFile = None
-    _monitoring_directory = None
-    _ui_json = None
-    _validate = True
-    _validations = None
-    _validation_options = None
-    _validator: InputValidation = None
+    _input_file: InputFile | None = None
+    _monitoring_directory: str | None = None
+    _ui_json: dict | None = None
+    _validate: bool = True
+    _validations: dict | None = None
+    _validation_options: dict | None = None
+    _validator: InputValidation | None = None
     _version = base.__version__
 
     def __init__(
         self,
-        input_file=None,
-        validate=True,
-        validation_options=None,
-        workpath=None,
+        input_file: InputFile | None = None,
+        validate: bool = True,
+        validation_options: dict | None = None,
+        workpath: str | Path | None = None,
         **kwargs,
     ):
-        self._monitoring_directory: str = None
-        self._workspace_geoh5: str = None
-        self._geoh5 = None
-        self._run_command: str = None
-        self._title = None
-        self._conda_environment: str = None
-        self._conda_environment_boolean: bool = None
+        self._monitoring_directory: str | None = None
+        self._workspace_geoh5: str | None = None
+        self._geoh5: str | None = None
+        self._run_command: str | None = None
+        self._title: str | None = None
+        self._conda_environment: str | None = None
+        self._conda_environment_boolean: bool | None = None
         self._generate_sweep: bool = False
-        self._workspace = None
+        self._workspace: str | None = None
         self._run_command_boolean: bool = False
-        self.workpath = workpath
-        self.input_file = input_file
-        self.validate = validate
-        self.validation_options = validation_options
+        self.workpath: str | Path | None = workpath
+        self.input_file: InputFile = input_file
+        self.validate: bool = validate
+        self.validation_options: dict | None = validation_options
 
         self._initialize(**kwargs)
 
@@ -118,26 +118,32 @@ class BaseParams:
 
     def update(self, params_dict: dict[str, Any]):
         """Update parameters with dictionary contents."""
-        params_dict = self.input_file.numify(params_dict)
-        if params_dict.get("geoh5", None) is not None and self.input_file.geoh5 is None:
-            setattr(self, "geoh5", params_dict.pop("geoh5"))
+        if self.input_file is not None:
+            params_dict = self.input_file.numify(params_dict)
+            if (
+                params_dict.get("geoh5", None) is not None
+                and self.input_file.geoh5 is None
+            ):
+                setattr(self, "geoh5", params_dict.pop("geoh5"))
 
-        with fetch_active_workspace(self.geoh5):
-            params_dict = self.input_file.promote(params_dict)  # pylint: disable=W0212
+            with fetch_active_workspace(self.geoh5):
+                params_dict = self.input_file.promote(
+                    params_dict
+                )  # pylint: disable=W0212
 
-            for key, value in params_dict.items():
-                if key not in self.ui_json.keys():
-                    continue  # ignores keys not in default_ui_json
+                for key, value in params_dict.items():
+                    if key not in self.ui_json.keys():
+                        continue  # ignores keys not in default_ui_json
 
-                setattr(self, key, value)
+                    setattr(self, key, value)
 
-            # Set all parameters belonging to groupOptional disabled.
-            for key in utils.find_all(self.ui_json, "groupOptional"):
-                if key in params_dict and params_dict[key] is None:
-                    for elem in utils.collect(
-                        self.ui_json, "group", self.ui_json[key]["group"]
-                    ):
-                        setattr(self, elem, None)
+                # Set all parameters belonging to groupOptional disabled.
+                for key in utils.find_all(self.ui_json, "groupOptional"):
+                    if key in params_dict and params_dict[key] is None:
+                        for elem in utils.collect(
+                            self.ui_json, "group", self.ui_json[key]["group"]
+                        ):
+                            setattr(self, elem, None)
 
     @property
     def workpath(self):
@@ -152,7 +158,7 @@ class BaseParams:
         return self._workpath
 
     @workpath.setter
-    def workpath(self, val: str | None):
+    def workpath(self, val: str | Path | None):
         if val is not None:
             if not Path(val).is_dir():
                 raise ValueError("Provided 'workpath' is not a valid path.")
@@ -207,13 +213,12 @@ class BaseParams:
         """Return list of parameters with non-null entries."""
         return [k for k, v in self.to_dict().items() if v is not None]
 
-    def is_uuid(self, p: str) -> bool:
+    def is_uuid(self, param: str) -> bool:
         """Return true if string contains valid UUID."""
-        if isinstance(p, str):
-            private_attr = self.__getattribute__("_" + p)
-            return True if isinstance(private_attr, UUID) else False
-        else:
-            pass
+        if isinstance(param, str):
+            private_attr = getattr(self, "_" + param)
+            return isinstance(private_attr, UUID)
+        return False
 
     @property
     def free_parameter_dict(self):
@@ -237,14 +242,16 @@ class BaseParams:
             ui_groups.sort()
             for group in ui_groups:
                 if self._free_parameter_identifier in group.lower():
-                    # TODO Create a geoh5py validation for "allof" -> ["object", "levels", "type", "distance"]
+                    # TODO Create a geoh5py validation for
+                    #  "allof" -> ["object", "levels", "type", "distance"]
                     free_parameter_dict[group] = {}
                     forms = utils.collect(self.ui_json, "group", group)
                     for label, key in zip(forms, self._free_parameter_keys):
                         if key not in label.lower():
                             raise ValueError(
                                 f"Malformed input refinement group {group}. "
-                                f"Must contain forms for all of {self._free_parameter_keys} in this order."
+                                f"Must contain forms for all "
+                                f"of {self._free_parameter_keys} in this order."
                             )
                         free_parameter_dict[group][key] = label
 
@@ -258,9 +265,9 @@ class BaseParams:
         return self._free_parameter_keys
 
     @property
-    def validations(self) -> dict[str, Any]:
+    def validations(self) -> dict[str, Any] | None:
         """Encoded parameter validator type and associated validations."""
-        if getattr(self, "_validations", None) is None:
+        if getattr(self, "_validations", None) is None and self.input_file is not None:
             self._validations = self.input_file.validations
         return self._validations
 
@@ -373,8 +380,9 @@ class BaseParams:
 
         value = fun(value)
 
-        if value != self.input_file.data[key]:
-            self.input_file.set_data_value(key, value)
+        if self.input_file is not None:
+            if value != self.input_file.data[key]:
+                self.input_file.set_data_value(key, value)
 
         setattr(self, f"_{key}", value)
 
@@ -385,6 +393,8 @@ class BaseParams:
         validate: bool = True,
     ) -> str:
         """Write out a ui.json with the current state of parameters"""
+        if self.input_file is None:
+            raise ValueError("No input file has been set.")
         original_validate_state = self.input_file.validate
         self.input_file.validate = validate
         self.input_file.data = self.to_dict()

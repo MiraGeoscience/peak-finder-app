@@ -26,7 +26,7 @@ def assets_path() -> Path:
             return assets_folder
 
     parent = Path(__file__).parent.parent
-    folder_name = f"assets"
+    folder_name = "assets"
     assets_folder = parent.parent / folder_name
     if not assets_folder.is_dir():
         raise RuntimeError(f"Assets folder not found: {assets_folder}")

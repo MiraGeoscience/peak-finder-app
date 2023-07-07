@@ -18,7 +18,7 @@ from peak_finder.base.list import sorted_alphanumeric_list
 
 def sorted_children_dict(
     entity: UUID | Entity, workspace: Workspace | None = None
-) -> dict[str, UUID]:
+) -> dict[str, UUID] | None:
     """
     Uses natural sorting algorithm to order the keys of a dictionary containing
     children name/uid key/value pairs.
@@ -33,18 +33,19 @@ def sorted_children_dict(
 
     """
 
-    if isinstance(entity, UUID):
+    if isinstance(entity, UUID) and workspace is not None:
         entity = workspace.get_entity(entity)[0]
         if not entity:
             return None
 
-    children_dict = {}
-    for child in entity.children:
-        if not isinstance(child, (IntegerData, FloatData)):
-            continue
+        children_dict = {}
+        for child in entity.children:
+            if not isinstance(child, (IntegerData, FloatData)):
+                continue
 
-        children_dict[child.name] = child.uid
+            children_dict[child.name] = child.uid
 
-    children_order = sorted_alphanumeric_list(list(children_dict))
+        children_order = sorted_alphanumeric_list(list(children_dict))
 
-    return {k: children_dict[k] for k in children_order}
+        return {k: children_dict[k] for k in children_order}
+    return None

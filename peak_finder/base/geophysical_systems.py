@@ -5,6 +5,8 @@
 #  geoapps is distributed under the terms and conditions of the MIT License
 #  (see LICENSE file at the root of this source code package).
 
+# pylint: disable=C0302
+
 from __future__ import annotations
 
 
@@ -97,7 +99,10 @@ def parameters():
             ],
             "tx_offsets": [[0, 0, 0]],
             "bird_offset": [0, 0, -40],
-            "comment": "normalization accounts for 2.5m radius loop * 8 turns * 69 A current, nanoTesla",
+            "comment": (
+                "normalization accounts for 2.5m radius loop "
+                "* 8 turns * 69 A current, nanoTesla"
+            ),
             "normalization": [2.9e-4, 1e-9],
             "tx_specs": {"type": "CircularLoop", "a": 1.0, "I": 1.0},
             "data_type": "dBzdt",
@@ -184,7 +189,10 @@ def parameters():
             ],
             "tx_offsets": [[0, 0, 0]],
             "bird_offset": [0, 0, -40],
-            "comment": "normalization accounts for 2.5m radius loop, 8 turns * 69 A current, nanoTesla",
+            "comment": (
+                "normalization accounts for 2.5m radius loop, "
+                "8 turns * 69 A current, nanoTesla"
+            ),
             "normalization": [2.9e-4, 1e-9],
             "tx_specs": {"type": "CircularLoop", "a": 1.0, "I": 1.0},
             "data_type": "dBzdt",
@@ -262,7 +270,10 @@ def parameters():
             "waveform": "stepoff",
             "tx_offsets": [[-90, 0, -43]],
             "bird_offset": [-90, 0, -43],
-            "comment": "normalization accounts for unit dipole moment at the tx_offset, in part-per-million",
+            "comment": (
+                "normalization accounts for unit dipole "
+                "moment at the tx_offset, in part-per-million"
+            ),
             "normalization": "ppm",
             "tx_specs": {"type": "VMD", "a": 1.0, "I": 1.0},
             "data_type": "Bz",
@@ -373,7 +384,10 @@ def parameters():
             ],
             "tx_offsets": [[-123, 0, -56]],
             "bird_offset": [-123, 0, -56],
-            "comment": "normalization accounts for unit dipole moment at the tx_offset, in part-per-million",
+            "comment": (
+                "normalization accounts for unit dipole "
+                "moment at the tx_offset, in part-per-million"
+            ),
             "normalization": "ppm",
             "tx_specs": {"type": "VMD", "a": 1.0, "I": 1.0},
             "data_type": "Bz",
@@ -505,7 +519,10 @@ def parameters():
             ],
             "tx_offsets": [[17.5, 0, 34.6]],
             "bird_offset": [17.5, 0, 34.6],
-            "comment": "normalization accounts for a loop 961 m**2 area * 4 turns * 146 A current, nanoTesla",
+            "comment": (
+                "normalization accounts for a loop 961 "
+                "m**2 area * 4 turns * 146 A current, nanoTesla"
+            ),
             "normalization": [1.7818e-6, 1e-9],
             "tx_specs": {"type": "VMD", "a": 1.0, "I": 1.0},
             "data_type": "dBzdt",
@@ -691,7 +708,10 @@ def parameters():
             ],
             "tx_offsets": [[12.5, 0, 26.8]],
             "bird_offset": [12.5, 0, 26.8],
-            "comment": "normalization accounts for a loop 961 m**2 area * 4 turns * 363 A current, nanoTesla",
+            "comment": (
+                "normalization accounts for a loop 961 "
+                "m**2 area * 4 turns * 363 A current, nanoTesla"
+            ),
             "normalization": [7.167e-7, 1e-9],
             "tx_specs": {"type": "VMD", "a": 1.0, "I": 1.0},
             "data_type": "dBzdt",
@@ -854,7 +874,10 @@ def parameters():
             ],
             "tx_offsets": [[127, 0, -75]],
             "bird_offset": [127, 0, -75],
-            "comment": "normalization accounts for unit dipole moment at the tx_offset, in part-per-million",
+            "comment": (
+                "normalization accounts for unit dipole "
+                "moment at the tx_offset, in part-per-million"
+            ),
             "normalization": "ppm",
             "tx_specs": {"type": "VMD", "a": 1.0, "I": 1.0},
             "data_type": "Bz",
@@ -2682,7 +2705,10 @@ def parameters():
             "waveform": "stepoff",
             "tx_offsets": [[-136, 0, -39]],
             "bird_offset": [-136, 0, -39],
-            "comment": "normalization accounts for unit dipole moment at the tx_offset, in part-per-2000",
+            "comment": (
+                "normalization accounts for unit dipole "
+                "moment at the tx_offset, in part-per-2000"
+            ),
             "normalization": "pp2t",
             "tx_specs": {"type": "VMD", "a": 1.0, "I": 1.0},
             "data_type": "Bz",
@@ -2720,7 +2746,10 @@ def parameters():
             "waveform": "stepoff",
             "tx_offsets": [[-131, 0, -36]],
             "bird_offset": [-131, 0, -36],
-            "comment": "normalization accounts for unit dipole moment at the tx_offset, in part-per-million",
+            "comment": (
+                "normalization accounts for unit dipole "
+                "moment at the tx_offset, in part-per-million"
+            ),
             "normalization": "ppm",
             "tx_specs": {"type": "VMD", "a": 1.0, "I": 1.0},
             "data_type": "Bz",
@@ -2752,7 +2781,10 @@ def parameters():
             "waveform": "stepoff",
             "tx_offsets": [[-136, 0, -39]],
             "bird_offset": [-136, 0, -39],
-            "comment": "normalization accounts for unit dipole moment at the tx_offset, in part-per-2000",
+            "comment": (
+                "normalization accounts for unit dipole "
+                "moment at the tx_offset, in part-per-2000"
+            ),
             "normalization": "ppm",
             "tx_specs": {"type": "VMD", "a": 1.0, "I": 1.0},
             "data_type": "Bz",
@@ -3870,7 +3902,10 @@ def parameters():
             ],
             "tx_offsets": [[0, 0, 0]],
             "bird_offset": [0, 0, 0],
-            "comment": "normalization accounts for 100 m square loop (converted to circular), unit current, in micro-V",
+            "comment": (
+                "normalization accounts for 100 m square "
+                "loop (converted to circular), unit current, in micro-V"
+            ),
             "normalization": [1e-5, 1e-6],
             "tx_specs": {"type": "CircularLoop", "a": 56.4, "I": 1.0},
             "data_type": "dBzdt",

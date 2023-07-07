@@ -18,24 +18,24 @@ from geoh5py.objects import Curve, Points
 from geoh5py.shared.utils import fetch_active_workspace
 from tqdm import tqdm
 
+from peak_finder.base import geophysical_systems
 from peak_finder.base.driver import BaseDriver
+from peak_finder.base.formatters import string_name
+from peak_finder.base.utils import hex_to_rgb
 from peak_finder.constants import validations
 from peak_finder.params import PeakFinderParams
 from peak_finder.utils import default_groups_from_property_group, find_anomalies
-from peak_finder.base.utils import hex_to_rgb
-from peak_finder.base import geophysical_systems
-from peak_finder.base.formatters import string_name
 
 
 class PeakFinderDriver(BaseDriver):
-    _params_class = PeakFinderParams
+    _params_class: PeakFinderParams = PeakFinderParams  # type: ignore
     _validations = validations
 
     def __init__(self, params: PeakFinderParams):
         super().__init__(params)
         self.params: PeakFinderParams = params
 
-    def run(self):
+    def run(self):  # pylint: disable=R0912, R0914, R0915 # noqa: C901
         with fetch_active_workspace(self.params.geoh5, mode="r+"):
             survey = self.params.objects
             prop_group = [
@@ -211,8 +211,8 @@ class PeakFinderDriver(BaseDriver):
                     if self.params.tem_checkbox:
                         markers = []
 
-                        def rotation_2D(angle):
-                            R = np.r_[
+                        def rotation_2d(angle):
+                            rot = np.r_[
                                 np.c_[
                                     np.cos(np.pi * angle / 180),
                                     -np.sin(np.pi * angle / 180),
@@ -222,7 +222,7 @@ class PeakFinderDriver(BaseDriver):
                                     np.cos(np.pi * angle / 180),
                                 ],
                             ]
-                            return R
+                            return rot
 
                         for azm, xyz, mig in zip(
                             np.hstack(azimuth).tolist(),
@@ -238,7 +238,7 @@ class PeakFinderDriver(BaseDriver):
 
                             marker = (
                                 np.c_[
-                                    np.dot(rotation_2D(-azm), marker.T).T, np.zeros(4)
+                                    np.dot(rotation_2d(-azm), marker.T).T, np.zeros(4)
                                 ]
                                 + xyz
                             )
@@ -324,5 +324,5 @@ class PeakFinderDriver(BaseDriver):
 
 
 if __name__ == "__main__":
-    file = sys.argv[1]
-    PeakFinderDriver.start(file)
+    FILE = sys.argv[1]
+    PeakFinderDriver.start(FILE)

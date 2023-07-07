@@ -26,8 +26,8 @@ from geoh5py.ui_json.utils import list2str, monitored_directory_copy
 from geoh5py.workspace import Workspace
 from traitlets import TraitError
 
-from peak_finder.base.params import BaseParams
 from peak_finder.base.importing import warn_module_not_found
+from peak_finder.base.params import BaseParams
 
 with warn_module_not_found():
     from ipyfilechooser import FileChooser
@@ -45,7 +45,7 @@ with warn_module_not_found():
     )
 
 
-class BaseApplication:
+class BaseApplication:  # pylint: disable=R0902, R0904
     """
     Base class for geoapps applications
     """
@@ -147,7 +147,7 @@ class BaseApplication:
                             getattr(self, "_" + key, None), BaseApplication
                         ):
                             setattr(self, "_" + key, value)
-                        elif type(getattr(self, key, None)) is types.MethodType:
+                        elif isinstance(getattr(self, key, None), types.MethodType):
                             getattr(self, key, None)(key, value)
                         else:
                             setattr(self, key, value)
@@ -285,7 +285,7 @@ class BaseApplication:
         return self._ga_group_name
 
     @property
-    def geoh5(self) -> [Workspace | str]:
+    def geoh5(self) -> Workspace | str:
         """
         Alias for workspace or h5file property
         """
@@ -373,7 +373,7 @@ class BaseApplication:
         return self._export_directory
 
     @property
-    def params(self) -> BaseParams:
+    def params(self) -> BaseParams | None:
         """
         Application parameters
         """

@@ -179,6 +179,7 @@ template_dict = {
     },
 }
 
+
 # Over-write validations for jupyter app parameters
 validations = {
     "line_id": {"types": [int, type(None)]},

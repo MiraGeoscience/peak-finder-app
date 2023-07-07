@@ -25,8 +25,8 @@ class BaseDriver(ABC):
 
     def __init__(self, params: BaseParams):
         self._workspace: Workspace | None = None
-        self._out_group = None
-        self._validations = None
+        self._out_group: str | None = None
+        self._validations: dict | None = None
         self.params = params
 
         if hasattr(self.params, "out_group") and self.params.out_group is None:
@@ -95,7 +95,7 @@ class BaseDriver(ABC):
         )
 
         generate_sweep = ifile.data.get("generate_sweep", None)
-        if generate_sweep:
+        if generate_sweep:  # pylint: disable=R1705
             ifile.data["generate_sweep"] = False
             name = filepath.name
             path = filepath.parent
@@ -103,6 +103,7 @@ class BaseDriver(ABC):
             generate(  # pylint: disable=E1123
                 str(filepath), update_values={"conda_environment": "geoapps"}
             )
+            return None
         else:
             params = driver_class._params_class(ifile)  # pylint: disable=W0212
             print("Initializing application . . .")
