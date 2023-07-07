@@ -16,7 +16,6 @@ from geoh5py.workspace import Workspace
 from ipywidgets import Widget
 
 from peak_finder.application import PeakFinder, PeakFinderDriver
-
 from tests import PROJECT
 
 # pytest.skip("eliminating conflicting test.", allow_module_level=True)
@@ -28,17 +27,17 @@ def test_peak_finder_app(tmp_path: Path):
     h5file_path = tmp_path / r"testPeakFinder.geoh5"
 
     # Create temp workspace
-    ws = Workspace(h5file_path)
+    temp_ws = Workspace(h5file_path)
 
     x = np.arange(-2 * np.pi + np.pi / 4, 2 * np.pi, np.pi / 32)
 
-    curve = Curve.create(ws, vertices=np.c_[x, np.zeros((x.shape[0], 2))])
+    curve = Curve.create(temp_ws, vertices=np.c_[x, np.zeros((x.shape[0], 2))])
 
-    for ii in range(5):
-        c = curve.add_data(
-            {f"d{ii}": {"values": np.sin(x + np.pi / 8.0 * ii) - 0.1 * ii}}
+    for ind in range(5):
+        data = curve.add_data(
+            {f"d{ind}": {"values": np.sin(x + np.pi / 8.0 * ind) - 0.1 * ind}}
         )
-        curve.add_data_to_group(c, property_group="obs")
+        curve.add_data_to_group(data, property_group="obs")
 
     line = curve.add_data(
         {
@@ -62,7 +61,7 @@ def test_peak_finder_app(tmp_path: Path):
         "max_migration": 1.0,
         "group_auto": True,
     }
-    app.geoh5 = ws
+    app.geoh5 = temp_ws
 
     for param, value in changes.items():
         if isinstance(getattr(app, param), Widget):
@@ -72,10 +71,11 @@ def test_peak_finder_app(tmp_path: Path):
 
     app.trigger_click(None)
 
-    anomalies = app.lines.anomalies
-    assert len(anomalies) == 3, f"Expected 3 groups. Found {len(anomalies)}"
+    if app.lines is not None and hasattr(app.lines, "anomalies"):
+        anomalies = app.lines.anomalies
+        assert len(anomalies) == 3, f"Expected 3 groups. Found {len(anomalies)}"
     assert all(
-        [aa["azimuth"] == 270 for aa in anomalies]
+        aa["azimuth"] == 270 for aa in anomalies
     ), "Anomalies with wrong azimuth found"
     assert [aa["channel_group"]["label"][0] for aa in anomalies] == [
         4,
