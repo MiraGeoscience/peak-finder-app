@@ -35,9 +35,8 @@ def sorted_children_dict(
 
     if isinstance(entity, UUID) and workspace is not None:
         entity = workspace.get_entity(entity)[0]
-        if not entity:
-            return None
 
+    if hasattr(entity, "children"):
         children_dict = {}
         for child in entity.children:
             if not isinstance(child, (IntegerData, FloatData)):
