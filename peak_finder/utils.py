@@ -7,10 +7,72 @@
 
 from __future__ import annotations
 
+from uuid import UUID
+
 import numpy as np
+from geoh5py.data import Data
+from geoh5py.shared import Entity
 from scipy.interpolate import interp1d
 
 from peak_finder.base.utils import running_mean
+
+
+def default_groups_from_property_group(
+    property_group, start_index=0
+):  # pylint: disable=R0914
+    _default_channel_groups = {
+        "early": {"label": ["early"], "color": "#0000FF", "channels": []},
+        "middle": {"label": ["middle"], "color": "#FFFF00", "channels": []},
+        "late": {"label": ["late"], "color": "#FF0000", "channels": []},
+        "early + middle": {
+            "label": ["early", "middle"],
+            "color": "#00FFFF",
+            "channels": [],
+        },
+        "early + middle + late": {
+            "label": ["early", "middle", "late"],
+            "color": "#008000",
+            "channels": [],
+        },
+        "middle + late": {
+            "label": ["middle", "late"],
+            "color": "#FFA500",
+            "channels": [],
+        },
+    }
+
+    parent = property_group.parent
+
+    data_list = [
+        parent.workspace.get_entity(uid)[0] for uid in property_group.properties
+    ]
+
+    start = start_index
+    end = len(data_list)
+    block = int((end - start) / 3)
+    ranges = {
+        "early": np.arange(start, start + block).tolist(),
+        "middle": np.arange(start + block, start + 2 * block).tolist(),
+        "late": np.arange(start + 2 * block, end).tolist(),
+    }
+
+    channel_groups = {}
+    for i, (key, default) in enumerate(_default_channel_groups.items()):
+        prop_group = parent.find_or_create_property_group(name=key)
+        prop_group.properties = []
+
+        for val in default["label"]:
+            for ind in ranges[val]:
+                prop_group.properties += [data_list[ind].uid]
+
+        channel_groups[prop_group.name] = {
+            "data": prop_group.uid,
+            "color": default["color"],
+            "label": [i + 1],
+            "properties": prop_group.properties,
+        }
+
+    return channel_groups
 
 
 class LineDataDerivatives:  # pylint: disable=R0902
@@ -69,45 +131,6 @@ class LineDataDerivatives:  # pylint: disable=R0902
         for key, value in kwargs.items():
             if getattr(self, key, None) is not None:
                 setattr(self, key, value)
-
-    def interp_x(self, distance):
-        """
-        Get the x-coordinate from the inline distance.
-        """
-        if getattr(self, "Fx", None) is None and self.x_locations is not None:
-            self.Fx = interp1d(
-                self.locations,
-                self.x_locations,
-                bounds_error=False,
-                fill_value="extrapolate",
-            )
-        return self.Fx(distance)
-
-    def interp_y(self, distance):
-        """
-        Get the y-coordinate from the inline distance.
-        """
-        if getattr(self, "Fy", None) is None and self.y_locations is not None:
-            self.Fy = interp1d(
-                self.locations,
-                self.y_locations,
-                bounds_error=False,
-                fill_value="extrapolate",
-            )
-        return self.Fy(distance)
-
-    def interp_z(self, distance):
-        """
-        Get the z-coordinate from the inline distance.
-        """
-        if getattr(self, "Fz", None) is None and self.z_locations is not None:
-            self.Fz = interp1d(
-                self.locations,
-                self.z_locations,
-                bounds_error=False,
-                fill_value="extrapolate",
-            )
-        return self.Fz(distance)
 
     @property
     def epsilon(self):
@@ -299,6 +322,45 @@ class LineDataDerivatives:  # pylint: disable=R0902
             self._smoothing = value
             self.values_resampled = None
 
+    def interp_x(self, distance):
+        """
+        Get the x-coordinate from the inline distance.
+        """
+        if getattr(self, "Fx", None) is None and self.x_locations is not None:
+            self.Fx = interp1d(
+                self.locations,
+                self.x_locations,
+                bounds_error=False,
+                fill_value="extrapolate",
+            )
+        return self.Fx(distance)
+
+    def interp_y(self, distance):
+        """
+        Get the y-coordinate from the inline distance.
+        """
+        if getattr(self, "Fy", None) is None and self.y_locations is not None:
+            self.Fy = interp1d(
+                self.locations,
+                self.y_locations,
+                bounds_error=False,
+                fill_value="extrapolate",
+            )
+        return self.Fy(distance)
+
+    def interp_z(self, distance):
+        """
+        Get the z-coordinate from the inline distance.
+        """
+        if getattr(self, "Fz", None) is None and self.z_locations is not None:
+            self.Fz = interp1d(
+                self.locations,
+                self.z_locations,
+                bounds_error=False,
+                fill_value="extrapolate",
+            )
+        return self.Fz(distance)
+
     def derivative(self, order=1) -> np.ndarray:
         """
         Compute and return the first order derivative.
@@ -314,134 +376,32 @@ class LineDataDerivatives:  # pylint: disable=R0902
 
         return deriv
 
+    def interpolate_array(self, inp_array) -> np.ndarray:
+        return np.c_[
+            self.interp_x(self.locations_resampled[inp_array]),
+            self.interp_y(self.locations_resampled[inp_array]),
+            self.interp_z(self.locations_resampled[inp_array]),
+        ]
 
-def default_groups_from_property_group(
-    property_group, start_index=0
-):  # pylint: disable=R0914
-    _default_channel_groups = {
-        "early": {"label": ["early"], "color": "#0000FF", "channels": []},
-        "middle": {"label": ["middle"], "color": "#FFFF00", "channels": []},
-        "late": {"label": ["late"], "color": "#FF0000", "channels": []},
-        "early + middle": {
-            "label": ["early", "middle"],
-            "color": "#00FFFF",
-            "channels": [],
-        },
-        "early + middle + late": {
-            "label": ["early", "middle", "late"],
-            "color": "#008000",
-            "channels": [],
-        },
-        "middle + late": {
-            "label": ["middle", "late"],
-            "color": "#FFA500",
-            "channels": [],
-        },
-    }
+    def get_peak_indices(
+            self,
+            min_value: float,
+    ):
+        """
+        Get maxima and minima for a line profile.
 
-    parent = property_group.parent
+        :param min_value: Minimum value for data.
 
-    data_list = [
-        parent.workspace.get_entity(uid)[0] for uid in property_group.properties
-    ]
+        :return: Indices of maxima.
+        :return: Indices of minima.
+        :return: Indices of upward inflection points.
+        :return: Indices of downward inflection points.
+        """
+        values = self.values_resampled
+        dx = self.derivative(order=1)  # pylint: disable=C0103
+        ddx = self.derivative(order=2)
 
-    start = start_index
-    end = len(data_list)
-    block = int((end - start) / 3)
-    ranges = {
-        "early": np.arange(start, start + block).tolist(),
-        "middle": np.arange(start + block, start + 2 * block).tolist(),
-        "late": np.arange(start + 2 * block, end).tolist(),
-    }
-
-    channel_groups = {}
-    for i, (key, default) in enumerate(_default_channel_groups.items()):
-        prop_group = parent.find_or_create_property_group(name=key)
-        prop_group.properties = []
-
-        for val in default["label"]:
-            for ind in ranges[val]:
-                prop_group.properties += [data_list[ind].uid]
-
-        channel_groups[prop_group.name] = {
-            "data": prop_group.uid,
-            "color": default["color"],
-            "label": [i + 1],
-            "properties": prop_group.properties,
-        }
-
-    return channel_groups
-
-
-def find_anomalies(  # pylint: disable=R0912, R0913, R0914, R0915 # noqa: C901
-    locations,
-    line_indices,
-    channels,
-    channel_groups,
-    smoothing=1,
-    use_residual=False,
-    data_normalization=(1.0,),
-    min_amplitude=25,
-    min_value=-np.inf,
-    min_width=200,
-    max_migration=50,
-    min_channels=3,
-    minimal_output=False,
-    return_profile=False,
-):
-    """
-    Find all anomalies along a line profile of data.
-    Anomalies are detected based on the lows, inflection points and a peaks.
-    Neighbouring anomalies are then grouped and assigned a channel_group label.
-
-    :param: :obj:`geoh5py.objects.Curve`
-        Curve object containing data.
-    :param: list
-        List of Data channels
-    :param: array of int or bool
-        Array defining a line of data from the input Curve object
-
-
-    :return: list of dict
-    """
-    profile = LineDataDerivatives(
-        locations=locations[line_indices], smoothing=smoothing, residual=use_residual
-    )
-    locs = profile.locations_resampled
-    if data_normalization == "ppm":
-        data_normalization = [1e-6]
-
-    if locs is None:
-        return {}
-
-    mat = np.c_[profile.interp_x(locs), profile.interp_y(locs)]
-    angles = np.arctan2(mat[1:, 1] - mat[:-1, 1], mat[1:, 0] - mat[:-1, 0])
-    angles = np.r_[angles[0], angles].tolist()
-    azimuth = (450.0 - np.rad2deg(running_mean(angles, width=5))) % 360.0
-    anomalies = {
-        "channel": [],
-        "start": [],
-        "inflx_up": [],
-        "peak": [],
-        "peak_values": [],
-        "inflx_dwn": [],
-        "end": [],
-        "amplitude": [],
-        "group": [],
-        "channel_group": [],
-    }
-    data_uid = list(channels)
-    property_groups = list(channel_groups.values())
-    group_prop_size = np.r_[[len(grp["properties"]) for grp in channel_groups.values()]]
-    for chan, (uid, params) in enumerate(channels.items()):
-        if "values" not in list(params):
-            continue
-
-        values = params["values"][line_indices].copy()
-        profile.values = values
-        values = profile.values_resampled
-        dx = profile.derivative(order=1)  # pylint: disable=C0103
-        ddx = profile.derivative(order=2)
+        # Find maxima and minima
         peaks = np.where(
             (np.diff(np.sign(dx)) != 0)
             & (ddx[1:] < 0)
@@ -452,47 +412,213 @@ def find_anomalies(  # pylint: disable=R0912, R0913, R0914, R0915 # noqa: C901
             & (ddx[1:] > 0)
             & (values[:-1] > min_value)  # pylint: disable=unsubscriptable-object
         )[0]
-        lows = np.r_[0, lows, locs.shape[0] - 1]
-        up_inflx = np.where(
+        lows = np.r_[0, lows, self.locations_resampled.shape[0] - 1]
+        # Find inflection points
+        inflect_up = np.where(
             (np.diff(np.sign(ddx)) != 0)
             & (dx[1:] > 0)
             & (values[:-1] > min_value)  # pylint: disable=unsubscriptable-object
         )[0]
-        dwn_inflx = np.where(
+        inflect_down = np.where(
             (np.diff(np.sign(ddx)) != 0)
             & (dx[1:] < 0)
             & (values[:-1] > min_value)  # pylint: disable=unsubscriptable-object
         )[0]
 
-        if len(peaks) == 0 or len(lows) < 2 or len(up_inflx) < 2 or len(dwn_inflx) < 2:
-            continue
+        return peaks, lows, inflect_up, inflect_down
 
-        for peak in peaks:
+
+class Anomalies:
+
+    def __init__(self):
+        self._channel = []
+        self._start = []
+        self._end = []
+        self._inflect_up = []
+        self._inflect_down = []
+        self._peak = []
+        self._peak_values = []
+        self._amplitude = []
+        self._group = []
+        self._channel_group = []
+
+    @property
+    def channel(self):
+        """
+        """
+        return self._channel
+
+    @channel.setter
+    def channel(self, value):
+        self._channel = value
+
+    @property
+    def start(self):
+        """
+        """
+        return self._start
+
+    @start.setter
+    def start(self, value):
+        self._start = value
+
+    @property
+    def end(self):
+        """
+        """
+        return self._end
+
+    @end.setter
+    def end(self, value):
+        self._end = value
+
+    @property
+    def inflect_up(self):
+        """
+        """
+        return self._inflect_up
+
+    @inflect_up.setter
+    def inflect_up(self, value):
+        self._inflect_up = value
+
+    @property
+    def inflect_down(self):
+        """
+        """
+        return self._inflect_down
+
+    @inflect_down.setter
+    def inflect_down(self, value):
+        self._inflect_down = value
+
+    @property
+    def peak(self):
+        """
+        """
+        return self._peak
+
+    @peak.setter
+    def peak(self, value):
+        self._peak = value
+
+    @property
+    def peak_values(self):
+        """
+        """
+        return self._peak_values
+
+    @peak_values.setter
+    def peak_values(self, value):
+        self._peak_values = value
+
+    @property
+    def amplitude(self):
+        """
+        """
+        return self._amplitude
+
+    @amplitude.setter
+    def amplitude(self, value):
+        self._amplitude = value
+
+    @property
+    def group(self):
+        """
+        """
+        return self._group
+
+    @group.setter
+    def group(self, value):
+        self._group = value
+
+    @property
+    def channel_group(self):
+        """
+        """
+        return self._channel_group
+
+    @channel_group.setter
+    def channel_group(self, value):
+        self._channel_group = value
+
+    def reformat_lists(self):
+        self.channel = np.hstack(self.channel)
+        self.start = np.hstack(self.start)
+        self.inflect_up = np.hstack(self.inflect_up)
+        self.peak = np.hstack(self.peak)
+        self.peak_values = np.hstack(self.peak_values)
+        self.inflect_down = np.hstack(self.inflect_down)
+        self.amplitude = np.hstack(self.amplitude)
+        self.end = np.hstack(self.end)
+        self.group = np.hstack(self.group)
+
+    def iterate_over_peaks(
+            self,
+            profile: LineDataDerivatives,
+            channel: int,
+            channel_groups: dict,
+            uid: UUID,
+            min_amplitude: int,
+            min_width: float,
+            peaks_inds: np.ndarray,
+            lows_inds: np.ndarray,
+            inflect_up_inds: np.ndarray,
+            inflect_down_inds: np.ndarray,
+            locs: np.ndarray,
+    ):
+        """
+        Iterate over peaks and add to anomalies.
+
+        :param profile: Line profile.
+        :param channel: Channel.
+        :param channel_groups: Channel groups.
+        :param uid: Channel uid.
+        :param min_amplitude: Minimum amplitude.
+        :param min_width: Minimum width.
+        :param peaks_inds: Peak indices.
+        :param lows_inds: Minima indices.
+        :param inflect_up_inds: Upward inflection indices.
+        :param inflect_down_inds: Downward inflection indices.
+        :param locs: Locations.
+        """
+        if len(peaks_inds) == 0 or len(lows_inds) < 2 or len(inflect_up_inds) < 2 or len(inflect_down_inds) < 2:
+            return
+
+        for peak in peaks_inds:
+            # Get start of peak
             ind = np.median(
-                [0, lows.shape[0] - 1, np.searchsorted(locs[lows], locs[peak]) - 1]
+                [0, lows_inds.shape[0] - 1, np.searchsorted(locs[lows_inds], locs[peak]) - 1]
             ).astype(int)
-            start = lows[ind]
+            start = lows_inds[ind]
+
+            # Get end of peak
             ind = np.median(
-                [0, lows.shape[0] - 1, np.searchsorted(locs[lows], locs[peak])]
+                [0, lows_inds.shape[0] - 1, np.searchsorted(locs[lows_inds], locs[peak])]
             ).astype(int)
-            end = np.min([locs.shape[0] - 1, lows[ind]])
+            end = np.min([locs.shape[0] - 1, lows_inds[ind]])
+
+            # Inflection points
             ind = np.median(
                 [
                     0,
-                    up_inflx.shape[0] - 1,
-                    np.searchsorted(locs[up_inflx], locs[peak]) - 1,
+                    inflect_up_inds.shape[0] - 1,
+                    np.searchsorted(locs[inflect_up_inds], locs[peak]) - 1,
                 ]
             ).astype(int)
-            inflx_up = up_inflx[ind]
+            inflect_up = inflect_up_inds[ind]
+
             ind = np.median(
                 [
                     0,
-                    dwn_inflx.shape[0] - 1,
-                    np.searchsorted(locs[dwn_inflx], locs[peak]),
+                    inflect_down_inds.shape[0] - 1,
+                    np.searchsorted(locs[inflect_down_inds], locs[peak]),
                 ]
             ).astype(int)
-            inflx_dwn = np.min([locs.shape[0] - 1, dwn_inflx[ind] + 1])
+            inflect_down = np.min([locs.shape[0] - 1, inflect_down_inds[ind] + 1])
+
             # Check amplitude and width thresholds
+            values = profile.values_resampled
             delta_amp = (
                 np.abs(
                     np.min(
@@ -503,82 +629,355 @@ def find_anomalies(  # pylint: disable=R0912, R0913, R0914, R0915 # noqa: C901
                             - values[end],  # pylint: disable=unsubscriptable-object
                         ]
                     )
-                )
-                / (np.std(values) + 2e-32)
+                ) / (np.std(values) + 2e-32)
             ) * 100.0
             delta_x = locs[end] - locs[start]
             amplitude = (
-                np.sum(
-                    np.abs(values[start:end])  # pylint: disable=unsubscriptable-object
-                )
-                * profile.sampling
+                    np.sum(
+                        np.abs(values[start:end])  # pylint: disable=unsubscriptable-object
+                    )
+                    * profile.sampling
             )
+
             if (delta_amp > min_amplitude) & (delta_x > min_width):
-                anomalies["channel"] += [chan]
-                anomalies["start"] += [start]
-                anomalies["inflx_up"] += [inflx_up]
-                anomalies["peak"] += [peak]
-                anomalies["peak_values"] += [
+                self.channel.append(channel)
+                self.start.append(start)
+                self.end.append(end)
+                self.inflect_up.append(inflect_up)
+                self.inflect_down.append(inflect_down)
+                self.peak.append(peak)
+                self.peak_values.append(
                     values[peak]  # pylint: disable=unsubscriptable-object
-                ]
-                anomalies["inflx_dwn"] += [inflx_dwn]
-                anomalies["amplitude"] += [amplitude]
-                anomalies["end"] += [end]
-                anomalies["group"] += [-1]
-                anomalies["channel_group"] += [
+                )
+                self.amplitude.append(amplitude)
+                self.group.append(-1)
+                self.channel_group.append(
                     [
                         key
                         for key, channel_group in enumerate(channel_groups.values())
                         if uid in channel_group["properties"]
                     ]
-                ]
+                )
 
-    if len(anomalies["peak"]) == 0:
-        if return_profile:
-            return {}, profile
-        return {}
 
+class AnomalyGroup:
+
+    _skew = None
+
+    def __init__(
+            self,
+            channels,
+            start,
+            end,
+            inflect_up,
+            inflect_down,
+            peak,
+            cox,
+            azimuth,
+            migration,
+            amplitude,
+            channel_group,
+            linear_fit,
+    ):
+        self._channels = channels
+        self._start = start
+        self._end = end
+        self._inflect_up = inflect_up
+        self._inflect_down = inflect_down
+        self._peak = peak
+        self._cox = cox
+        self._azimuth = azimuth
+        self._migration = migration
+        self._amplitude = amplitude
+        self._channel_group = channel_group
+        self._linear_fit = linear_fit
+
+    @property
+    def channels(self):
+        """
+        """
+        return self._channels
+
+    @channels.setter
+    def channels(self, value):
+        self._channels = value
+
+    @property
+    def start(self):
+        """
+        """
+        return self._start
+
+    @start.setter
+    def start(self, value):
+        self._start = value
+
+    @property
+    def end(self):
+        """
+        """
+        return self._end
+
+    @end.setter
+    def end(self, value):
+        self._end = value
+
+    @property
+    def inflect_up(self):
+        """
+        """
+        return self._inflect_up
+
+    @inflect_up.setter
+    def inflect_up(self, value):
+        self._inflect_up = value
+
+    @property
+    def inflect_down(self):
+        """
+        """
+        return self._inflect_down
+
+    @inflect_down.setter
+    def inflect_down(self, value):
+        self._inflect_down = value
+
+    @property
+    def peak(self):
+        """
+        """
+        return self._peak
+
+    @peak.setter
+    def peak(self, value):
+        self._peak = value
+
+    @property
+    def cox(self):
+        """
+        """
+        return self._cox
+
+    @cox.setter
+    def cox(self, value):
+        self._cox = value
+
+    @property
+    def azimuth(self):
+        """
+        """
+        return self._azimuth
+
+    @azimuth.setter
+    def azimuth(self, value):
+        self._azimuth = value
+
+    @property
+    def migration(self):
+        """
+        """
+        return self._migration
+
+    @migration.setter
+    def migration(self, value):
+        self._migration = value
+
+    @property
+    def amplitude(self):
+        """
+        """
+        return self._amplitude
+
+    @amplitude.setter
+    def amplitude(self, value):
+        self._amplitude = value
+
+    @property
+    def channel_group(self):
+        """
+        """
+        return self._channel_group
+
+    @channel_group.setter
+    def channel_group(self, value):
+        self._channel_group = value
+
+    @property
+    def linear_fit(self):
+        """
+        """
+        return self._linear_fit
+
+    @linear_fit.setter
+    def linear_fit(self, value):
+        self._linear_fit = value
+
+    @property
+    def skew(self):
+        """
+        """
+        return self._skew
+
+    @skew.setter
+    def skew(self, value):
+        self._skew = value
+
+    @staticmethod
+    def compute_skew(
+        locs,
+        cox,
+        cox_sort,
+        inflect_up,
+        inflect_down,
+        azimuth_near,
+    ):
+        """
+        print("locs")
+        print(type(locs))
+        print("cox")
+        print(type(cox))
+        print("cox_sort")
+        print(type(cox_sort))
+        print("inflect_up")
+        print(type(inflect_up))
+        print("inflect_down")
+        print(type(inflect_down))
+        print("azimuth_near")
+        print(type(azimuth_near))
+        """
+        skew = (locs[cox][cox_sort[0]] - locs[inflect_up][cox_sort]) / (
+                locs[inflect_down][cox_sort] - locs[cox][cox_sort[0]] + 1e-8
+        )
+        skew[azimuth_near[cox_sort] > 180] = 1.0 / (
+                skew[azimuth_near[cox_sort] > 180] + 1e-2
+        )
+        # Change skew factor from [-100, 1]
+        flip_skew = skew < 1
+        skew[flip_skew] = 1.0 / (skew[flip_skew] + 1e-2)
+        skew = 1.0 - skew
+        skew[flip_skew] *= -1
+
+        return skew
+
+    @staticmethod
+    def compute_linear_fit(
+            channels,
+            gates,
+            cox,
+            values
+    ):
+        times = [
+            channel["time"]
+            for i, channel in enumerate(channels.values())
+            if (i in list(gates) and "time" in channel)
+        ]
+
+        linear_fit = None
+        if len(times) > 2 and len(cox) > 0:
+            times = np.hstack(times)[values > 0]
+            if len(times) > 2:
+                # Compute linear trend
+                slope, intercept = np.polyfit(times, np.log(values[values > 0]), 1)
+                linear_fit = [intercept, slope]
+
+        return linear_fit
+
+
+
+def get_near_peaks(
+    ind: int,
+    peaks_position: np.ndarray,
+    max_migration: float,
+    anomalies: Anomalies,
+):
+    """
+    Get indices of peaks within the migration distance.
+
+    :param ind: Index of the peak.
+    :param peaks_position: Array of peak positions.
+    :param max_migration: Maximum migration distance.
+    :param anomalies: Anomalies object.
+
+    :return: Array of indices of peaks within the migration distance.
+    """
+    dist = np.abs(peaks_position[ind] - peaks_position)
+    # Find anomalies across channels within horizontal range
+    near = np.where((dist < max_migration) & (anomalies.group == -1))[0]
+    # Reject from group if channel gap > 1
+    u_gates, u_count = np.unique(anomalies.channel[near], return_counts=True)
+    if len(u_gates) > 1 and np.any((u_gates[1:] - u_gates[:-1]) > 2):
+        cutoff = u_gates[np.where((u_gates[1:] - u_gates[:-1]) > 2)[0][0]]
+        near = near[anomalies.channel[near] <= cutoff]  # Remove after cutoff
+    # Check for multiple nearest peaks on single channel
+    # and keep the nearest
+    u_gates, u_count = np.unique(anomalies.channel[near], return_counts=True)
+    for gate in u_gates[np.where(u_count > 1)]:
+        mask = np.ones_like(near, dtype="bool")
+        sub_ind = anomalies.channel[near] == gate
+        sub_ind[np.where(sub_ind)[0][np.argmin(dist[near][sub_ind])]] = False
+        mask[sub_ind] = False
+        near = near[mask]
+    return near
+
+
+
+def group_anomalies(
+        anomalies: Anomalies,
+        profile: LineDataDerivatives,
+        max_migration: float,
+        channel_groups: dict,
+        group_prop_size: np.ndarray,
+        min_channels: int,
+        property_groups: list,
+        data_uid: list,
+        azimuth: np.ndarray,
+        data_normalization: list | str,
+        channels: dict,
+        minimal_output: bool,
+) -> list[AnomalyGroup]:
+    """
+    Group anomalies.
+
+    :param anomalies: Anomalies object.
+    :param max_migration: Maximum migration distance between anomalies.
+    :param channel_groups: Channel groups.
+    :param group_prop_size: Group property size.
+    :param min_channels: Minimum number of channels in a group.
+    :param property_groups: Property groups.
+    :param data_uid: List of uids for channels.
+    :param azimuth: Azimuth.
+    :param data_normalization: Data normalization factor.
+    :param channels: Channels.
+    :param minimal_output: Whether to return minimal output.
+
+    :return: List of groups of anomalies.
+    """
+    locs = profile.locations_resampled
+    peaks_position = locs[anomalies.peak]
     groups = []
-
-    # Re-cast as numpy arrays
-    for key, values in anomalies.items():
-        if key == "channel_group":
-            continue
-        anomalies[key] = np.hstack(values)
-
     group_id = -1
-    peaks_position = locs[anomalies["peak"]]
+
     for i in range(peaks_position.shape[0]):
         # Skip if already labeled
-        if anomalies["group"][i] != -1:
+        if anomalies.group[i] != -1:
             continue
+        group_id += 1
 
-        group_id += 1  # Increment group id
-        dist = np.abs(peaks_position[i] - peaks_position)
-        # Find anomalies across channels within horizontal range
-        near = np.where((dist < max_migration) & (anomalies["group"] == -1))[0]
-        # Reject from group if channel gap > 1
-        u_gates, u_count = np.unique(anomalies["channel"][near], return_counts=True)
-        if len(u_gates) > 1 and np.any((u_gates[1:] - u_gates[:-1]) > 2):
-            cutoff = u_gates[np.where((u_gates[1:] - u_gates[:-1]) > 2)[0][0]]
-            near = near[anomalies["channel"][near] <= cutoff]  # Remove after cutoff
-        # Check for multiple nearest peaks on single channel
-        # and keep the nearest
-        u_gates, u_count = np.unique(anomalies["channel"][near], return_counts=True)
-        for gate in u_gates[np.where(u_count > 1)]:
-            mask = np.ones_like(near, dtype="bool")
-            sub_ind = anomalies["channel"][near] == gate
-            sub_ind[np.where(sub_ind)[0][np.argmin(dist[near][sub_ind])]] = False
-            mask[sub_ind] = False
-            near = near[mask]
+        # Find nearest peaks
+        near = get_near_peaks(
+            i,
+            peaks_position,
+            max_migration,
+            anomalies,
+        )
 
         score = np.zeros(len(channel_groups))
         for ids in near:
-            score[anomalies["channel_group"][ids]] += 1
+            score[anomalies.channel_group[ids]] += 1
 
-        # Find groups with largest channel overlap
+        # Find groups with the largest channel overlap
         max_scores = np.where(score == score.max())[0]
-        # Keep the group with less properties
+        # Keep the group with fewer properties
         in_group = max_scores[
             np.argmax(score[max_scores] / group_prop_size[max_scores])
         ]
@@ -588,115 +987,189 @@ def find_anomalies(  # pylint: disable=R0912, R0913, R0914, R0915 # noqa: C901
         channel_group = property_groups[in_group]
         # Remove anomalies not in group
         mask = [
-            data_uid[anomalies["channel"][id]] in channel_group["properties"]
+            data_uid[anomalies.channel[id]] in channel_group["properties"]
             for id in near
         ]
         near = near[mask, ...]
         if len(near) == 0:
             continue
-        anomalies["group"][near] = group_id
-        gates = anomalies["channel"][near]
-        cox = anomalies["peak"][near]
-        inflx_dwn = anomalies["inflx_dwn"][near]
-        inflx_up = anomalies["inflx_up"][near]
+
+        anomalies.group[near] = group_id
+        gates = anomalies.channel[near]
+        cox = anomalies.peak[near]
+
+        inflect_down = anomalies.inflect_down[near]
+        inflect_up = anomalies.inflect_up[near]
         cox_sort = np.argsort(locs[cox])
         azimuth_near = azimuth[cox]
         dip_direction = azimuth[cox[0]]
 
         if (
-            anomalies["peak_values"][near][cox_sort][0]
-            < anomalies["peak_values"][near][cox_sort][-1]
+            anomalies.peak_values[near][cox_sort][0]
+            < anomalies.peak_values[near][cox_sort][-1]
         ):
             dip_direction = (dip_direction + 180) % 360.0
 
         migration = np.abs(locs[cox[cox_sort[-1]]] - locs[cox[cox_sort[0]]])
-        skew = (locs[cox][cox_sort[0]] - locs[inflx_up][cox_sort]) / (
-            locs[inflx_dwn][cox_sort] - locs[cox][cox_sort[0]] + 1e-8
-        )
-        skew[azimuth_near[cox_sort] > 180] = 1.0 / (
-            skew[azimuth_near[cox_sort] > 180] + 1e-2
-        )
-        # Change skew factor from [-100, 1]
-        flip_skew = skew < 1
-        skew[flip_skew] = 1.0 / (skew[flip_skew] + 1e-2)
-        skew = 1.0 - skew
-        skew[flip_skew] *= -1
-        values = anomalies["peak_values"][near] * np.prod(data_normalization)
-        amplitude = np.sum(anomalies["amplitude"][near])
-        times = [
-            channel["time"]
-            for i, channel in enumerate(channels.values())
-            if (i in list(gates) and "time" in channel)
-        ]
-        linear_fit = None
 
-        if len(times) > 2 and len(cox) > 0:
-            times = np.hstack(times)[values > 0]
-            if len(times) > 2:
-                # Compute linear trend
-                mat = np.c_[np.ones_like(times), times]
-                intercept, slope = np.linalg.solve(
-                    np.dot(mat.T, mat), np.dot(mat.T, np.log(values[values > 0]))
-                )
-                linear_fit = [intercept, slope]
+        skew = AnomalyGroup.compute_skew(
+            locs,
+            cox,
+            cox_sort,
+            inflect_up,
+            inflect_down,
+            azimuth_near,
+        )
 
-        group = {
-            "channels": gates,
-            "start": anomalies["start"][near],
-            "inflx_up": anomalies["inflx_up"][near],
-            "peak": cox,
-            "cox": np.mean(
-                np.c_[
-                    profile.interp_x(locs[cox[cox_sort[0]]]),
-                    profile.interp_y(locs[cox[cox_sort[0]]]),
-                    profile.interp_z(locs[cox[cox_sort[0]]]),
-                ],
+        values = anomalies.peak_values[near] * np.prod(data_normalization)
+        amplitude = np.sum(anomalies.amplitude[near])
+
+        linear_fit = AnomalyGroup.compute_linear_fit(
+            channels,
+            gates,
+            cox,
+            values
+        )
+
+        group = AnomalyGroup(
+            channels=gates,
+            start=anomalies.start[near],
+            end=anomalies.end[near],
+            inflect_up=anomalies.inflect_up[near],
+            inflect_down=anomalies.inflect_down[near],
+            peak=cox,
+            cox=np.mean(
+                profile.interpolate_array(cox[cox_sort[0]]),
                 axis=0,
             ),
-            "inflx_dwn": anomalies["inflx_dwn"][near],
-            "end": anomalies["end"][near],
-            "azimuth": dip_direction,
-            "migration": migration,
-            "amplitude": amplitude,
-            "channel_group": channel_group,
-            "linear_fit": linear_fit,
-        }
+            azimuth=dip_direction,
+            migration=migration,
+            amplitude=amplitude,
+            channel_group=channel_group,
+            linear_fit=linear_fit,
+        )
+
         if minimal_output:
-            group["skew"] = np.mean(skew)
-            group["inflx_dwn"] = np.c_[
-                profile.interp_x(locs[inflx_dwn]),
-                profile.interp_y(locs[inflx_dwn]),
-                profile.interp_z(locs[inflx_dwn]),
-            ]
-            group["inflx_up"] = np.c_[
-                profile.interp_x(locs[inflx_up]),
-                profile.interp_y(locs[inflx_up]),
-                profile.interp_z(locs[inflx_up]),
-            ]
-            start = anomalies["start"][near]
-            group["start"] = np.c_[
-                profile.interp_x(locs[start]),
-                profile.interp_y(locs[start]),
-                profile.interp_z(locs[start]),
-            ]
-
-            end = anomalies["end"][near]
-            group["peaks"] = np.c_[
-                profile.interp_x(locs[cox]),
-                profile.interp_y(locs[cox]),
-                profile.interp_z(locs[cox]),
-            ]
-
-            group["end"] = np.c_[
-                profile.interp_x(locs[end]),
-                profile.interp_y(locs[end]),
-                profile.interp_z(locs[end]),
-            ]
-
+            group.skew = np.mean(skew)
+            group.inflect_down = profile.interpolate_array(inflect_down)
+            group.inflect_up = profile.interpolate_array(inflect_up)
+            group.start = profile.interpolate_array(anomalies.start[near])
+            group.end = profile.interpolate_array(anomalies.end[near])
+            group.peaks = profile.interpolate_array(cox)
         else:
-            group["peak_values"] = values
+            group.peak_values = values
 
         groups += [group]
+
+    return groups
+
+
+def find_anomalies(  # pylint: disable=R0912, R0913, R0914, R0915 # noqa: C901
+    locations: np.ndarray,
+    line_indices: np.ndarray,
+    channels: dict,
+    channel_groups: dict,
+    smoothing: int,
+    data_normalization: list | str,
+    min_amplitude: int,
+    min_value: float,
+    min_width: float,
+    max_migration: float,
+    min_channels: int,
+    use_residual: bool = False,
+    minimal_output: bool = False,
+    return_profile: bool = False,
+) -> (list[AnomalyGroup] | None, LineDataDerivatives | None):
+    """
+    Find all anomalies along a line profile of data.
+    Anomalies are detected based on the lows, inflection points and peaks.
+    Neighbouring anomalies are then grouped and assigned a channel_group label.
+
+    :param locations: Survey vertices.
+    :param line_indices: Indices of vertices for line profile.
+    :param channels: Channels.
+    :param channel_groups: Property groups to use for grouping anomalies.
+    :param smoothing: Smoothing factor.
+    :param data_normalization: Value(s) to normalize data by.
+    :param min_amplitude: Minimum amplitude of anomaly as percent.
+    :param min_value: Minimum data value of anomaly.
+    :param min_width: Minimum width of anomaly in meters.
+    :param max_migration: Maximum peak migration.
+    :param min_channels: Minimum number of channels in anomaly.
+    :param use_residual: Whether to use the residual of the smoothing data.
+    :param minimal_output: Whether to return minimal output.
+    :param return_profile: Whether to return the line profile.
+
+    :return: List of groups and line profile.
+    """
+
+    profile = LineDataDerivatives(
+        locations=locations[line_indices], smoothing=smoothing, residual=use_residual
+    )
+    locs = profile.locations_resampled
+
+    if data_normalization == "ppm": #pp2t
+        data_normalization = [1e-6]
+
+    if locs is None:
+        return None
+
+    # Compute azimuth
+    mat = np.c_[profile.interp_x(locs), profile.interp_y(locs)]
+    angles = np.arctan2(mat[1:, 1] - mat[:-1, 1], mat[1:, 0] - mat[:-1, 0])
+    angles = np.r_[angles[0], angles].tolist()
+    azimuth = (450.0 - np.rad2deg(running_mean(angles, width=5))) % 360.0
+
+    anomalies = Anomalies()
+    data_uid = list(channels)
+    property_groups = list(channel_groups.values())
+    group_prop_size = np.r_[[len(grp["properties"]) for grp in channel_groups.values()]]
+    # Iterate over channels and add to anomalies
+    for chan, (uid, params) in enumerate(channels.items()):
+        if "values" not in list(params):
+            continue
+
+        values = params["values"][line_indices].copy()
+        profile.values = values # Update profile with current line values
+
+        # Get indices for peaks and inflection points for line
+        peaks, lows, inflect_up, inflect_down = profile.get_peak_indices(min_value)
+        # Iterate over peaks and add to anomalies
+        anomalies.iterate_over_peaks(
+            profile,
+            chan,
+            channel_groups,
+            uid,
+            min_amplitude,
+            min_width,
+            peaks,
+            lows,
+            inflect_up,
+            inflect_down,
+            locs,
+        )
+
+    anomalies.reformat_lists()
+
+
+    if len(anomalies.peak) == 0:
+        groups = None
+    else:
+        # Group anomalies
+        groups = group_anomalies(
+            anomalies,
+            profile,
+            max_migration,
+            channel_groups,
+            group_prop_size,
+            min_channels,
+            property_groups,
+            data_uid,
+            azimuth,
+            data_normalization,
+            channels,
+            minimal_output,
+        )
 
     if return_profile:
         return groups, profile

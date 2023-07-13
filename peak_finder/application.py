@@ -817,10 +817,10 @@ class PeakFinder(ObjectDataSelection):  # pylint: disable=R0902, R0904
         self.plot_trigger.value = False
         self.survey.line_indices = line_indices
         result = find_anomalies(
-            self.survey.vertices,
-            line_indices,
-            self.active_channels,
-            self.channel_groups,
+            locations=self.survey.vertices,
+            line_indices=line_indices,
+            channels=self.active_channels,
+            channel_groups=self.channel_groups,
             data_normalization=self.em_system_specs[self.system.value]["normalization"],
             smoothing=self.smoothing.value,
             min_amplitude=self.min_amplitude.value,
@@ -855,7 +855,7 @@ class PeakFinder(ObjectDataSelection):  # pylint: disable=R0902, R0904
         if len(self.lines.anomalies) > 0:
             peaks = np.sort(
                 self.lines.profile.locations_resampled[
-                    [group["peak"][0] for group in self.lines.anomalies]
+                    [group.peak[0] for group in self.lines.anomalies]
                 ]
             )
             current = self.center.value
@@ -969,25 +969,25 @@ class PeakFinder(ObjectDataSelection):  # pylint: disable=R0902, R0904
             y_max = np.nanmax([values[sub_ind].max(), y_max])
             axs.plot(locs, values, color=[0.5, 0.5, 0.5, 1])
             for group in self.lines.anomalies:
-                query = np.where(group["channels"] == channel)[0]
+                query = np.where(group.channels == channel)[0]
 
                 if (
                     len(query) == 0
-                    or group["peak"][query[0]] < lims[0]
-                    or group["peak"][query[0]] > lims[1]
+                    or group.peak[query[0]] < lims[0]
+                    or group.peak[query[0]] > lims[1]
                 ):
                     continue
 
                 i = query[0]
-                start = group["start"][i]
-                end = group["end"][i]
+                start = group.start[i]
+                end = group.end[i]
                 axs.plot(
                     locs[start:end],
                     values[start:end],
-                    color=group["channel_group"]["color"],
+                    color=group.channel_group["color"],
                 )
 
-                if group["azimuth"] < 180:
+                if group.azimuth < 180:
                     ori = "right"
                 else:
                     ori = "left"
@@ -995,24 +995,24 @@ class PeakFinder(ObjectDataSelection):  # pylint: disable=R0902, R0904
                 if markers:
                     if i == 0:
                         axs.scatter(
-                            locs[group["peak"][i]],
-                            values[group["peak"][i]],
+                            locs[group.peak[i]],
+                            values[group.peak[i]],
                             s=200,
                             c="k",
                             marker=self.marker[ori],
                             zorder=10,
                         )
-                    peak_markers_x += [locs[group["peak"][i]]]
-                    peak_markers_y += [values[group["peak"][i]]]
-                    peak_markers_c += [group["channel_group"]["color"]]
-                    start_markers_x += [locs[group["start"][i]]]
-                    start_markers_y += [values[group["start"][i]]]
-                    end_markers_x += [locs[group["end"][i]]]
-                    end_markers_y += [values[group["end"][i]]]
-                    up_markers_x += [locs[group["inflx_up"][i]]]
-                    up_markers_y += [values[group["inflx_up"][i]]]
-                    dwn_markers_x += [locs[group["inflx_dwn"][i]]]
-                    dwn_markers_y += [values[group["inflx_dwn"][i]]]
+                    peak_markers_x += [locs[group.peak[i]]]
+                    peak_markers_y += [values[group.peak[i]]]
+                    peak_markers_c += [group.channel_group["color"]]
+                    start_markers_x += [locs[group.start[i]]]
+                    start_markers_y += [values[group.start[i]]]
+                    end_markers_x += [locs[group.end[i]]]
+                    end_markers_y += [values[group.end[i]]]
+                    up_markers_x += [locs[group.inflect_up[i]]]
+                    up_markers_y += [values[group.inflect_up[i]]]
+                    dwn_markers_x += [locs[group.inflect_down[i]]]
+                    dwn_markers_y += [values[group.inflect_down[i]]]
 
             if residual:
                 raw = self.lines.profile.values_resampled_raw
@@ -1143,7 +1143,7 @@ class PeakFinder(ObjectDataSelection):  # pylint: disable=R0902, R0904
             # Find nearest decay to cursor
             group = None
             if getattr(self.lines, "anomalies", None) is not None:
-                peaks = np.r_[[group["peak"][0] for group in self.lines.anomalies]]
+                peaks = np.r_[[group.peak for group in self.lines.anomalies]]
                 if len(peaks) > 0:
                     group = self.lines.anomalies[
                         np.argmin(
@@ -1155,15 +1155,15 @@ class PeakFinder(ObjectDataSelection):  # pylint: disable=R0902, R0904
 
             # Get the times of the group and plot the linear regression
             times = []
-            if group is not None and group["linear_fit"] is not None:
+            if group is not None and group.linear_fit is not None:
                 times = [
                     channel["time"]
                     for i, channel in enumerate(self.active_channels.values())
-                    if i in list(group["channels"])
+                    if i in list(group.channels)
                 ]
             if any(times):
                 times = np.hstack(times)
-                y = np.exp(times * group["linear_fit"][1] + group["linear_fit"][0])
+                y = np.exp(times * group.linear_fit[1] + group.linear_fit[0])
                 axs.plot(
                     times,
                     y,
@@ -1179,9 +1179,9 @@ class PeakFinder(ObjectDataSelection):  # pylint: disable=R0902, R0904
                 )
                 axs.scatter(
                     times,
-                    group["peak_values"],
+                    group.peak_values,
                     s=100,
-                    color=group["channel_group"]["color"],
+                    color=group.channel_group["color"],
                     marker="^",
                     edgecolors="k",
                 )
