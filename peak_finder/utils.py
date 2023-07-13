@@ -10,16 +10,24 @@ from __future__ import annotations
 from uuid import UUID
 
 import numpy as np
-from geoh5py.data import Data
-from geoh5py.shared import Entity
+from geoh5py.groups import PropertyGroup
 from scipy.interpolate import interp1d
 
 from peak_finder.base.utils import running_mean
 
 
 def default_groups_from_property_group(
-    property_group, start_index=0
-):  # pylint: disable=R0914
+    property_group: PropertyGroup,
+    start_index: int = 0,
+) -> dict:  # pylint: disable=R0914
+    """
+    Create default channel groups from a property group.
+
+    :param property_group: Property group to create channel groups from.
+    :param start_index: Starting index of the groups.
+
+    :return: Dictionary of channel groups.
+    """
     _default_channel_groups = {
         "early": {"label": ["early"], "color": "#0000FF", "channels": []},
         "middle": {"label": ["middle"], "color": "#FFFF00", "channels": []},
@@ -88,13 +96,11 @@ class LineDataDerivatives:  # pylint: disable=R0902
         average sampling
     :param interpolation: Type on interpolation accepted by the :obj:`scipy.interpolate.Rbf`
         routine: 'multiquadric', 'inverse', 'gaussian', 'linear', 'cubic', 'quintic', 'thin_plate'
-    :param sampling_width: Number of padding values used in the FFT. By default, the entire array is
-        used as padding.
+    :param smoothing: Number of neighbours used by the :obj:`geoapps.utils.running_mean` routine.
     :param residual: Use the residual between the values and the running mean to compute
         derivatives.
     :param sampling: Sampling interval length (m) used in the FFT. Defaults to the mean data
         separation.
-    :param smoothing: Number of neighbours used by the :obj:`geoapps.utils.running_mean` routine.
     """
 
     def __init__(  # pylint: disable=R0913
@@ -384,8 +390,8 @@ class LineDataDerivatives:  # pylint: disable=R0902
         ]
 
     def get_peak_indices(
-            self,
-            min_value: float,
+        self,
+        min_value: float,
     ):
         """
         Get maxima and minima for a line profile.
@@ -429,7 +435,6 @@ class LineDataDerivatives:  # pylint: disable=R0902
 
 
 class Anomalies:
-
     def __init__(self):
         self._channel = []
         self._start = []
@@ -444,8 +449,7 @@ class Anomalies:
 
     @property
     def channel(self):
-        """
-        """
+        """ """
         return self._channel
 
     @channel.setter
@@ -454,8 +458,7 @@ class Anomalies:
 
     @property
     def start(self):
-        """
-        """
+        """ """
         return self._start
 
     @start.setter
@@ -464,8 +467,7 @@ class Anomalies:
 
     @property
     def end(self):
-        """
-        """
+        """ """
         return self._end
 
     @end.setter
@@ -474,8 +476,7 @@ class Anomalies:
 
     @property
     def inflect_up(self):
-        """
-        """
+        """ """
         return self._inflect_up
 
     @inflect_up.setter
@@ -484,8 +485,7 @@ class Anomalies:
 
     @property
     def inflect_down(self):
-        """
-        """
+        """ """
         return self._inflect_down
 
     @inflect_down.setter
@@ -494,8 +494,7 @@ class Anomalies:
 
     @property
     def peak(self):
-        """
-        """
+        """ """
         return self._peak
 
     @peak.setter
@@ -504,8 +503,7 @@ class Anomalies:
 
     @property
     def peak_values(self):
-        """
-        """
+        """ """
         return self._peak_values
 
     @peak_values.setter
@@ -514,8 +512,7 @@ class Anomalies:
 
     @property
     def amplitude(self):
-        """
-        """
+        """ """
         return self._amplitude
 
     @amplitude.setter
@@ -524,8 +521,7 @@ class Anomalies:
 
     @property
     def group(self):
-        """
-        """
+        """ """
         return self._group
 
     @group.setter
@@ -534,8 +530,7 @@ class Anomalies:
 
     @property
     def channel_group(self):
-        """
-        """
+        """ """
         return self._channel_group
 
     @channel_group.setter
@@ -554,18 +549,18 @@ class Anomalies:
         self.group = np.hstack(self.group)
 
     def iterate_over_peaks(
-            self,
-            profile: LineDataDerivatives,
-            channel: int,
-            channel_groups: dict,
-            uid: UUID,
-            min_amplitude: int,
-            min_width: float,
-            peaks_inds: np.ndarray,
-            lows_inds: np.ndarray,
-            inflect_up_inds: np.ndarray,
-            inflect_down_inds: np.ndarray,
-            locs: np.ndarray,
+        self,
+        profile: LineDataDerivatives,
+        channel: int,
+        channel_groups: dict,
+        uid: UUID,
+        min_amplitude: int,
+        min_width: float,
+        peaks_inds: np.ndarray,
+        lows_inds: np.ndarray,
+        inflect_up_inds: np.ndarray,
+        inflect_down_inds: np.ndarray,
+        locs: np.ndarray,
     ):
         """
         Iterate over peaks and add to anomalies.
@@ -582,19 +577,32 @@ class Anomalies:
         :param inflect_down_inds: Downward inflection indices.
         :param locs: Locations.
         """
-        if len(peaks_inds) == 0 or len(lows_inds) < 2 or len(inflect_up_inds) < 2 or len(inflect_down_inds) < 2:
+        if (
+            len(peaks_inds) == 0
+            or len(lows_inds) < 2
+            or len(inflect_up_inds) < 2
+            or len(inflect_down_inds) < 2
+        ):
             return
 
         for peak in peaks_inds:
             # Get start of peak
             ind = np.median(
-                [0, lows_inds.shape[0] - 1, np.searchsorted(locs[lows_inds], locs[peak]) - 1]
+                [
+                    0,
+                    lows_inds.shape[0] - 1,
+                    np.searchsorted(locs[lows_inds], locs[peak]) - 1,
+                ]
             ).astype(int)
             start = lows_inds[ind]
 
             # Get end of peak
             ind = np.median(
-                [0, lows_inds.shape[0] - 1, np.searchsorted(locs[lows_inds], locs[peak])]
+                [
+                    0,
+                    lows_inds.shape[0] - 1,
+                    np.searchsorted(locs[lows_inds], locs[peak]),
+                ]
             ).astype(int)
             end = np.min([locs.shape[0] - 1, lows_inds[ind]])
 
@@ -629,14 +637,15 @@ class Anomalies:
                             - values[end],  # pylint: disable=unsubscriptable-object
                         ]
                     )
-                ) / (np.std(values) + 2e-32)
+                )
+                / (np.std(values) + 2e-32)
             ) * 100.0
             delta_x = locs[end] - locs[start]
             amplitude = (
-                    np.sum(
-                        np.abs(values[start:end])  # pylint: disable=unsubscriptable-object
-                    )
-                    * profile.sampling
+                np.sum(
+                    np.abs(values[start:end])  # pylint: disable=unsubscriptable-object
+                )
+                * profile.sampling
             )
 
             if (delta_amp > min_amplitude) & (delta_x > min_width):
@@ -661,23 +670,22 @@ class Anomalies:
 
 
 class AnomalyGroup:
-
     _skew = None
 
     def __init__(
-            self,
-            channels,
-            start,
-            end,
-            inflect_up,
-            inflect_down,
-            peak,
-            cox,
-            azimuth,
-            migration,
-            amplitude,
-            channel_group,
-            linear_fit,
+        self,
+        channels,
+        start,
+        end,
+        inflect_up,
+        inflect_down,
+        peak,
+        cox,
+        azimuth,
+        migration,
+        amplitude,
+        channel_group,
+        linear_fit,
     ):
         self._channels = channels
         self._start = start
@@ -694,8 +702,7 @@ class AnomalyGroup:
 
     @property
     def channels(self):
-        """
-        """
+        """ """
         return self._channels
 
     @channels.setter
@@ -704,8 +711,7 @@ class AnomalyGroup:
 
     @property
     def start(self):
-        """
-        """
+        """ """
         return self._start
 
     @start.setter
@@ -714,8 +720,7 @@ class AnomalyGroup:
 
     @property
     def end(self):
-        """
-        """
+        """ """
         return self._end
 
     @end.setter
@@ -724,8 +729,7 @@ class AnomalyGroup:
 
     @property
     def inflect_up(self):
-        """
-        """
+        """ """
         return self._inflect_up
 
     @inflect_up.setter
@@ -734,8 +738,7 @@ class AnomalyGroup:
 
     @property
     def inflect_down(self):
-        """
-        """
+        """ """
         return self._inflect_down
 
     @inflect_down.setter
@@ -744,8 +747,7 @@ class AnomalyGroup:
 
     @property
     def peak(self):
-        """
-        """
+        """ """
         return self._peak
 
     @peak.setter
@@ -754,8 +756,7 @@ class AnomalyGroup:
 
     @property
     def cox(self):
-        """
-        """
+        """ """
         return self._cox
 
     @cox.setter
@@ -764,8 +765,7 @@ class AnomalyGroup:
 
     @property
     def azimuth(self):
-        """
-        """
+        """ """
         return self._azimuth
 
     @azimuth.setter
@@ -774,8 +774,7 @@ class AnomalyGroup:
 
     @property
     def migration(self):
-        """
-        """
+        """ """
         return self._migration
 
     @migration.setter
@@ -784,8 +783,7 @@ class AnomalyGroup:
 
     @property
     def amplitude(self):
-        """
-        """
+        """ """
         return self._amplitude
 
     @amplitude.setter
@@ -794,8 +792,7 @@ class AnomalyGroup:
 
     @property
     def channel_group(self):
-        """
-        """
+        """ """
         return self._channel_group
 
     @channel_group.setter
@@ -804,8 +801,7 @@ class AnomalyGroup:
 
     @property
     def linear_fit(self):
-        """
-        """
+        """ """
         return self._linear_fit
 
     @linear_fit.setter
@@ -814,8 +810,7 @@ class AnomalyGroup:
 
     @property
     def skew(self):
-        """
-        """
+        """ """
         return self._skew
 
     @skew.setter
@@ -824,32 +819,30 @@ class AnomalyGroup:
 
     @staticmethod
     def compute_skew(
-        locs,
-        cox,
-        cox_sort,
-        inflect_up,
-        inflect_down,
-        azimuth_near,
+        locs: np.ndarray,
+        cox: np.ndarray,
+        cox_sort: np.ndarray,
+        inflect_up: np.ndarray,
+        inflect_down: np.ndarray,
+        azimuth_near: np.ndarray,
     ):
         """
-        print("locs")
-        print(type(locs))
-        print("cox")
-        print(type(cox))
-        print("cox_sort")
-        print(type(cox_sort))
-        print("inflect_up")
-        print(type(inflect_up))
-        print("inflect_down")
-        print(type(inflect_down))
-        print("azimuth_near")
-        print(type(azimuth_near))
+        Compute skew factor for an anomaly group.
+
+        :param loc: Resampled line vertices.
+        :param cox: Center of oxidized coal; center of peak.
+        :param cox_sort: Indices to sort cox.
+        :param inflect_up: Upwards inflection points for the group.
+        :param inflect_down: Downwards inflection points for the group.
+        :param azimuth_near: Azimuth values for the group.
+
+        :return: Skew.
         """
         skew = (locs[cox][cox_sort[0]] - locs[inflect_up][cox_sort]) / (
-                locs[inflect_down][cox_sort] - locs[cox][cox_sort[0]] + 1e-8
+            locs[inflect_down][cox_sort] - locs[cox][cox_sort[0]] + 1e-8
         )
         skew[azimuth_near[cox_sort] > 180] = 1.0 / (
-                skew[azimuth_near[cox_sort] > 180] + 1e-2
+            skew[azimuth_near[cox_sort] > 180] + 1e-2
         )
         # Change skew factor from [-100, 1]
         flip_skew = skew < 1
@@ -861,11 +854,21 @@ class AnomalyGroup:
 
     @staticmethod
     def compute_linear_fit(
-            channels,
-            gates,
-            cox,
-            values
-    ):
+        channels: np.ndarray,
+        gates: np.ndarray,
+        cox: np.ndarray,
+        values: np.ndarray,
+    ) -> list[float]:
+        """
+        Compute linear fit for the anomaly group.
+
+        :param channels: Channels.
+        :param gates: Values for anomalies channel in the anomaly group.
+        :param cox: Center of oxidized coal; center of peak.
+        :param values: Normalized peak values of the anomaly group.
+
+        :return: List of intercept, slope for the linear fit.
+        """
         times = [
             channel["time"]
             for i, channel in enumerate(channels.values())
@@ -881,7 +884,6 @@ class AnomalyGroup:
                 linear_fit = [intercept, slope]
 
         return linear_fit
-
 
 
 def get_near_peaks(
@@ -920,20 +922,19 @@ def get_near_peaks(
     return near
 
 
-
 def group_anomalies(
-        anomalies: Anomalies,
-        profile: LineDataDerivatives,
-        max_migration: float,
-        channel_groups: dict,
-        group_prop_size: np.ndarray,
-        min_channels: int,
-        property_groups: list,
-        data_uid: list,
-        azimuth: np.ndarray,
-        data_normalization: list | str,
-        channels: dict,
-        minimal_output: bool,
+    anomalies: Anomalies,
+    profile: LineDataDerivatives,
+    max_migration: float,
+    channel_groups: dict,
+    group_prop_size: np.ndarray,
+    min_channels: int,
+    property_groups: list,
+    data_uid: list,
+    azimuth: np.ndarray,
+    data_normalization: list | str,
+    channels: dict,
+    minimal_output: bool,
 ) -> list[AnomalyGroup]:
     """
     Group anomalies.
@@ -1024,12 +1025,7 @@ def group_anomalies(
         values = anomalies.peak_values[near] * np.prod(data_normalization)
         amplitude = np.sum(anomalies.amplitude[near])
 
-        linear_fit = AnomalyGroup.compute_linear_fit(
-            channels,
-            gates,
-            cox,
-            values
-        )
+        linear_fit = AnomalyGroup.compute_linear_fit(channels, gates, cox, values)
 
         group = AnomalyGroup(
             channels=gates,
@@ -1108,7 +1104,7 @@ def find_anomalies(  # pylint: disable=R0912, R0913, R0914, R0915 # noqa: C901
     )
     locs = profile.locations_resampled
 
-    if data_normalization == "ppm": #pp2t
+    if data_normalization == "ppm":  # pp2t
         data_normalization = [1e-6]
 
     if locs is None:
@@ -1130,7 +1126,7 @@ def find_anomalies(  # pylint: disable=R0912, R0913, R0914, R0915 # noqa: C901
             continue
 
         values = params["values"][line_indices].copy()
-        profile.values = values # Update profile with current line values
+        profile.values = values  # Update profile with current line values
 
         # Get indices for peaks and inflection points for line
         peaks, lows, inflect_up, inflect_down = profile.get_peak_indices(min_value)
@@ -1149,12 +1145,10 @@ def find_anomalies(  # pylint: disable=R0912, R0913, R0914, R0915 # noqa: C901
             locs,
         )
 
-    anomalies.reformat_lists()
-
-
     if len(anomalies.peak) == 0:
         groups = None
     else:
+        anomalies.reformat_lists()
         # Group anomalies
         groups = group_anomalies(
             anomalies,

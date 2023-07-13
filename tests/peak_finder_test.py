@@ -75,9 +75,9 @@ def test_peak_finder_app(tmp_path: Path):
         anomalies = app.lines.anomalies
         assert len(anomalies) == 3, f"Expected 3 groups. Found {len(anomalies)}"
     assert all(
-        aa["azimuth"] == 270 for aa in anomalies
+        aa.azimuth == 270 for aa in anomalies
     ), "Anomalies with wrong azimuth found"
-    assert [aa["channel_group"]["label"][0] for aa in anomalies] == [
+    assert [aa.channel_group["label"][0] for aa in anomalies] == [
         4,
         5,
         3,

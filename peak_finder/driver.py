@@ -88,10 +88,10 @@ class PeakFinderDriver(BaseDriver):
 
                 anomalies += [
                     line_computation(
-                        locations,
-                        line_indices,
-                        active_channels,
-                        channel_groups,
+                        locations=locations,
+                        line_indices=line_indices,
+                        channels=active_channels,
+                        channel_groups=channel_groups,
                         data_normalization=normalization,
                         smoothing=self.params.smoothing,
                         min_amplitude=self.params.min_amplitude,
@@ -123,23 +123,23 @@ class PeakFinderDriver(BaseDriver):
 
             for line in tqdm(results):
                 for group in line:
-                    if "channel_group" in group and len(group["cox"]) > 0:
-                        channel_group += group["channel_group"]["label"]
+                    if hasattr(group, "channel_group") and len(group.cox) > 0:
+                        channel_group += group.channel_group["label"]
 
-                        if group["linear_fit"] is None:
+                        if group.linear_fit is None:
                             tau += [0]
                         else:
-                            tau += [np.abs(group["linear_fit"][0] ** -1.0)]
-                        migration += [group["migration"]]
-                        amplitude += [group["amplitude"]]
-                        azimuth += [group["azimuth"]]
-                        cox += [group["cox"]]
-                        inflx_dwn += [group["inflx_dwn"]]
-                        inflx_up += [group["inflx_up"]]
-                        start += [group["start"]]
-                        end += [group["end"]]
-                        skew += [group["skew"]]
-                        peaks += [group["peaks"]]
+                            tau += [np.abs(group.linear_fit[0] ** -1.0)]
+                        migration += [group.migration]
+                        amplitude += [group.amplitude]
+                        azimuth += [group.azimuth]
+                        cox += [group.cox]
+                        inflx_dwn += [group.inflect_down]
+                        inflx_up += [group.inflect_up]
+                        start += [group.start]
+                        end += [group.end]
+                        skew += [group.skew]
+                        peaks += [group.peaks]
 
             print("Exporting . . .")
             if cox:

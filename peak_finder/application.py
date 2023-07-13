@@ -852,7 +852,7 @@ class PeakFinder(ObjectDataSelection):  # pylint: disable=R0902, R0904
                 self.center.max = end
                 self.width.max = end
 
-        if len(self.lines.anomalies) > 0:
+        if self.lines.anomalies is not None and len(self.lines.anomalies) > 0:
             peaks = np.sort(
                 self.lines.profile.locations_resampled[
                     [group.peak[0] for group in self.lines.anomalies]
@@ -1143,7 +1143,7 @@ class PeakFinder(ObjectDataSelection):  # pylint: disable=R0902, R0904
             # Find nearest decay to cursor
             group = None
             if getattr(self.lines, "anomalies", None) is not None:
-                peaks = np.r_[[group.peak for group in self.lines.anomalies]]
+                peaks = np.r_[[group.peak[0] for group in self.lines.anomalies]]
                 if len(peaks) > 0:
                     group = self.lines.anomalies[
                         np.argmin(
@@ -1174,7 +1174,7 @@ class PeakFinder(ObjectDataSelection):  # pylint: disable=R0902, R0904
                 axs.text(
                     np.mean(times),
                     np.mean(y),
-                    f"Tau: {np.abs(group['linear_fit'][1] ** -1.)*1e+3:.2e} msec",
+                    f"Tau: {np.abs(group.linear_fit[1] ** -1.)*1e+3:.2e} msec",
                     color="k",
                 )
                 axs.scatter(
