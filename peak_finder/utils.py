@@ -4,6 +4,7 @@
 #
 #  All rights reserved.
 #
+# pylint: disable=C0302
 
 from __future__ import annotations
 
@@ -16,7 +17,7 @@ from scipy.interpolate import interp1d
 from peak_finder.base.utils import running_mean
 
 
-def default_groups_from_property_group(
+def default_groups_from_property_group(  # pylint: disable=R0914
     property_group: PropertyGroup,
     start_index: int = 0,
 ) -> dict:  # pylint: disable=R0914
@@ -105,8 +106,8 @@ class LineDataDerivatives:  # pylint: disable=R0902
 
     def __init__(  # pylint: disable=R0913
         self,
-        locations: np.ndarray | None = None,
-        values: np.array | None = None,
+        locations: np.ndarray = np.array([]),
+        values: np.ndarray = np.array([]),
         epsilon: float | None = None,
         interpolation: str = "gaussian",
         smoothing: int = 0,
@@ -114,53 +115,53 @@ class LineDataDerivatives:  # pylint: disable=R0902
         sampling: float | None = None,
         **kwargs,
     ):
-        self._locations_resampled = None
+        self._locations_resampled = np.array([])
         self._epsilon = epsilon
-        self.x_locations = None
-        self.y_locations = None
-        self.z_locations = None
+        self.x_locations = np.array([])
+        self.y_locations = np.array([])
+        self.z_locations = np.array([])
         self.locations = locations
         self.values = values
         self._interpolation = interpolation
         self._smoothing = smoothing
         self._residual = residual
         self._sampling = sampling
-        self._values_resampled_raw = None
-        self._values_resampled = None
+        self._values_resampled_raw = np.array([])
+        self._values_resampled = np.array([])
         self.Fx = None  # pylint: disable=C0103
         self.Fy = None  # pylint: disable=C0103
         self.Fz = None  # pylint: disable=C0103
-
-        # if values is not None:
-        #     self._values = values[self.sorting]
 
         for key, value in kwargs.items():
             if getattr(self, key, None) is not None:
                 setattr(self, key, value)
 
     @property
-    def epsilon(self):
+    def epsilon(self) -> float | None:
         """
         Adjustable constant used by :obj:`scipy.interpolate.Rbf`
         """
-        if getattr(self, "_epsilon", None) is None:
+        if getattr(self, "_epsilon", None) is None and len(self.locations) != 0:
             width = self.locations[-1] - self.locations[0]
             self._epsilon = width / 5.0
 
         return self._epsilon
 
     @property
-    def sampling_width(self):
+    def sampling_width(self) -> int:
         """
         Number of padding cells added for the FFT
         """
-        if getattr(self, "_sampling_width", None) is None:
+        if (
+            getattr(self, "_sampling_width", None) is None
+            and len(self.values_resampled) != 0
+        ):
             self._sampling_width = int(np.floor(len(self.values_resampled)))
 
         return self._sampling_width
 
     @property
-    def locations(self):
+    def locations(self) -> np.ndarray:
         """
         Position of values along line.
         """
@@ -168,15 +169,15 @@ class LineDataDerivatives:  # pylint: disable=R0902
 
     @locations.setter
     def locations(self, locations):
-        self._locations = None
-        self.x_locations = None
-        self.y_locations = None
-        self.z_locations = None
-        self.sorting = None
-        self.values_resampled = None
-        self._locations_resampled = None
+        self._locations = np.array([])
+        self.x_locations = np.array([])
+        self.y_locations = np.array([])
+        self.z_locations = np.array([])
+        self.sorting = np.array([])
+        self.values_resampled = np.array([])
+        self._locations_resampled = np.array([])
 
-        if locations is not None:
+        if len(locations) != 0:
             if locations.ndim > 1:
                 if np.std(locations[:, 1]) > np.std(locations[:, 0]):
                     start = np.argmin(locations[:, 1])
@@ -220,14 +221,14 @@ class LineDataDerivatives:  # pylint: disable=R0902
             )
 
     @property
-    def locations_resampled(self):
+    def locations_resampled(self) -> np.ndarray:
         """
-        Position of values resampled on a fix interval
+        Position of values resampled on a fix interval.
         """
         return self._locations_resampled
 
     @property
-    def values(self):
+    def values(self) -> np.ndarray:
         """
         Original values sorted along line.
         """
@@ -235,29 +236,31 @@ class LineDataDerivatives:  # pylint: disable=R0902
 
     @values.setter
     def values(self, values):
-        self.values_resampled = None
-        self._values = None
-        if (values is not None) and (self.sorting is not None):
+        self.values_resampled = np.array([])
+        self._values = np.array([])
+        if len(values) != 0 and len(self.sorting) != 0:
             self._values = values[self.sorting]
 
     @property
-    def sampling(self):
+    def sampling(self) -> float | None:
         """
         Discrete interval length (m)
         """
-        if getattr(self, "_sampling", None) is None:
+        if (
+            getattr(self, "_sampling", None) is None
+            and len(self.locations_resampled) != 0
+        ):
             self._sampling = np.mean(
                 np.abs(self.locations_resampled[1:] - self.locations_resampled[:-1])
             )
         return self._sampling
 
     @property
-    def values_resampled(self):
+    def values_resampled(self) -> np.ndarray:
         """
-        Values re-sampled on a regular interval
+        Values re-sampled on a regular interval.
         """
-        if getattr(self, "_values_resampled", None) is None:
-            # self._values_resampled = self.values_padded[self.sampling_width: -self.sampling_width]
+        if len(self._values_resampled) == 0 and len(self.locations) != 0:
             interp = interp1d(self.locations, self.values, fill_value="extrapolate")
             self._values_resampled = interp(self._locations_resampled)
             self._values_resampled_raw = self._values_resampled.copy()
@@ -276,19 +279,19 @@ class LineDataDerivatives:  # pylint: disable=R0902
     @values_resampled.setter
     def values_resampled(self, values):
         self._values_resampled = values
-        self._values_resampled_raw = None
+        self._values_resampled_raw = np.array([])
 
     @property
-    def values_resampled_raw(self):
+    def values_resampled_raw(self) -> np.ndarray:
         """
-        Resampled values prior to smoothing
+        Resampled values prior to smoothing.
         """
         return self._values_resampled_raw
 
     @property
-    def interpolation(self):
+    def interpolation(self) -> str:
         """
-        Method of interpolation: ['linear'], 'nearest', 'slinear', 'quadratic' or 'cubic'
+        Method of interpolation: 'linear', 'nearest', 'slinear', 'quadratic' or 'cubic'
         """
         return self._interpolation
 
@@ -298,9 +301,9 @@ class LineDataDerivatives:  # pylint: disable=R0902
         assert method in methods, f"Method on interpolation must be one of {methods}"
 
     @property
-    def residual(self):
+    def residual(self) -> bool:
         """
-        Use the residual of the smoothing data
+        Use the residual of the smoothing data.
         """
         return self._residual
 
@@ -312,10 +315,10 @@ class LineDataDerivatives:  # pylint: disable=R0902
             self.values_resampled = None
 
     @property
-    def smoothing(self):
+    def smoothing(self) -> int:
         """
         Smoothing factor in terms of number of nearest neighbours used
-        in a running mean averaging of the signal
+        in a running mean averaging of the signal.
         """
         return self._smoothing
 
@@ -326,50 +329,66 @@ class LineDataDerivatives:  # pylint: disable=R0902
         ), "Smoothing parameter must be an integer >0"
         if value != self._smoothing:
             self._smoothing = value
-            self.values_resampled = None
+            self.values_resampled = np.array([])
 
-    def interp_x(self, distance):
+    def interp_x(self, distance: float) -> float:
         """
         Get the x-coordinate from the inline distance.
+
+        :param distance: Inline distance.
+
+        :return: x-coordinate.
         """
-        if getattr(self, "Fx", None) is None and self.x_locations is not None:
+        if getattr(self, "Fx", None) is None:
             self.Fx = interp1d(
                 self.locations,
                 self.x_locations,
                 bounds_error=False,
                 fill_value="extrapolate",
             )
-        return self.Fx(distance)
+        return self.Fx(distance)  # type: ignore
 
-    def interp_y(self, distance):
+    def interp_y(self, distance: float) -> float:
         """
         Get the y-coordinate from the inline distance.
+
+        :param distance: Inline distance.
+
+        :return: y-coordinate.
         """
-        if getattr(self, "Fy", None) is None and self.y_locations is not None:
+        if getattr(self, "Fy", None) is None:
             self.Fy = interp1d(
                 self.locations,
                 self.y_locations,
                 bounds_error=False,
                 fill_value="extrapolate",
             )
-        return self.Fy(distance)
+        return self.Fy(distance)  # type: ignore
 
-    def interp_z(self, distance):
+    def interp_z(self, distance: float) -> float:
         """
         Get the z-coordinate from the inline distance.
+
+        :param distance: Inline distance.
+
+        :return: z-coordinate.
         """
-        if getattr(self, "Fz", None) is None and self.z_locations is not None:
+        if getattr(self, "Fz", None) is None:
             self.Fz = interp1d(
                 self.locations,
                 self.z_locations,
                 bounds_error=False,
                 fill_value="extrapolate",
             )
-        return self.Fz(distance)
+        return self.Fz(distance)  # type: ignore
 
-    def derivative(self, order=1) -> np.ndarray:
+    def derivative(self, order: int = 1) -> np.ndarray:
         """
         Compute and return the first order derivative.
+
+        :param order: Order of derivative.
+
+        :return: Derivative of values_resampled.
         """
         deriv = self.values_resampled
         for _ in range(order):
@@ -382,11 +401,18 @@ class LineDataDerivatives:  # pylint: disable=R0902
 
         return deriv
 
-    def interpolate_array(self, inp_array) -> np.ndarray:
+    def interpolate_array(self, inds: np.ndarray) -> np.ndarray:
+        """
+        Interpolate the locations of the line profile at the given indices.
+
+        :param inds: Indices of locations to interpolate.
+
+        :return: Interpolated locations.
+        """
         return np.c_[
-            self.interp_x(self.locations_resampled[inp_array]),
-            self.interp_y(self.locations_resampled[inp_array]),
-            self.interp_z(self.locations_resampled[inp_array]),
+            self.interp_x(self.locations_resampled[inds]),
+            self.interp_y(self.locations_resampled[inds]),
+            self.interp_z(self.locations_resampled[inds]),
         ]
 
     def get_peak_indices(
@@ -434,7 +460,7 @@ class LineDataDerivatives:  # pylint: disable=R0902
         return peaks, lows, inflect_up, inflect_down
 
 
-class Anomalies:
+class Anomalies:  # pylint: disable=R0902
     def __init__(self):
         self._channel = []
         self._start = []
@@ -448,8 +474,10 @@ class Anomalies:
         self._channel_group = []
 
     @property
-    def channel(self):
-        """ """
+    def channel(self) -> np.ndarray | list:
+        """
+        Channel.
+        """
         return self._channel
 
     @channel.setter
@@ -457,8 +485,10 @@ class Anomalies:
         self._channel = value
 
     @property
-    def start(self):
-        """ """
+    def start(self) -> np.ndarray | list:
+        """
+        Indices of start of anomaly.
+        """
         return self._start
 
     @start.setter
@@ -466,8 +496,10 @@ class Anomalies:
         self._start = value
 
     @property
-    def end(self):
-        """ """
+    def end(self) -> np.ndarray | list:
+        """
+        Indices of end of anomaly.
+        """
         return self._end
 
     @end.setter
@@ -475,8 +507,10 @@ class Anomalies:
         self._end = value
 
     @property
-    def inflect_up(self):
-        """ """
+    def inflect_up(self) -> np.ndarray | list:
+        """
+        Indices of upward inflection points of anomaly.
+        """
         return self._inflect_up
 
     @inflect_up.setter
@@ -484,8 +518,10 @@ class Anomalies:
         self._inflect_up = value
 
     @property
-    def inflect_down(self):
-        """ """
+    def inflect_down(self) -> np.ndarray | list:
+        """
+        Indices of downward inflection points of anomaly.
+        """
         return self._inflect_down
 
     @inflect_down.setter
@@ -493,8 +529,10 @@ class Anomalies:
         self._inflect_down = value
 
     @property
-    def peak(self):
-        """ """
+    def peak(self) -> np.ndarray | list:
+        """
+        Indices of peak of anomaly.
+        """
         return self._peak
 
     @peak.setter
@@ -502,8 +540,10 @@ class Anomalies:
         self._peak = value
 
     @property
-    def peak_values(self):
-        """ """
+    def peak_values(self) -> np.ndarray | list:
+        """
+        Values of peak of anomaly.
+        """
         return self._peak_values
 
     @peak_values.setter
@@ -511,8 +551,10 @@ class Anomalies:
         self._peak_values = value
 
     @property
-    def amplitude(self):
-        """ """
+    def amplitude(self) -> np.ndarray | list:
+        """
+        Amplitude of anomaly.
+        """
         return self._amplitude
 
     @amplitude.setter
@@ -520,8 +562,10 @@ class Anomalies:
         self._amplitude = value
 
     @property
-    def group(self):
-        """ """
+    def group(self) -> np.ndarray | list:
+        """
+        Group id of anomaly.
+        """
         return self._group
 
     @group.setter
@@ -529,8 +573,10 @@ class Anomalies:
         self._group = value
 
     @property
-    def channel_group(self):
-        """ """
+    def channel_group(self) -> np.ndarray | list:
+        """
+        Channel groups.
+        """
         return self._channel_group
 
     @channel_group.setter
@@ -538,6 +584,9 @@ class Anomalies:
         self._channel_group = value
 
     def reformat_lists(self):
+        """
+        Reformat lists to arrays.
+        """
         self.channel = np.hstack(self.channel)
         self.start = np.hstack(self.start)
         self.inflect_up = np.hstack(self.inflect_up)
@@ -548,7 +597,7 @@ class Anomalies:
         self.end = np.hstack(self.end)
         self.group = np.hstack(self.group)
 
-    def iterate_over_peaks(
+    def iterate_over_peaks(  # pylint: disable=R0913, R0914
         self,
         profile: LineDataDerivatives,
         channel: int,
@@ -669,23 +718,21 @@ class Anomalies:
                 )
 
 
-class AnomalyGroup:
-    _skew = None
-
-    def __init__(
+class AnomalyGroup:  # pylint: disable=R0902
+    def __init__(  # pylint: disable=R0913
         self,
-        channels,
-        start,
-        end,
-        inflect_up,
-        inflect_down,
-        peak,
-        cox,
-        azimuth,
-        migration,
-        amplitude,
-        channel_group,
-        linear_fit,
+        channels: np.ndarray,
+        start: np.ndarray,
+        end: np.ndarray,
+        inflect_up: np.ndarray,
+        inflect_down: np.ndarray,
+        peak: np.ndarray,
+        cox: np.ndarray,
+        azimuth: np.ndarray,
+        migration: np.ndarray,
+        amplitude: np.ndarray,
+        channel_group: np.ndarray,
+        linear_fit: list[float] | None,
     ):
         self._channels = channels
         self._start = start
@@ -699,10 +746,15 @@ class AnomalyGroup:
         self._amplitude = amplitude
         self._channel_group = channel_group
         self._linear_fit = linear_fit
+        self._skew = None
+        self.peaks = np.array([])
+        self.peak_values = np.array([])
 
     @property
-    def channels(self):
-        """ """
+    def channels(self) -> np.ndarray:
+        """
+        Channels.
+        """
         return self._channels
 
     @channels.setter
@@ -710,8 +762,10 @@ class AnomalyGroup:
         self._channels = value
 
     @property
-    def start(self):
-        """ """
+    def start(self) -> np.ndarray:
+        """
+        Indices of start of anomaly.
+        """
         return self._start
 
     @start.setter
@@ -719,8 +773,10 @@ class AnomalyGroup:
         self._start = value
 
     @property
-    def end(self):
-        """ """
+    def end(self) -> np.ndarray:
+        """
+        Indices of end of anomaly.
+        """
         return self._end
 
     @end.setter
@@ -728,8 +784,10 @@ class AnomalyGroup:
         self._end = value
 
     @property
-    def inflect_up(self):
-        """ """
+    def inflect_up(self) -> np.ndarray:
+        """
+        Indices of upward inflection points
+        """
         return self._inflect_up
 
     @inflect_up.setter
@@ -737,8 +795,10 @@ class AnomalyGroup:
         self._inflect_up = value
 
     @property
-    def inflect_down(self):
-        """ """
+    def inflect_down(self) -> np.ndarray:
+        """
+        Indices of downward inflection points
+        """
         return self._inflect_down
 
     @inflect_down.setter
@@ -746,8 +806,10 @@ class AnomalyGroup:
         self._inflect_down = value
 
     @property
-    def peak(self):
-        """ """
+    def peak(self) -> np.ndarray:
+        """
+        Indices of peak of anomaly.
+        """
         return self._peak
 
     @peak.setter
@@ -755,8 +817,10 @@ class AnomalyGroup:
         self._peak = value
 
     @property
-    def cox(self):
-        """ """
+    def cox(self) -> np.ndarray:
+        """
+        Center of oxidized coal; center of peak.
+        """
         return self._cox
 
     @cox.setter
@@ -764,8 +828,10 @@ class AnomalyGroup:
         self._cox = value
 
     @property
-    def azimuth(self):
-        """ """
+    def azimuth(self) -> np.ndarray:
+        """
+        Azimuth values for the group.
+        """
         return self._azimuth
 
     @azimuth.setter
@@ -773,8 +839,10 @@ class AnomalyGroup:
         self._azimuth = value
 
     @property
-    def migration(self):
-        """ """
+    def migration(self) -> np.ndarray:
+        """
+        Distance migrated from anomaly.
+        """
         return self._migration
 
     @migration.setter
@@ -782,8 +850,10 @@ class AnomalyGroup:
         self._migration = value
 
     @property
-    def amplitude(self):
-        """ """
+    def amplitude(self) -> np.ndarray:
+        """
+        Amplitude of anomaly.
+        """
         return self._amplitude
 
     @amplitude.setter
@@ -791,8 +861,10 @@ class AnomalyGroup:
         self._amplitude = value
 
     @property
-    def channel_group(self):
-        """ """
+    def channel_group(self) -> np.ndarray:
+        """
+        Channel groups.
+        """
         return self._channel_group
 
     @channel_group.setter
@@ -800,8 +872,10 @@ class AnomalyGroup:
         self._channel_group = value
 
     @property
-    def linear_fit(self):
-        """ """
+    def linear_fit(self) -> list | None:
+        """
+        Intercept and slope of linear fit.
+        """
         return self._linear_fit
 
     @linear_fit.setter
@@ -809,8 +883,10 @@ class AnomalyGroup:
         self._linear_fit = value
 
     @property
-    def skew(self):
-        """ """
+    def skew(self) -> float | None:
+        """
+        Skew.
+        """
         return self._skew
 
     @skew.setter
@@ -829,7 +905,7 @@ class AnomalyGroup:
         """
         Compute skew factor for an anomaly group.
 
-        :param loc: Resampled line vertices.
+        :param locs: Resampled line vertices.
         :param cox: Center of oxidized coal; center of peak.
         :param cox_sort: Indices to sort cox.
         :param inflect_up: Upwards inflection points for the group.
@@ -858,7 +934,7 @@ class AnomalyGroup:
         gates: np.ndarray,
         cox: np.ndarray,
         values: np.ndarray,
-    ) -> list[float]:
+    ) -> list[float] | None:
         """
         Compute linear fit for the anomaly group.
 
@@ -891,7 +967,7 @@ def get_near_peaks(
     peaks_position: np.ndarray,
     max_migration: float,
     anomalies: Anomalies,
-):
+) -> np.ndarray:
     """
     Get indices of peaks within the migration distance.
 
@@ -922,7 +998,7 @@ def get_near_peaks(
     return near
 
 
-def group_anomalies(
+def group_anomalies(  # pylint: disable=R0913, R0914
     anomalies: Anomalies,
     profile: LineDataDerivatives,
     max_migration: float,
@@ -940,6 +1016,7 @@ def group_anomalies(
     Group anomalies.
 
     :param anomalies: Anomalies object.
+    :param profile: Line profile.
     :param max_migration: Maximum migration distance between anomalies.
     :param channel_groups: Channel groups.
     :param group_prop_size: Group property size.
@@ -1075,7 +1152,11 @@ def find_anomalies(  # pylint: disable=R0912, R0913, R0914, R0915 # noqa: C901
     use_residual: bool = False,
     minimal_output: bool = False,
     return_profile: bool = False,
-) -> (list[AnomalyGroup] | None, LineDataDerivatives | None):
+) -> (
+    tuple[list[AnomalyGroup] | None, LineDataDerivatives | None]
+    | list[AnomalyGroup]
+    | None
+):
     """
     Find all anomalies along a line profile of data.
     Anomalies are detected based on the lows, inflection points and peaks.
@@ -1098,13 +1179,12 @@ def find_anomalies(  # pylint: disable=R0912, R0913, R0914, R0915 # noqa: C901
 
     :return: List of groups and line profile.
     """
-
     profile = LineDataDerivatives(
         locations=locations[line_indices], smoothing=smoothing, residual=use_residual
     )
     locs = profile.locations_resampled
 
-    if data_normalization == "ppm":  # pp2t
+    if data_normalization == "ppm":
         data_normalization = [1e-6]
 
     if locs is None:
