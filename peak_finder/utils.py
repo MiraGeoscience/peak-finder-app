@@ -717,6 +717,175 @@ class Anomalies:  # pylint: disable=R0902
                     ]
                 )
 
+    def get_near_peaks(
+        self,
+        ind: int,
+        peaks_position: np.ndarray,
+        max_migration: float,
+    ) -> np.ndarray:
+        """
+        Get indices of peaks within the migration distance.
+
+        :param ind: Index of the peak.
+        :param peaks_position: Array of peak positions.
+        :param max_migration: Maximum migration distance.
+
+        :return: Array of indices of peaks within the migration distance.
+        """
+        dist = np.abs(peaks_position[ind] - peaks_position)
+        # Find anomalies across channels within horizontal range
+        near = np.where((dist < max_migration) & (self.group == -1))[0]
+        # Reject from group if channel gap > 1
+        u_gates, u_count = np.unique(self.channel[near], return_counts=True)
+        if len(u_gates) > 1 and np.any((u_gates[1:] - u_gates[:-1]) > 2):
+            cutoff = u_gates[np.where((u_gates[1:] - u_gates[:-1]) > 2)[0][0]]
+            near = near[self.channel[near] <= cutoff]  # Remove after cutoff
+        # Check for multiple nearest peaks on single channel
+        # and keep the nearest
+        u_gates, u_count = np.unique(self.channel[near], return_counts=True)
+        for gate in u_gates[np.where(u_count > 1)]:
+            mask = np.ones_like(near, dtype="bool")
+            sub_ind = self.channel[near] == gate
+            sub_ind[np.where(sub_ind)[0][np.argmin(dist[near][sub_ind])]] = False
+            mask[sub_ind] = False
+            near = near[mask]
+        return near
+
+    def group_anomalies(  # pylint: disable=R0913, R0914
+        self,
+        profile: LineDataDerivatives,
+        max_migration: float,
+        channel_groups: dict,
+        group_prop_size: np.ndarray,
+        min_channels: int,
+        property_groups: list,
+        data_uid: list,
+        azimuth: np.ndarray,
+        data_normalization: list | str,
+        channels: dict,
+        minimal_output: bool,
+    ) -> list[AnomalyGroup]:
+        """
+        Group anomalies.
+
+        :param profile: Line profile.
+        :param max_migration: Maximum migration distance between anomalies.
+        :param channel_groups: Channel groups.
+        :param group_prop_size: Group property size.
+        :param min_channels: Minimum number of channels in a group.
+        :param property_groups: Property groups.
+        :param data_uid: List of uids for channels.
+        :param azimuth: Azimuth.
+        :param data_normalization: Data normalization factor.
+        :param channels: Channels.
+        :param minimal_output: Whether to return minimal output.
+
+        :return: List of groups of anomalies.
+        """
+        locs = profile.locations_resampled
+        peaks_position = locs[self.peak]
+        groups = []
+        group_id = -1
+
+        for i in range(peaks_position.shape[0]):
+            # Skip if already labeled
+            if self.group[i] != -1:
+                continue
+            group_id += 1
+
+            # Find nearest peaks
+            near = self.get_near_peaks(
+                i,
+                peaks_position,
+                max_migration,
+            )
+
+            score = np.zeros(len(channel_groups))
+            for ids in near:
+                score[self.channel_group[ids]] += 1
+
+            # Find groups with the largest channel overlap
+            max_scores = np.where(score == score.max())[0]
+            # Keep the group with fewer properties
+            in_group = max_scores[
+                np.argmax(score[max_scores] / group_prop_size[max_scores])
+            ]
+            if score[in_group] < min_channels:
+                continue
+
+            channel_group = property_groups[in_group]
+            # Remove anomalies not in group
+            mask = [
+                data_uid[self.channel[id]] in channel_group["properties"] for id in near
+            ]
+            near = near[mask, ...]
+            if len(near) == 0:
+                continue
+
+            self.group[near] = group_id
+            gates = self.channel[near]
+            cox = self.peak[near]
+
+            inflect_down = self.inflect_down[near]
+            inflect_up = self.inflect_up[near]
+            cox_sort = np.argsort(locs[cox])
+            azimuth_near = azimuth[cox]
+            dip_direction = azimuth[cox[0]]
+
+            if (
+                self.peak_values[near][cox_sort][0]
+                < self.peak_values[near][cox_sort][-1]
+            ):
+                dip_direction = (dip_direction + 180) % 360.0
+
+            migration = np.abs(locs[cox[cox_sort[-1]]] - locs[cox[cox_sort[0]]])
+
+            skew = AnomalyGroup.compute_skew(
+                locs,
+                cox,
+                cox_sort,
+                inflect_up,
+                inflect_down,
+                azimuth_near,
+            )
+
+            values = self.peak_values[near] * np.prod(data_normalization)
+            amplitude = np.sum(self.amplitude[near])
+
+            linear_fit = AnomalyGroup.compute_linear_fit(channels, gates, cox, values)
+
+            group = AnomalyGroup(
+                channels=gates,
+                start=self.start[near],
+                end=self.end[near],
+                inflect_up=self.inflect_up[near],
+                inflect_down=self.inflect_down[near],
+                peak=cox,
+                cox=np.mean(
+                    profile.interpolate_array(cox[cox_sort[0]]),
+                    axis=0,
+                ),
+                azimuth=dip_direction,
+                migration=migration,
+                amplitude=amplitude,
+                channel_group=channel_group,
+                linear_fit=linear_fit,
+            )
+
+            if minimal_output:
+                group.skew = np.mean(skew)
+                group.inflect_down = profile.interpolate_array(inflect_down)
+                group.inflect_up = profile.interpolate_array(inflect_up)
+                group.start = profile.interpolate_array(self.start[near])
+                group.end = profile.interpolate_array(self.end[near])
+                group.peaks = profile.interpolate_array(cox)
+            else:
+                group.peak_values = values
+
+            groups += [group]
+
+        return groups
+
 
 class AnomalyGroup:  # pylint: disable=R0902
     def __init__(  # pylint: disable=R0913
@@ -962,181 +1131,6 @@ class AnomalyGroup:  # pylint: disable=R0902
         return linear_fit
 
 
-def get_near_peaks(
-    ind: int,
-    peaks_position: np.ndarray,
-    max_migration: float,
-    anomalies: Anomalies,
-) -> np.ndarray:
-    """
-    Get indices of peaks within the migration distance.
-
-    :param ind: Index of the peak.
-    :param peaks_position: Array of peak positions.
-    :param max_migration: Maximum migration distance.
-    :param anomalies: Anomalies object.
-
-    :return: Array of indices of peaks within the migration distance.
-    """
-    dist = np.abs(peaks_position[ind] - peaks_position)
-    # Find anomalies across channels within horizontal range
-    near = np.where((dist < max_migration) & (anomalies.group == -1))[0]
-    # Reject from group if channel gap > 1
-    u_gates, u_count = np.unique(anomalies.channel[near], return_counts=True)
-    if len(u_gates) > 1 and np.any((u_gates[1:] - u_gates[:-1]) > 2):
-        cutoff = u_gates[np.where((u_gates[1:] - u_gates[:-1]) > 2)[0][0]]
-        near = near[anomalies.channel[near] <= cutoff]  # Remove after cutoff
-    # Check for multiple nearest peaks on single channel
-    # and keep the nearest
-    u_gates, u_count = np.unique(anomalies.channel[near], return_counts=True)
-    for gate in u_gates[np.where(u_count > 1)]:
-        mask = np.ones_like(near, dtype="bool")
-        sub_ind = anomalies.channel[near] == gate
-        sub_ind[np.where(sub_ind)[0][np.argmin(dist[near][sub_ind])]] = False
-        mask[sub_ind] = False
-        near = near[mask]
-    return near
-
-
-def group_anomalies(  # pylint: disable=R0913, R0914
-    anomalies: Anomalies,
-    profile: LineDataDerivatives,
-    max_migration: float,
-    channel_groups: dict,
-    group_prop_size: np.ndarray,
-    min_channels: int,
-    property_groups: list,
-    data_uid: list,
-    azimuth: np.ndarray,
-    data_normalization: list | str,
-    channels: dict,
-    minimal_output: bool,
-) -> list[AnomalyGroup]:
-    """
-    Group anomalies.
-
-    :param anomalies: Anomalies object.
-    :param profile: Line profile.
-    :param max_migration: Maximum migration distance between anomalies.
-    :param channel_groups: Channel groups.
-    :param group_prop_size: Group property size.
-    :param min_channels: Minimum number of channels in a group.
-    :param property_groups: Property groups.
-    :param data_uid: List of uids for channels.
-    :param azimuth: Azimuth.
-    :param data_normalization: Data normalization factor.
-    :param channels: Channels.
-    :param minimal_output: Whether to return minimal output.
-
-    :return: List of groups of anomalies.
-    """
-    locs = profile.locations_resampled
-    peaks_position = locs[anomalies.peak]
-    groups = []
-    group_id = -1
-
-    for i in range(peaks_position.shape[0]):
-        # Skip if already labeled
-        if anomalies.group[i] != -1:
-            continue
-        group_id += 1
-
-        # Find nearest peaks
-        near = get_near_peaks(
-            i,
-            peaks_position,
-            max_migration,
-            anomalies,
-        )
-
-        score = np.zeros(len(channel_groups))
-        for ids in near:
-            score[anomalies.channel_group[ids]] += 1
-
-        # Find groups with the largest channel overlap
-        max_scores = np.where(score == score.max())[0]
-        # Keep the group with fewer properties
-        in_group = max_scores[
-            np.argmax(score[max_scores] / group_prop_size[max_scores])
-        ]
-        if score[in_group] < min_channels:
-            continue
-
-        channel_group = property_groups[in_group]
-        # Remove anomalies not in group
-        mask = [
-            data_uid[anomalies.channel[id]] in channel_group["properties"]
-            for id in near
-        ]
-        near = near[mask, ...]
-        if len(near) == 0:
-            continue
-
-        anomalies.group[near] = group_id
-        gates = anomalies.channel[near]
-        cox = anomalies.peak[near]
-
-        inflect_down = anomalies.inflect_down[near]
-        inflect_up = anomalies.inflect_up[near]
-        cox_sort = np.argsort(locs[cox])
-        azimuth_near = azimuth[cox]
-        dip_direction = azimuth[cox[0]]
-
-        if (
-            anomalies.peak_values[near][cox_sort][0]
-            < anomalies.peak_values[near][cox_sort][-1]
-        ):
-            dip_direction = (dip_direction + 180) % 360.0
-
-        migration = np.abs(locs[cox[cox_sort[-1]]] - locs[cox[cox_sort[0]]])
-
-        skew = AnomalyGroup.compute_skew(
-            locs,
-            cox,
-            cox_sort,
-            inflect_up,
-            inflect_down,
-            azimuth_near,
-        )
-
-        values = anomalies.peak_values[near] * np.prod(data_normalization)
-        amplitude = np.sum(anomalies.amplitude[near])
-
-        linear_fit = AnomalyGroup.compute_linear_fit(channels, gates, cox, values)
-
-        group = AnomalyGroup(
-            channels=gates,
-            start=anomalies.start[near],
-            end=anomalies.end[near],
-            inflect_up=anomalies.inflect_up[near],
-            inflect_down=anomalies.inflect_down[near],
-            peak=cox,
-            cox=np.mean(
-                profile.interpolate_array(cox[cox_sort[0]]),
-                axis=0,
-            ),
-            azimuth=dip_direction,
-            migration=migration,
-            amplitude=amplitude,
-            channel_group=channel_group,
-            linear_fit=linear_fit,
-        )
-
-        if minimal_output:
-            group.skew = np.mean(skew)
-            group.inflect_down = profile.interpolate_array(inflect_down)
-            group.inflect_up = profile.interpolate_array(inflect_up)
-            group.start = profile.interpolate_array(anomalies.start[near])
-            group.end = profile.interpolate_array(anomalies.end[near])
-            group.peaks = profile.interpolate_array(cox)
-        else:
-            group.peak_values = values
-
-        groups += [group]
-
-    return groups
-
-
 def find_anomalies(  # pylint: disable=R0912, R0913, R0914, R0915 # noqa: C901
     locations: np.ndarray,
     line_indices: np.ndarray,
@@ -1230,8 +1224,7 @@ def find_anomalies(  # pylint: disable=R0912, R0913, R0914, R0915 # noqa: C901
     else:
         anomalies.reformat_lists()
         # Group anomalies
-        groups = group_anomalies(
-            anomalies,
+        groups = anomalies.group_anomalies(
             profile,
             max_migration,
             channel_groups,
