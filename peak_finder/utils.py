@@ -11,10 +11,9 @@ from __future__ import annotations
 from uuid import UUID
 
 import numpy as np
+from geoapps_utils.numerical import running_mean
 from geoh5py.groups import PropertyGroup
 from scipy.interpolate import interp1d
-
-from peak_finder.base.utils import running_mean
 
 
 def default_groups_from_property_group(  # pylint: disable=R0914
