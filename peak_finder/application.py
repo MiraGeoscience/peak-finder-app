@@ -31,7 +31,7 @@ from peak_finder.base.selection import LineOptions, ObjectDataSelection
 from peak_finder.constants import app_initializer, default_ui_json, template_dict
 from peak_finder.driver import PeakFinderDriver
 from peak_finder.params import PeakFinderParams
-from peak_finder.utils import default_groups_from_property_group, find_anomalies
+from peak_finder.utils import default_groups_from_property_group, LineAnomaly
 
 with warn_module_not_found():
     from matplotlib import pyplot as plt
@@ -816,8 +816,9 @@ class PeakFinder(ObjectDataSelection):  # pylint: disable=R0902, R0904
 
         self.plot_trigger.value = False
         self.survey.line_indices = line_indices
-        result = find_anomalies(
-            locations=self.survey.vertices,
+
+        line_anomaly = LineAnomaly(self.survey)
+        result = line_anomaly.find_anomalies(
             line_indices=line_indices,
             channels=self.active_channels,
             channel_groups=self.channel_groups,
@@ -832,7 +833,8 @@ class PeakFinder(ObjectDataSelection):  # pylint: disable=R0902, R0904
         )
 
         if len(result) > 0:
-            self.lines.anomalies, self.lines.profile = result
+            self.lines.anomalies = getattr(result[0], "groups", None)
+            self.lines.profile = result[1]
         else:
             self.group_display.disabled = True
             return
@@ -855,7 +857,7 @@ class PeakFinder(ObjectDataSelection):  # pylint: disable=R0902, R0904
         if self.lines.anomalies is not None and len(self.lines.anomalies) > 0:
             peaks = np.sort(
                 self.lines.profile.locations_resampled[
-                    [group.peak[0] for group in self.lines.anomalies]
+                    [group.anomalies[0].peak for group in self.lines.anomalies]
                 ]
             )
             current = self.center.value

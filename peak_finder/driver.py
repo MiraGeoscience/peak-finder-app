@@ -24,7 +24,7 @@ from peak_finder.base.formatters import string_name
 from peak_finder.base.utils import hex_to_rgb
 from peak_finder.constants import validations
 from peak_finder.params import PeakFinderParams
-from peak_finder.utils import default_groups_from_property_group, find_anomalies
+from peak_finder.utils import default_groups_from_property_group, LineAnomaly
 
 
 class PeakFinderDriver(BaseDriver):
@@ -80,15 +80,14 @@ class PeakFinderDriver(BaseDriver):
 
             print("Submitting parallel jobs:")
             anomalies = []
-            locations = survey.vertices.copy()
 
-            line_computation = delayed(find_anomalies, pure=True)
+            line_anomaly = LineAnomaly(survey)
+            line_computation = delayed(line_anomaly.find_anomalies, pure=True)
             for line_id in tqdm(list(lines)):
                 line_indices = np.where(line_field.values == line_id)[0]
 
                 anomalies += [
                     line_computation(
-                        locations=locations,
                         line_indices=line_indices,
                         channels=active_channels,
                         channel_groups=channel_groups,
@@ -100,7 +99,7 @@ class PeakFinderDriver(BaseDriver):
                         max_migration=self.params.max_migration,
                         min_channels=self.params.min_channels,
                         minimal_output=True,
-                    )
+                    ).groups
                 ]
             (
                 channel_group,
@@ -123,23 +122,22 @@ class PeakFinderDriver(BaseDriver):
 
             for line in tqdm(results):
                 for group in line:
-                    if hasattr(group, "channel_group") and len(group.cox) > 0:
-                        channel_group += group.channel_group["label"]
-
-                        if group.linear_fit is None:
-                            tau += [0]
-                        else:
-                            tau += [np.abs(group.linear_fit[0] ** -1.0)]
-                        migration += [group.migration]
-                        amplitude += [group.amplitude]
-                        azimuth += [group.azimuth]
-                        cox += [group.cox]
-                        inflx_dwn += [group.inflect_down]
-                        inflx_up += [group.inflect_up]
-                        start += [group.start]
-                        end += [group.end]
-                        skew += [group.skew]
-                        peaks += [group.peaks]
+                    if group.linear_fit is None:
+                        tau += [0]
+                    else:
+                        tau += [np.abs(group.linear_fit[0] ** -1.0)]
+                    channel_group.append(group.channel_group["label"])
+                    migration.append(group.migration)
+                    amplitude.append(group.amplitude)
+                    azimuth.append(group.azimuth)
+                    skew.append(group.skew)
+                    cox.append(group.cox)
+                    for anom in group.anomalies:
+                        inflx_dwn.append(anom.inflect_down)
+                        inflx_up.append(anom.inflect_up)
+                        start.append(anom.start)
+                        end.append(anom.end)
+                        peaks.append(anom.peaks)
 
             print("Exporting . . .")
             if cox:
