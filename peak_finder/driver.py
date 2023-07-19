@@ -24,7 +24,7 @@ from peak_finder.base.formatters import string_name
 from peak_finder.base.utils import hex_to_rgb
 from peak_finder.constants import validations
 from peak_finder.params import PeakFinderParams
-from peak_finder.utils import default_groups_from_property_group, LineAnomaly
+from peak_finder.utils import LineAnomaly, default_groups_from_property_group
 
 
 class PeakFinderDriver(BaseDriver):
@@ -137,7 +137,7 @@ class PeakFinderDriver(BaseDriver):
                         inflx_up.append(anom.inflect_up)
                         start.append(anom.start)
                         end.append(anom.end)
-                        peaks.append(anom.peaks)
+                        peaks.append(anom.peak)
 
             print("Exporting . . .")
             if cox:
