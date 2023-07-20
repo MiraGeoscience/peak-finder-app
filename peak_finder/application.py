@@ -30,8 +30,9 @@ from peak_finder.base.importing import warn_module_not_found
 from peak_finder.base.selection import LineOptions, ObjectDataSelection
 from peak_finder.constants import app_initializer, default_ui_json, template_dict
 from peak_finder.driver import PeakFinderDriver
+from peak_finder.line_group import LineAnomaly
 from peak_finder.params import PeakFinderParams
-from peak_finder.utils import LineAnomaly, default_groups_from_property_group
+from peak_finder.utils import default_groups_from_property_group
 
 with warn_module_not_found():
     from matplotlib import pyplot as plt
