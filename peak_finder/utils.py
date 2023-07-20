@@ -419,6 +419,7 @@ class LinePosition:  # pylint: disable=R0902
 
     def get_peak_indices(
         self,
+        values,
         min_value: float,
     ):
         """
@@ -431,7 +432,6 @@ class LinePosition:  # pylint: disable=R0902
         :return: Indices of upward inflection points.
         :return: Indices of downward inflection points.
         """
-        values = self.values_resampled
         dx = self.derivative(order=1)  # pylint: disable=C0103
         ddx = self.derivative(order=2)
 
@@ -768,6 +768,7 @@ class LineData:  # pylint: disable=R0902
 
     def iterate_over_peaks(  # pylint: disable=R0913, R0914
         self,
+        values,
         channel: int,
         channel_groups: dict,
         uid: UUID,
@@ -814,7 +815,6 @@ class LineData:  # pylint: disable=R0902
             inflect_down = np.min([locs.shape[0] - 1, inflect_down_inds[ind] + 1])
 
             # Check amplitude and width thresholds
-            values = self.position.values_resampled
             delta_amp, delta_x, amplitude = self.get_amplitude_and_width(
                 locs, values, peak, start, end
             )
@@ -1391,14 +1391,17 @@ class LineAnomaly:
             if "values" not in list(params):
                 continue
             # Update profile with current line values
-            self.position.values = params["values"][line_indices].copy()
+            # self.position.values = params["values"][line_indices].copy()
+            values = params["values"][line_indices].copy()
+            self.position.values = values
 
             # Get indices for peaks and inflection points for line
             peaks, lows, inflect_up, inflect_down = self.position.get_peak_indices(
-                min_value
+                values, min_value
             )
             # Iterate over peaks and add to anomalies
             line_data.iterate_over_peaks(
+                values,
                 channel,
                 channel_groups,
                 uid,
