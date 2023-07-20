@@ -30,7 +30,7 @@ from peak_finder.base.importing import warn_module_not_found
 from peak_finder.base.selection import LineOptions, ObjectDataSelection
 from peak_finder.constants import app_initializer, default_ui_json, template_dict
 from peak_finder.driver import PeakFinderDriver
-from peak_finder.line_group import LineAnomaly
+from peak_finder.line_anomaly import LineAnomaly
 from peak_finder.params import PeakFinderParams
 from peak_finder.utils import default_groups_from_property_group
 
@@ -818,11 +818,9 @@ class PeakFinder(ObjectDataSelection):  # pylint: disable=R0902, R0904
         self.plot_trigger.value = False
         self.survey.line_indices = line_indices
 
-        line_anomaly = LineAnomaly(self.survey)
-        result = line_anomaly.find_anomalies(
+        line_anomaly = LineAnomaly(
+            entity=self.survey,
             line_indices=line_indices,
-            channels=self.active_channels,
-            channel_groups=self.channel_groups,
             data_normalization=self.em_system_specs[self.system.value]["normalization"],
             smoothing=self.smoothing.value,
             min_amplitude=self.min_amplitude.value,
@@ -831,6 +829,10 @@ class PeakFinder(ObjectDataSelection):  # pylint: disable=R0902, R0904
             max_migration=self.max_migration.value,
             min_channels=self.min_channels.value,
             return_profile=True,
+        )
+        result = line_anomaly.find_anomalies(
+            channels=self.active_channels,
+            channel_groups=self.channel_groups,
         )
 
         if len(result) > 0:

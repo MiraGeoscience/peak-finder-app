@@ -23,7 +23,7 @@ from peak_finder.base.driver import BaseDriver
 from peak_finder.base.formatters import string_name
 from peak_finder.base.utils import hex_to_rgb
 from peak_finder.constants import validations
-from peak_finder.line_group import LineAnomaly
+from peak_finder.line_anomaly import LineAnomaly
 from peak_finder.params import PeakFinderParams
 from peak_finder.utils import default_groups_from_property_group
 
@@ -80,26 +80,31 @@ class PeakFinderDriver(BaseDriver):
                 )
 
             print("Submitting parallel jobs:")
+            line_anomalies = []
             anomalies = []
 
-            line_anomaly = LineAnomaly(survey)
-            line_computation = delayed(line_anomaly.find_anomalies, pure=True)
             for line_id in tqdm(list(lines)):
                 line_indices = np.where(line_field.values == line_id)[0]
 
+                line_anomaly = LineAnomaly(
+                    entity=survey,
+                    line_indices=line_indices,
+                    data_normalization=normalization,
+                    smoothing=self.params.smoothing,
+                    min_amplitude=self.params.min_amplitude,
+                    min_value=self.params.min_value,
+                    min_width=self.params.min_width,
+                    max_migration=self.params.max_migration,
+                    min_channels=self.params.min_channels,
+                    minimal_output=True,
+                )
+                line_anomalies += [line_anomaly]
+
+                line_computation = delayed(line_anomaly.find_anomalies, pure=True)
                 anomalies += [
                     line_computation(
-                        line_indices=line_indices,
                         channels=active_channels,
                         channel_groups=channel_groups,
-                        data_normalization=normalization,
-                        smoothing=self.params.smoothing,
-                        min_amplitude=self.params.min_amplitude,
-                        min_value=self.params.min_value,
-                        min_width=self.params.min_width,
-                        max_migration=self.params.max_migration,
-                        min_channels=self.params.min_channels,
-                        minimal_output=True,
                     ).groups
                 ]
             (
