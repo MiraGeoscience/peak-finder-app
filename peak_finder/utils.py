@@ -8,9 +8,8 @@
 from __future__ import annotations
 
 import numpy as np
+from geoapps_utils.numerical import running_mean
 from scipy.interpolate import interp1d
-
-from peak_finder.base.utils import running_mean
 
 
 class LineDataDerivatives:  # pylint: disable=R0902

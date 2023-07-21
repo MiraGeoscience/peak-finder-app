@@ -9,11 +9,11 @@ from __future__ import annotations
 
 from copy import deepcopy
 
+from geoapps_utils.driver.params import BaseParams
 from geoh5py.data import Data
 from geoh5py.objects import ObjectBase
 from geoh5py.ui_json import InputFile
 
-from peak_finder.base.params import BaseParams
 from peak_finder.constants import default_ui_json, defaults, template_dict, validations
 
 

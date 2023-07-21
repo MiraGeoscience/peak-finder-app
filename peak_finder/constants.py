@@ -10,14 +10,14 @@ from __future__ import annotations
 from copy import deepcopy
 from uuid import UUID
 
+from geoapps_utils.geophysical_systems import parameters
 from geoh5py.ui_json.constants import default_ui_json as base_ui_json
 
-from peak_finder import base
-from peak_finder.base import assets_path
-from peak_finder.base.geophysical_systems import parameters
+import peak_finder
+from peak_finder import assets_path
 
 defaults = {
-    "version": base.__version__,
+    "version": peak_finder.__version__,
     "title": "Peak Finder Parameters",
     "geoh5": None,
     "tem_checkbox": False,
@@ -48,7 +48,7 @@ defaults = {
 default_ui_json = deepcopy(base_ui_json)
 default_ui_json.update(
     {
-        "version": base.__version__,
+        "version": peak_finder.__version__,
         "title": "Peak Finder Parameters",
         "tem_checkbox": {
             "main": True,
