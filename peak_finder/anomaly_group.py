@@ -31,7 +31,7 @@ class AnomalyGroup:
         self._amplitude: float | None = None
         self._migration: float | None = None
         self._azimuth: float | None = None
-        self._cox: np.ndarray | None = None
+        self._group_center: np.ndarray | None = None
 
     @property
     def anomalies(self) -> list[Anomaly]:
@@ -45,15 +45,15 @@ class AnomalyGroup:
         self._anomalies = value
 
     @property
-    def cox(self) -> np.ndarray | None:
+    def group_center(self) -> np.ndarray | None:
         """
-        Center of oxidized coal.
+        Group center.
         """
-        return self._cox
+        return self._group_center
 
-    @cox.setter
-    def cox(self, value):
-        self._cox = value
+    @group_center.setter
+    def group_center(self, value):
+        self._group_center = value
 
     @property
     def migration(self) -> float | None:
@@ -150,37 +150,37 @@ class AnomalyGroup:
     def compute_dip_direction(
         self,
         azimuth: np.ndarray,
-        cox: np.ndarray,
-        cox_sort: np.ndarray,
+        group_center: np.ndarray,
+        group_center_sort: np.ndarray,
     ) -> float:
         """
         Compute dip direction for an anomaly group.
 
         :param azimuth: Azimuth values for all anomalies.
-        :param cox: Peak indices.
-        :param cox_sort: Indices to sort cox.
+        :param group_center: Peak indices.
+        :param group_center_sort: Indices to sort group center.
 
         :return: Dip direction.
         """
         peak_values = self.get_list_attr("peak_values")
-        dip_direction = azimuth[cox[0]]
-        if peak_values[cox_sort][0] < peak_values[cox_sort][-1]:
+        dip_direction = azimuth[group_center[0]]
+        if peak_values[group_center_sort][0] < peak_values[group_center_sort][-1]:
             dip_direction = (dip_direction + 180) % 360.0
         return dip_direction
 
     def compute_skew(
         self,
         locs: np.ndarray,
-        cox: np.ndarray,
-        cox_sort: np.ndarray,
+        group_center: np.ndarray,
+        group_center_sort: np.ndarray,
         azimuth_near: np.ndarray,
     ) -> float:
         """
         Compute skew factor for an anomaly group.
 
         :param locs: Resampled line vertices.
-        :param cox: Center of oxidized coal; center of peak.
-        :param cox_sort: Indices to sort cox.
+        :param group_center: Center of oxidized coal; center of peak.
+        :param group_center_sort: Indices to sort group center.
         :param azimuth_near: Azimuth values for the group.
 
         :return: Skew.
@@ -188,11 +188,16 @@ class AnomalyGroup:
         inflect_up = self.get_list_attr("inflect_up")
         inflect_down = self.get_list_attr("inflect_down")
 
-        skew = (locs[cox][cox_sort[0]] - locs[inflect_up][cox_sort]) / (
-            locs[inflect_down][cox_sort] - locs[cox][cox_sort[0]] + 1e-8
+        skew = (
+            locs[group_center][group_center_sort[0]]
+            - locs[inflect_up][group_center_sort]
+        ) / (
+            locs[inflect_down][group_center_sort]
+            - locs[group_center][group_center_sort[0]]
+            + 1e-8
         )
-        skew[azimuth_near[cox_sort] > 180] = 1.0 / (
-            skew[azimuth_near[cox_sort] > 180] + 1e-2
+        skew[azimuth_near[group_center_sort] > 180] = 1.0 / (
+            skew[azimuth_near[group_center_sort] > 180] + 1e-2
         )
         # Change skew factor from [-100, 1]
         flip_skew = skew < 1

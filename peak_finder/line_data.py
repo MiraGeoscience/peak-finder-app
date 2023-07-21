@@ -10,8 +10,10 @@ from __future__ import annotations
 from uuid import UUID
 
 import numpy as np
+from scipy.interpolate import interp1d
 
 from peak_finder.anomaly import Anomaly
+from peak_finder.base.utils import running_mean
 from peak_finder.line_position import LinePosition
 
 
@@ -22,6 +24,7 @@ class LineData:
 
     def __init__(  # pylint: disable=R0913
         self,
+        values: np.ndarray,
         channel: int,
         uid: UUID,
         position: LinePosition,
@@ -35,6 +38,9 @@ class LineData:
         self._min_amplitude = min_amplitude
         self._min_width = min_width
         self._max_migration = max_migration
+        self._values = values
+        self._values_resampled_raw = None
+        self._values_resampled = None
 
         self._anomalies: list[Anomaly] = []
 
@@ -55,6 +61,62 @@ class LineData:
     @uid.setter
     def uid(self, value):
         self._uid = value
+
+    @property
+    def values(self) -> np.ndarray:
+        """
+        Original values sorted along line.
+        """
+        return self._values
+
+    @values.setter
+    def values(self, values):
+        self.values_resampled = None
+        self._values = None
+        if values is not None and self.position.sorting is not None:
+            self._values = values[self.position.sorting]
+        if len(self._values) != len(self.position.locations):
+            raise ValueError(
+                f"Number of values ({len(self._values)}) does not match number of locations ({self.position.locations})"
+            )
+
+    @property
+    def values_resampled(self) -> np.ndarray:
+        """
+        Values re-sampled on a regular interval.
+        """
+        if self._values_resampled is None and self.position.locations is not None:
+            interp = interp1d(
+                self.position.locations, self.values, fill_value="extrapolate"
+            )
+            self._values_resampled = interp(self.position._locations_resampled)
+            if self._values_resampled is not None:
+                self._values_resampled_raw = self._values_resampled.copy()
+            if self.position._smoothing > 0:
+                mean_values = running_mean(
+                    self._values_resampled,
+                    width=self.position._smoothing,
+                    method="centered",
+                )
+
+                if self.position.residual:
+                    self._values_resampled = self._values_resampled - mean_values
+                else:
+                    self._values_resampled = mean_values
+
+        return self._values_resampled
+
+    @values_resampled.setter
+    def values_resampled(self, values):
+        self._values_resampled = values
+        self._values_resampled_raw = None
+
+    @property
+    def values_resampled_raw(self) -> np.ndarray:
+        """
+        Resampled values prior to smoothing.
+        """
+        return self._values_resampled_raw
 
     @property
     def min_amplitude(self) -> int:

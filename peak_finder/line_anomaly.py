@@ -255,19 +255,20 @@ class LineAnomaly:  # pylint: disable=R0902
             self.data_normalization = [1e-6]
 
         azimuth = self.compute_azimuth()
-
-        line_dataset = []
-
-        # Used in group_anomalies
-        data_uid = list(channels)
-        property_groups = list(channel_groups.values())
         group_prop_size = np.r_[
             [len(grp["properties"]) for grp in channel_groups.values()]
         ]
 
+        line_dataset = []
         # Iterate over channels and add to anomalies
         for channel, (uid, params) in enumerate(channels.items()):
+            if "values" not in list(params):
+                continue
+
+            # Make LineData with current channel values
+            values = params["values"][self.line_indices].copy()
             line_data = LineData(
+                values,
                 channel,
                 uid,
                 self.position,
@@ -275,14 +276,7 @@ class LineAnomaly:  # pylint: disable=R0902
                 self.min_width,
                 self.max_migration,
             )
-
-            if "values" not in list(params):
-                continue
-
-            # Update profile with current line values
-            values = params["values"][self.line_indices].copy()
-            self.position.values = values
-            values = self.position.values_resampled
+            values = line_data.values_resampled
 
             # Get indices for peaks and inflection points for line
             peaks, lows, inflect_up, inflect_down = self.position.get_peak_indices(
@@ -302,25 +296,33 @@ class LineAnomaly:  # pylint: disable=R0902
             line_dataset.append(line_data)
 
         if len(line_dataset) == 0:
-            line_group = None
+            line_groups = None
         else:
             # Group anomalies
-            line_group = LineGroup(
-                line_dataset=line_dataset,
-                max_migration=self.max_migration,
-            )
-            line_group.group_anomalies(
-                channel_groups,
-                group_prop_size,
-                self.min_channels,
-                property_groups,
-                data_uid,
-                azimuth,
-                self.data_normalization,
-                channels,
-                self.minimal_output,
-            )
+            line_groups = []
+            for property_group in list(channel_groups.values()):
+                line_data_subset = []
+                for line_data in line_dataset:
+                    if line_data.uid in property_group["properties"]:
+                        line_data_subset.append(line_data)
+                line_group = LineGroup(
+                    line_dataset=line_data_subset,
+                    max_migration=self.max_migration,
+                    groups=[],
+                )
+                line_group.group_anomalies(
+                    self.position,
+                    channel_groups,
+                    self.min_channels,
+                    property_group,
+                    group_prop_size,
+                    azimuth,
+                    self.data_normalization,
+                    channels,
+                    self.minimal_output,
+                )
+                line_groups.append(line_group)
 
         if self.return_profile:
-            return line_group, self.position
-        return line_group
+            return line_groups, self.position
+        return line_groups

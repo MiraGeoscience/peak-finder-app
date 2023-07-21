@@ -11,7 +11,6 @@ import numpy as np
 from scipy.interpolate import interp1d
 
 from peak_finder.base.surveys import traveling_salesman
-from peak_finder.base.utils import running_mean
 
 
 class LinePosition:
@@ -37,7 +36,6 @@ class LinePosition:
     def __init__(
         self,
         locations: np.ndarray | None = None,
-        values: np.ndarray | None = None,
         epsilon: float | None = None,
         interpolation: str = "gaussian",
         smoothing: int = 0,
@@ -51,13 +49,10 @@ class LinePosition:
         self.y_locations = None
         self.z_locations = None
         self.locations = locations
-        self.values = values
         self._interpolation = interpolation
         self._smoothing = smoothing
         self._residual = residual
         self._sampling = sampling
-        self._values_resampled_raw = None
-        self._values_resampled = None
         self.Fx = None  # pylint: disable=C0103
         self.Fy = None  # pylint: disable=C0103
         self.Fz = None  # pylint: disable=C0103
@@ -104,7 +99,7 @@ class LinePosition:
         self.y_locations = None
         self.z_locations = None
         self.sorting = None
-        self.values_resampled = None
+        # self.values_resampled = None
         self._locations_resampled = None
 
         if locations is not None:
@@ -157,20 +152,6 @@ class LinePosition:
         return self._locations_resampled
 
     @property
-    def values(self) -> np.ndarray:
-        """
-        Original values sorted along line.
-        """
-        return self._values
-
-    @values.setter
-    def values(self, values):
-        self.values_resampled = None
-        self._values = None
-        if values is not None and self.sorting is not None:
-            self._values = values[self.sorting]
-
-    @property
     def sampling(self) -> float | None:
         """
         Discrete interval length (m)
@@ -183,40 +164,6 @@ class LinePosition:
                 np.abs(self.locations_resampled[1:] - self.locations_resampled[:-1])
             )
         return self._sampling
-
-    @property
-    def values_resampled(self) -> np.ndarray:
-        """
-        Values re-sampled on a regular interval.
-        """
-        if self._values_resampled is None and self.locations is not None:
-            interp = interp1d(self.locations, self.values, fill_value="extrapolate")
-            self._values_resampled = interp(self._locations_resampled)
-            if self._values_resampled is not None:
-                self._values_resampled_raw = self._values_resampled.copy()
-            if self._smoothing > 0:
-                mean_values = running_mean(
-                    self._values_resampled, width=self._smoothing, method="centered"
-                )
-
-                if self.residual:
-                    self._values_resampled = self._values_resampled - mean_values
-                else:
-                    self._values_resampled = mean_values
-
-        return self._values_resampled
-
-    @values_resampled.setter
-    def values_resampled(self, values):
-        self._values_resampled = values
-        self._values_resampled_raw = None
-
-    @property
-    def values_resampled_raw(self) -> np.ndarray:
-        """
-        Resampled values prior to smoothing.
-        """
-        return self._values_resampled_raw
 
     @property
     def interpolation(self) -> str:
@@ -312,7 +259,7 @@ class LinePosition:
             )
         return self.Fz(distance)  # type: ignore
 
-    def derivative(self, order: int = 1) -> np.ndarray:
+    def derivative(self, values_resampled, order: int = 1) -> np.ndarray:
         """
         Compute and return the first order derivative.
 
@@ -320,7 +267,7 @@ class LinePosition:
 
         :return: Derivative of values_resampled.
         """
-        deriv = self.values_resampled
+        deriv = values_resampled
         for _ in range(order):
             deriv = (
                 deriv[1:] - deriv[:-1]  # pylint: disable=unsubscriptable-object
@@ -347,7 +294,7 @@ class LinePosition:
 
     def get_peak_indices(
         self,
-        values,
+        values: np.ndarray,
         min_value: float,
     ):
         """
@@ -360,8 +307,8 @@ class LinePosition:
         :return: Indices of upward inflection points.
         :return: Indices of downward inflection points.
         """
-        dx = self.derivative(order=1)  # pylint: disable=C0103
-        ddx = self.derivative(order=2)
+        dx = self.derivative(values, order=1)  # pylint: disable=C0103
+        ddx = self.derivative(values, order=2)
 
         # Find maxima and minima
         peaks = np.where(

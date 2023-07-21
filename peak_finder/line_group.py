@@ -7,10 +7,13 @@
 
 from __future__ import annotations
 
+import copy
+
 import numpy as np
 
 from peak_finder.anomaly_group import AnomalyGroup
 from peak_finder.line_data import LineData
+from peak_finder.line_position import LinePosition
 
 
 class LineGroup:
@@ -25,7 +28,7 @@ class LineGroup:
         max_migration: float = 50.0,
     ):
         """
-        :param line_data: LineData with list of all anomalies.
+        :param line_dataset: List of line data with all anomalies.
         :param groups: List of anomaly groups.
         :param max_migration: Maximum peak migration.
         """
@@ -104,13 +107,38 @@ class LineGroup:
 
         return near
 
+    def get_anomaly_attributes(self, locs):
+        """ """
+        full_anomalies = []
+        full_group_ids = []
+        full_channels = []
+        full_peak_positions = []
+        full_channel_groups = []
+        for line_data in self.line_dataset:
+            for anom in line_data.anomalies:
+                full_anomalies.append(anom)
+                full_group_ids.append(anom.group)
+                full_channels.append(anom.channel)
+                full_peak_positions.append(locs[anom.peak])
+                full_channel_groups.append(anom.channel_group)
+        full_channels = np.array(full_channels)
+        full_group_ids = np.array(full_group_ids)
+        full_peak_positions = np.array(full_peak_positions)
+        return (
+            full_anomalies,
+            full_group_ids,
+            full_channels,
+            full_peak_positions,
+            full_channel_groups,
+        )
+
     def group_anomalies(  # pylint: disable=R0913, R0914
         self,
+        position: LinePosition,
         channel_groups: dict,
-        group_prop_size: np.ndarray,
         min_channels: int,
-        property_groups: list,
-        data_uid: list,
+        property_group: dict,
+        group_prop_size: list,
         azimuth: np.ndarray,
         data_normalization: list | str,
         channels: dict,
@@ -123,7 +151,6 @@ class LineGroup:
         :param group_prop_size: Group property size.
         :param min_channels: Minimum number of channels in a group.
         :param property_groups: Property groups.
-        :param data_uid: List of uids for channels.
         :param azimuth: Azimuth.
         :param data_normalization: Data normalization factor.
         :param channels: Channels.
@@ -131,34 +158,17 @@ class LineGroup:
 
         :return: List of groups of anomalies.
         """
-
-        # if len(line_data.anomalies) == 0:
-        #    continue
-
-        full_locs = self.line_dataset[0].position.locations_resampled
-        position = self.line_dataset[0].position
+        # LinePosition information
+        locs = position.locations_resampled
 
         # Get full lists of anomaly attributes
-        full_anomalies = []
-        # full_locs = []
-        full_group_ids = []
-        full_channels = []
-        full_peak_positions = []
-        full_channel_groups = []
-        for line_data in self.line_dataset:
-            locs = line_data.position.locations_resampled
-            for anom in line_data.anomalies:
-                full_anomalies.append(anom)
-                full_group_ids.append(anom.group)
-                full_channels.append(anom.channel)
-                full_peak_positions.append(locs[anom.peak])
-                full_channel_groups.append(anom.channel_group)
-        full_channels = np.array(full_channels)
-        full_group_ids = np.array(full_group_ids)
-        full_peak_positions = np.array(full_peak_positions)
-
-        # peaks_position = np.array(full_locs)[full_peaks]
-
+        (
+            full_anomalies,
+            full_group_ids,
+            full_channels,
+            full_peak_positions,
+            full_channel_groups,
+        ) = self.get_anomaly_attributes(locs)
         groups = []
         group_id = -1
 
@@ -176,26 +186,31 @@ class LineGroup:
                 full_peak_positions,
             )
 
+            # """
             score = np.zeros(len(channel_groups))
             for ind in near:
                 score[full_channel_groups[ind]] += 1
 
             # Find groups with the largest channel overlap
             max_scores = np.where(score == score.max())[0]
-            # Keep the group with fewer properties
+
+            # in_group = max_scores
             in_group = max_scores[
                 np.argmax(score[max_scores] / group_prop_size[max_scores])
             ]
             if score[in_group] < min_channels:
                 continue
 
-            channel_group = property_groups[in_group]
+            """
+            channel_group = property_group
             # Remove anomalies not in group
             mask = [
-                data_uid[full_anomalies[ind].channel] in channel_group["properties"]
-                for ind in near
+                data_uid[anomalies["channel"][id]] in channel_group["properties"]
+                for id in near
             ]
             near = near[mask, ...]
+            """
+
             if len(near) == 0:
                 continue
 
@@ -206,19 +221,21 @@ class LineGroup:
 
             # Make AnomalyGroup
             near_anomalies = np.array(full_anomalies)[near]
-            group = AnomalyGroup(near_anomalies, channel_group)
+            group = AnomalyGroup(copy.deepcopy(near_anomalies), property_group)
 
             peaks = group.get_list_attr("peak")
-            cox_sort = np.argsort(full_locs[peaks])
+            group_center_sort = np.argsort(locs[peaks])
             azimuth_near = azimuth[peaks]
-            group.azimuth = group.compute_dip_direction(azimuth, peaks, cox_sort)
+            group.azimuth = group.compute_dip_direction(
+                azimuth, peaks, group_center_sort
+            )
             group.migration = np.abs(
-                full_locs[peaks[cox_sort[-1]]] - full_locs[peaks[cox_sort[0]]]
+                locs[peaks[group_center_sort[-1]]] - locs[peaks[group_center_sort[0]]]
             )
             group.skew = group.compute_skew(
-                full_locs,
+                locs,
                 peaks,
-                cox_sort,
+                group_center_sort,
                 azimuth_near,
             )
 
@@ -228,9 +245,9 @@ class LineGroup:
 
             group.amplitude = np.sum([anom.amplitude for anom in group.anomalies])
             group.linear_fit = group.compute_linear_fit(channels)
-            group.cox = (
+            group.group_center = (
                 np.mean(
-                    position.interpolate_array(peaks[cox_sort[0]]),
+                    position.interpolate_array(peaks[group_center_sort[0]]),
                     axis=0,
                 ),
             )
@@ -240,4 +257,4 @@ class LineGroup:
 
             groups += [group]
 
-            self.groups = groups
+        self.groups = groups

@@ -836,7 +836,11 @@ class PeakFinder(ObjectDataSelection):  # pylint: disable=R0902, R0904
         )
 
         if len(result) > 0:
-            self.lines.anomalies = getattr(result[0], "groups", None)
+            anomalies = []
+            if result[0] is not None:
+                for line_group in result[0]:
+                    anomalies += line_group.groups
+            self.lines.anomalies = anomalies
             self.lines.profile = result[1]
         else:
             self.group_display.disabled = True
