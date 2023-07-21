@@ -12,6 +12,7 @@ python = "^3.9, < 3.11"
 ## dependencies for a minimal environment
 geoapps-utils = {version = "~0.1.0", source = "pypi"}
 
+notebook = {version = "~6.5.3"}
 dask = {version = "2022.10.0", extras = ["distributed"]}
 jupyter-server = {version = "~1.23.6"}
 matplotlib = {version = "~3.7.1"}
