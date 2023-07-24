@@ -10,10 +10,8 @@ from __future__ import annotations
 from uuid import UUID
 
 import numpy as np
-from scipy.interpolate import interp1d
 
 from peak_finder.anomaly import Anomaly
-from peak_finder.base.utils import running_mean
 from peak_finder.line_position import LinePosition
 
 
@@ -46,7 +44,9 @@ class LineData:
 
     @property
     def channel(self) -> int:
-        """ """
+        """
+        Channel.
+        """
         return self._channel
 
     @channel.setter
@@ -55,7 +55,9 @@ class LineData:
 
     @property
     def uid(self) -> UUID:
-        """ """
+        """
+        UUID.
+        """
         return self._uid
 
     @uid.setter
@@ -77,7 +79,8 @@ class LineData:
             self._values = values[self.position.sorting]
         if len(self._values) != len(self.position.locations):
             raise ValueError(
-                f"Number of values ({len(self._values)}) does not match number of locations ({self.position.locations})"
+                f"Number of values ({len(self._values)}) does not match "
+                f"number of locations ({self.position.locations})"
             )
 
     @property
@@ -85,25 +88,11 @@ class LineData:
         """
         Values re-sampled on a regular interval.
         """
-        if self._values_resampled is None and self.position.locations is not None:
-            interp = interp1d(
-                self.position.locations, self.values, fill_value="extrapolate"
-            )
-            self._values_resampled = interp(self.position._locations_resampled)
-            if self._values_resampled is not None:
-                self._values_resampled_raw = self._values_resampled.copy()
-            if self.position._smoothing > 0:
-                mean_values = running_mean(
-                    self._values_resampled,
-                    width=self.position._smoothing,
-                    method="centered",
-                )
-
-                if self.position.residual:
-                    self._values_resampled = self._values_resampled - mean_values
-                else:
-                    self._values_resampled = mean_values
-
+        if self._values_resampled is None:
+            (
+                self._values_resampled,
+                self._values_resampled_raw,
+            ) = self.position.resample_values(self.values)
         return self._values_resampled
 
     @values_resampled.setter
@@ -186,13 +175,12 @@ class LineData:
         return np.array([getattr(a, attr) for a in self.anomalies])
 
     def get_amplitude_and_width(
-        self, locs: np.ndarray, values: np.ndarray, peak: int, start: int, end: int
+        self, locs: np.ndarray, peak: int, start: int, end: int
     ) -> tuple[float, float, float]:
         """
         Get amplitude and width of anomaly.
 
         :param locs: Line vertices.
-        :param values: Line values.
         :param peak: Index of peak of anomaly.
         :param start: Index of start of anomaly.
         :param end: Index of end of anomaly.
@@ -200,6 +188,7 @@ class LineData:
         :return: Amplitude and width of anomaly.
         """
         # Amplitude threshold
+        values = self.values_resampled
         delta_amp = (
             np.abs(
                 np.min(
@@ -225,8 +214,72 @@ class LineData:
 
         return delta_amp, delta_x, amplitude
 
-    def get_peak_inds(
+    def derivative(self, order: int = 1) -> np.ndarray:
+        """
+        Compute and return the first order derivative.
+
+        :param order: Order of derivative.
+
+        :return: Derivative of values_resampled.
+        """
+        deriv = self.values_resampled
+        for _ in range(order):
+            deriv = (
+                deriv[1:] - deriv[:-1]  # pylint: disable=unsubscriptable-object
+            ) / self.position.sampling
+            deriv = np.r_[
+                2 * deriv[0] - deriv[1], deriv  # pylint: disable=unsubscriptable-object
+            ]
+
+        return deriv
+
+    def get_peak_indices(
         self,
+        min_value: float,
+    ):
+        """
+        Get maxima and minima for a line profile.
+
+        :param min_value: Minimum value for data.
+
+        :return: Indices of maxima.
+        :return: Indices of minima.
+        :return: Indices of upward inflection points.
+        :return: Indices of downward inflection points.
+        """
+        values = self.values_resampled
+
+        dx = self.derivative(order=1)  # pylint: disable=C0103
+        ddx = self.derivative(order=2)
+
+        # Find maxima and minima
+        peaks = np.where(
+            (np.diff(np.sign(dx)) != 0)
+            & (ddx[1:] < 0)
+            & (values[:-1] > min_value)  # pylint: disable=unsubscriptable-object
+        )[0]
+        lows = np.where(
+            (np.diff(np.sign(dx)) != 0)
+            & (ddx[1:] > 0)
+            & (values[:-1] > min_value)  # pylint: disable=unsubscriptable-object
+        )[0]
+        lows = np.r_[0, lows, self.position.locations_resampled.shape[0] - 1]
+        # Find inflection points
+        inflect_up = np.where(
+            (np.diff(np.sign(ddx)) != 0)
+            & (dx[1:] > 0)
+            & (values[:-1] > min_value)  # pylint: disable=unsubscriptable-object
+        )[0]
+        inflect_down = np.where(
+            (np.diff(np.sign(ddx)) != 0)
+            & (dx[1:] < 0)
+            & (values[:-1] > min_value)  # pylint: disable=unsubscriptable-object
+        )[0]
+
+        return peaks, lows, inflect_up, inflect_down
+
+    @staticmethod
+    def get_peak_bounds(
         locs: np.ndarray,
         peak: int,
         inds: np.ndarray,
@@ -252,7 +305,6 @@ class LineData:
 
     def add_anomalies(  # pylint: disable=R0913, R0914
         self,
-        values,
         channel_groups: dict,
         peaks_inds: np.ndarray,
         lows_inds: np.ndarray,
@@ -278,25 +330,26 @@ class LineData:
         ):
             return
 
+        values = self.values_resampled
         for peak in peaks_inds:
             # Get start of peak
-            ind = self.get_peak_inds(locs, peak, lows_inds, 1)
+            ind = LineData.get_peak_bounds(locs, peak, lows_inds, 1)
             start = lows_inds[ind]
 
             # Get end of peak
-            ind = self.get_peak_inds(locs, peak, lows_inds, 0)
+            ind = LineData.get_peak_bounds(locs, peak, lows_inds, 0)
             end = np.min([locs.shape[0] - 1, lows_inds[ind]])
 
             # Inflection points
-            ind = self.get_peak_inds(locs, peak, inflect_up_inds, 1)
+            ind = LineData.get_peak_bounds(locs, peak, inflect_up_inds, 1)
             inflect_up = inflect_up_inds[ind]
 
-            ind = self.get_peak_inds(locs, peak, inflect_down_inds, 0)
+            ind = LineData.get_peak_bounds(locs, peak, inflect_down_inds, 0)
             inflect_down = np.min([locs.shape[0] - 1, inflect_down_inds[ind] + 1])
 
             # Check amplitude and width thresholds
             delta_amp, delta_x, amplitude = self.get_amplitude_and_width(
-                locs, values, peak, start, end
+                locs, peak, start, end
             )
 
             if (delta_amp > self.min_amplitude) & (delta_x > self.min_width):
@@ -307,7 +360,7 @@ class LineData:
                     inflect_up=inflect_up,
                     inflect_down=inflect_down,
                     peak=peak,
-                    peak_values=values[peak],
+                    peak_values=values[peak],  # pylint: disable=unsubscriptable-object
                     amplitude=amplitude,
                     group=-1,
                     channel_group=[

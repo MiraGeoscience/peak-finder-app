@@ -11,7 +11,6 @@ import numpy as np
 from geoh5py.groups import PropertyGroup
 from geoh5py.objects import Curve
 
-from peak_finder.base.utils import running_mean
 from peak_finder.line_data import LineData
 from peak_finder.line_group import LineGroup
 from peak_finder.line_position import LinePosition
@@ -83,7 +82,9 @@ class LineAnomaly:  # pylint: disable=R0902
 
     @property
     def line_indices(self) -> list[int]:
-        """ """
+        """
+        Indices of vertices for line profile.
+        """
         return self._line_indices
 
     @line_indices.setter
@@ -92,7 +93,9 @@ class LineAnomaly:  # pylint: disable=R0902
 
     @property
     def smoothing(self) -> int:
-        """ """
+        """
+        Smoothing factor.
+        """
         return self._smoothing
 
     @smoothing.setter
@@ -101,7 +104,9 @@ class LineAnomaly:  # pylint: disable=R0902
 
     @property
     def data_normalization(self) -> tuple | list | str:
-        """ """
+        """
+        Value(s) to normalize data by.
+        """
         return self._data_normalization
 
     @data_normalization.setter
@@ -110,7 +115,9 @@ class LineAnomaly:  # pylint: disable=R0902
 
     @property
     def min_amplitude(self) -> int:
-        """ """
+        """
+        Minimum amplitude of anomaly as percent.
+        """
         return self._min_amplitude
 
     @min_amplitude.setter
@@ -119,7 +126,9 @@ class LineAnomaly:  # pylint: disable=R0902
 
     @property
     def min_value(self) -> float:
-        """ """
+        """
+        Minimum data value of anomaly.
+        """
         return self._min_value
 
     @min_value.setter
@@ -128,7 +137,9 @@ class LineAnomaly:  # pylint: disable=R0902
 
     @property
     def min_width(self) -> float:
-        """ """
+        """
+        Minimum width of anomaly.
+        """
         return self._min_width
 
     @min_width.setter
@@ -137,7 +148,9 @@ class LineAnomaly:  # pylint: disable=R0902
 
     @property
     def max_migration(self) -> float:
-        """ """
+        """
+        Max migration for anomaly group.
+        """
         return self._max_migration
 
     @max_migration.setter
@@ -146,7 +159,9 @@ class LineAnomaly:  # pylint: disable=R0902
 
     @property
     def min_channels(self) -> int:
-        """ """
+        """
+        Minimum number of channels in anomaly group.
+        """
         return self._min_channels
 
     @min_channels.setter
@@ -155,7 +170,9 @@ class LineAnomaly:  # pylint: disable=R0902
 
     @property
     def use_residual(self) -> bool:
-        """ """
+        """
+        Whether to use the residual of the smoothing data.
+        """
         return self._use_residual
 
     @use_residual.setter
@@ -164,7 +181,9 @@ class LineAnomaly:  # pylint: disable=R0902
 
     @property
     def minimal_output(self) -> bool:
-        """ """
+        """
+        Whether to return minimal output for anomaly groups.
+        """
         return self._minimal_output
 
     @minimal_output.setter
@@ -173,7 +192,9 @@ class LineAnomaly:  # pylint: disable=R0902
 
     @property
     def return_profile(self) -> bool:
-        """ """
+        """
+        Whether to return the line profile.
+        """
         return self._return_profile
 
     @return_profile.setter
@@ -218,21 +239,11 @@ class LineAnomaly:  # pylint: disable=R0902
     def position(self, value):
         self._position = value
 
-    def compute_azimuth(self):
-        """ """
-        # Compute azimuth
-        locs = self.position.locations_resampled
-        mat = np.c_[self.position.interp_x(locs), self.position.interp_y(locs)]
-        angles = np.arctan2(mat[1:, 1] - mat[:-1, 1], mat[1:, 0] - mat[:-1, 0])
-        angles = np.r_[angles[0], angles].tolist()
-        azimuth = (450.0 - np.rad2deg(running_mean(angles, width=5))) % 360.0
-        return azimuth
-
     def find_anomalies(  # pylint: disable=R0914
         self,
         channels: dict,
         channel_groups: dict,
-    ) -> tuple[LineGroup | None, LinePosition] | LineGroup | None:
+    ) -> tuple[list[LineGroup] | None, LinePosition] | list[LineGroup] | None:
         """
         Find all anomalies along a line profile of data.
         Anomalies are detected based on the lows, inflection points and peaks.
@@ -254,11 +265,6 @@ class LineAnomaly:  # pylint: disable=R0902
         if self.data_normalization == "ppm":
             self.data_normalization = [1e-6]
 
-        azimuth = self.compute_azimuth()
-        group_prop_size = np.r_[
-            [len(grp["properties"]) for grp in channel_groups.values()]
-        ]
-
         line_dataset = []
         # Iterate over channels and add to anomalies
         for channel, (uid, params) in enumerate(channels.items()):
@@ -276,15 +282,13 @@ class LineAnomaly:  # pylint: disable=R0902
                 self.min_width,
                 self.max_migration,
             )
-            values = line_data.values_resampled
 
             # Get indices for peaks and inflection points for line
-            peaks, lows, inflect_up, inflect_down = self.position.get_peak_indices(
-                values, self.min_value
+            peaks, lows, inflect_up, inflect_down = line_data.get_peak_indices(
+                self.min_value
             )
             # Iterate over peaks and add to anomalies
             line_data.add_anomalies(
-                values,
                 channel_groups,
                 peaks,
                 lows,
@@ -298,6 +302,10 @@ class LineAnomaly:  # pylint: disable=R0902
         if len(line_dataset) == 0:
             line_groups = None
         else:
+            azimuth = self.position.compute_azimuth()
+            group_prop_size = np.r_[
+                [len(grp["properties"]) for grp in channel_groups.values()]
+            ]
             # Group anomalies
             line_groups = []
             for property_group in list(channel_groups.values()):

@@ -11,9 +11,10 @@ import numpy as np
 from scipy.interpolate import interp1d
 
 from peak_finder.base.surveys import traveling_salesman
+from peak_finder.base.utils import running_mean
 
 
-class LinePosition:
+class LinePosition:  # pylint: disable=R0902
     """
     Compute and store the derivatives of inline data values. The values are re-sampled at a constant
     interval, padded then transformed to the Fourier domain using the :obj:`numpy.fft` package.
@@ -33,7 +34,7 @@ class LinePosition:
         separation.
     """
 
-    def __init__(
+    def __init__(  # pylint: disable=R0913
         self,
         locations: np.ndarray | None = None,
         epsilon: float | None = None,
@@ -79,9 +80,9 @@ class LinePosition:
         """
         if (
             getattr(self, "_sampling_width", None) is None
-            and self.values_resampled is not None
+            and self.locations_resampled is not None
         ):
-            self._sampling_width = int(np.floor(len(self.values_resampled)))
+            self._sampling_width = int(np.floor(len(self.locations_resampled)))
 
         return self._sampling_width
 
@@ -189,7 +190,6 @@ class LinePosition:
         assert isinstance(value, bool), "Residual must be a bool"
         if value != self._residual:
             self._residual = value
-            self.values_resampled = None
 
     @property
     def smoothing(self) -> int:
@@ -206,7 +206,31 @@ class LinePosition:
         ), "Smoothing parameter must be an integer >0"
         if value != self._smoothing:
             self._smoothing = value
-            self.values_resampled = None
+
+    def resample_values(self, values) -> np.ndarray:
+        """
+        Values re-sampled on a regular interval.
+        """
+        values_resampled = None
+        values_resampled_raw = None
+        if self.locations is not None:
+            interp = interp1d(self.locations, values, fill_value="extrapolate")
+            values_resampled = interp(self._locations_resampled)
+            if values_resampled is not None:
+                values_resampled_raw = values_resampled.copy()
+            if self._smoothing > 0:
+                mean_values = running_mean(
+                    values_resampled,
+                    width=self._smoothing,
+                    method="centered",
+                )
+
+                if self.residual:
+                    values_resampled = values_resampled - mean_values
+                else:
+                    values_resampled = mean_values
+
+        return values_resampled, values_resampled_raw
 
     def interp_x(self, distance: float) -> float:
         """
@@ -259,25 +283,6 @@ class LinePosition:
             )
         return self.Fz(distance)  # type: ignore
 
-    def derivative(self, values_resampled, order: int = 1) -> np.ndarray:
-        """
-        Compute and return the first order derivative.
-
-        :param order: Order of derivative.
-
-        :return: Derivative of values_resampled.
-        """
-        deriv = values_resampled
-        for _ in range(order):
-            deriv = (
-                deriv[1:] - deriv[:-1]  # pylint: disable=unsubscriptable-object
-            ) / self.sampling
-            deriv = np.r_[
-                2 * deriv[0] - deriv[1], deriv  # pylint: disable=unsubscriptable-object
-            ]
-
-        return deriv
-
     def interpolate_array(self, inds: np.ndarray) -> np.ndarray:
         """
         Interpolate the locations of the line profile at the given indices.
@@ -292,46 +297,13 @@ class LinePosition:
             self.interp_z(self.locations_resampled[inds]),
         ]
 
-    def get_peak_indices(
-        self,
-        values: np.ndarray,
-        min_value: float,
-    ):
+    def compute_azimuth(self):
         """
-        Get maxima and minima for a line profile.
-
-        :param min_value: Minimum value for data.
-
-        :return: Indices of maxima.
-        :return: Indices of minima.
-        :return: Indices of upward inflection points.
-        :return: Indices of downward inflection points.
+        Compute azimuth of line profile.
         """
-        dx = self.derivative(values, order=1)  # pylint: disable=C0103
-        ddx = self.derivative(values, order=2)
-
-        # Find maxima and minima
-        peaks = np.where(
-            (np.diff(np.sign(dx)) != 0)
-            & (ddx[1:] < 0)
-            & (values[:-1] > min_value)  # pylint: disable=unsubscriptable-object
-        )[0]
-        lows = np.where(
-            (np.diff(np.sign(dx)) != 0)
-            & (ddx[1:] > 0)
-            & (values[:-1] > min_value)  # pylint: disable=unsubscriptable-object
-        )[0]
-        lows = np.r_[0, lows, self.locations_resampled.shape[0] - 1]
-        # Find inflection points
-        inflect_up = np.where(
-            (np.diff(np.sign(ddx)) != 0)
-            & (dx[1:] > 0)
-            & (values[:-1] > min_value)  # pylint: disable=unsubscriptable-object
-        )[0]
-        inflect_down = np.where(
-            (np.diff(np.sign(ddx)) != 0)
-            & (dx[1:] < 0)
-            & (values[:-1] > min_value)  # pylint: disable=unsubscriptable-object
-        )[0]
-
-        return peaks, lows, inflect_up, inflect_down
+        locs = self.locations_resampled
+        mat = np.c_[self.interp_x(locs), self.interp_y(locs)]
+        angles = np.arctan2(mat[1:, 1] - mat[:-1, 1], mat[1:, 0] - mat[:-1, 0])
+        angles = np.r_[angles[0], angles].tolist()
+        azimuth = (450.0 - np.rad2deg(running_mean(angles, width=5))) % 360.0
+        return azimuth

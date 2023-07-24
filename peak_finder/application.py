@@ -817,12 +817,11 @@ class PeakFinder(ObjectDataSelection):  # pylint: disable=R0902, R0904
 
         self.plot_trigger.value = False
         self.survey.line_indices = line_indices
-
         line_anomaly = LineAnomaly(
             entity=self.survey,
             line_indices=line_indices,
-            data_normalization=self.em_system_specs[self.system.value]["normalization"],
             smoothing=self.smoothing.value,
+            data_normalization=self.em_system_specs[self.system.value]["normalization"],
             min_amplitude=self.min_amplitude.value,
             min_value=self.min_value.value,
             min_width=self.min_width.value,
@@ -972,8 +971,9 @@ class PeakFinder(ObjectDataSelection):  # pylint: disable=R0902, R0904
             if "values" not in channel_dict:
                 continue
 
-            self.lines.profile.values = channel_dict["values"][self.survey.line_indices]
-            values = self.lines.profile.values_resampled
+            values = channel_dict["values"][self.survey.line_indices]
+            values, _ = self.lines.profile.resample_values(values)
+
             y_min = np.nanmin([values[sub_ind].min(), y_min])
             y_max = np.nanmax([values[sub_ind].max(), y_max])
             axs.plot(locs, values, color=[0.5, 0.5, 0.5, 1])
