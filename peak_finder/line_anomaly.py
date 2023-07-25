@@ -25,6 +25,8 @@ class LineAnomaly:  # pylint: disable=R0902
         self,
         entity: Curve,
         line_indices: list[int],
+        channels: dict,
+        channel_groups: dict,
         smoothing: int = 1,
         data_normalization: tuple | list | str = (1.0,),
         min_amplitude: int = 25,
@@ -34,11 +36,12 @@ class LineAnomaly:  # pylint: disable=R0902
         min_channels: int = 3,
         use_residual: bool = False,
         minimal_output: bool = False,
-        return_profile: bool = False,
     ):
         """
         :param entity: Survey object.
         :param line_indices: Indices of vertices for line profile.
+        :param channels: Channels.
+        :param channel_groups: Property groups to use for grouping anomalies.
         :param smoothing: Smoothing factor.
         :param data_normalization: Value(s) to normalize data by.
         :param min_amplitude: Minimum amplitude of anomaly as percent.
@@ -48,10 +51,11 @@ class LineAnomaly:  # pylint: disable=R0902
         :param min_channels: Minimum number of channels in anomaly.
         :param use_residual: Whether to use the residual of the smoothing data.
         :param minimal_output: Whether to return minimal output.
-        :param return_profile: Whether to return the line profile.
         """
         self._entity = entity
         self._line_indices = line_indices
+        self._channels = channels
+        self._channel_groups = channel_groups
         self._smoothing = smoothing
         self._data_normalization = data_normalization
         self._min_amplitude = min_amplitude
@@ -61,13 +65,11 @@ class LineAnomaly:  # pylint: disable=R0902
         self._min_channels = min_channels
         self._use_residual = use_residual
         self._minimal_output = minimal_output
-        self._return_profile = return_profile
 
         self._property_group: PropertyGroup | None = None
         self._position: LinePosition | None = None
-        self._anomalies: list[LineGroup] = []
-
-        self.locations = self.entity.vertices
+        self._anomalies: list[LineGroup] | None = None
+        self._locations: np.ndarray | None = None
 
     @property
     def entity(self) -> Curve:
@@ -90,6 +92,26 @@ class LineAnomaly:  # pylint: disable=R0902
     @line_indices.setter
     def line_indices(self, value):
         self._line_indices = value
+
+    @property
+    def channels(self) -> dict:
+        """
+        """
+        return self._channels
+
+    @channels.setter
+    def channels(self, value):
+        self._channels = value
+
+    @property
+    def channel_groups(self) -> dict:
+        """
+        """
+        return self._channel_groups
+
+    @channel_groups.setter
+    def channel_groups(self, value):
+        self._channel_groups = value
 
     @property
     def smoothing(self) -> int:
@@ -191,66 +213,43 @@ class LineAnomaly:  # pylint: disable=R0902
         self._minimal_output = value
 
     @property
-    def return_profile(self) -> bool:
-        """
-        Whether to return the line profile.
-        """
-        return self._return_profile
-
-    @return_profile.setter
-    def return_profile(self, value):
-        self._return_profile = value
-
-    @property
     def locations(self) -> np.ndarray | None:
         """
         Survey vertices.
         """
+        if self._locations is None:
+            self._locations = self.entity.vertices
         return self._locations
-
-    @locations.setter
-    def locations(self, value):
-        self._locations = value
-        self.position = LinePosition(
-            locations=self.locations[self.line_indices],
-            smoothing=self.smoothing,
-            residual=self.use_residual,
-        )
 
     @property
     def anomalies(self) -> list[LineGroup] | None:
         """
         List of line groups.
         """
+        if self._anomalies is None:
+            self._anomalies = self.find_anomalies()
         return self._anomalies
-
-    @anomalies.setter
-    def anomalies(self, value):
-        self._anomalies = value
 
     @property
     def position(self) -> LinePosition | None:
         """
         Line position and interpolation.
         """
+        if self._position is None:
+            self._position = LinePosition(
+                locations=self.locations[self.line_indices],
+                smoothing=self.smoothing,
+                residual=self.use_residual,
+            )
         return self._position
-
-    @position.setter
-    def position(self, value):
-        self._position = value
 
     def find_anomalies(  # pylint: disable=R0914
         self,
-        channels: dict,
-        channel_groups: dict,
-    ) -> tuple[list[LineGroup] | None, LinePosition] | list[LineGroup] | None:
+    ) -> list[LineGroup] | None:
         """
         Find all anomalies along a line profile of data.
         Anomalies are detected based on the lows, inflection points and peaks.
         Neighbouring anomalies are then grouped and assigned a channel_group label.
-
-        :param channels: Channels.
-        :param channel_groups: Property groups to use for grouping anomalies.
 
         :return: List of groups and line profile.
         """
@@ -267,7 +266,7 @@ class LineAnomaly:  # pylint: disable=R0902
 
         line_dataset = []
         # Iterate over channels and add to anomalies
-        for channel, (uid, params) in enumerate(channels.items()):
+        for channel, (uid, params) in enumerate(self.channels.items()):
             if "values" not in list(params):
                 continue
 
@@ -281,56 +280,28 @@ class LineAnomaly:  # pylint: disable=R0902
                 self.min_amplitude,
                 self.min_width,
                 self.max_migration,
-            )
-
-            # Get indices for peaks and inflection points for line
-            peaks, lows, inflect_up, inflect_down = line_data.get_peak_indices(
                 self.min_value
             )
-            # Iterate over peaks and add to anomalies
-            line_data.add_anomalies(
-                channel_groups,
-                peaks,
-                lows,
-                inflect_up,
-                inflect_down,
-                locs,
-            )
-            line_data.anomalies = np.array(line_data.anomalies)
+
             line_dataset.append(line_data)
 
         if len(line_dataset) == 0:
-            line_groups = None
-        else:
-            azimuth = self.position.compute_azimuth()
-            group_prop_size = np.r_[
-                [len(grp["properties"]) for grp in channel_groups.values()]
-            ]
-            # Group anomalies
-            line_groups = []
-            for property_group in list(channel_groups.values()):
-                line_data_subset = []
-                for line_data in line_dataset:
-                    if line_data.uid in property_group["properties"]:
-                        line_data_subset.append(line_data)
-                line_group = LineGroup(
-                    line_dataset=line_data_subset,
-                    max_migration=self.max_migration,
-                    groups=[],
-                )
-                line_group.group_anomalies(
-                    self.position,
-                    channel_groups,
-                    self.min_channels,
-                    property_group,
-                    group_prop_size,
-                    azimuth,
-                    self.data_normalization,
-                    channels,
-                    self.minimal_output,
-                )
-                line_groups.append(line_group)
+            return None
 
-        if self.return_profile:
-            return line_groups, self.position
+        # Group anomalies
+        line_groups = []
+        for property_group in list(self.channel_groups.values()):
+            line_group = LineGroup(
+                position=self.position,
+                line_dataset=line_dataset,
+                property_group=property_group,
+                max_migration=self.max_migration,
+                channel_groups=self.channel_groups,
+                min_channels=self.min_channels,
+                data_normalization=self.data_normalization,
+                channels=self.channels,
+                minimal_output=self.minimal_output,
+            )
+            line_groups.append(line_group)
+
         return line_groups

@@ -24,9 +24,7 @@ class Anomaly:
         inflect_down: int,
         peak: int,
         peak_values: list,
-        amplitude: float,
         group: int,
-        channel_group: list,
     ):
         self._channel = channel
         self._start = start
@@ -35,10 +33,9 @@ class Anomaly:
         self._inflect_down = inflect_down
         self._peak = peak
         self._peak_values = peak_values
-        self._amplitude = amplitude
         self._group = group
-        self._channel_group = channel_group
 
+        self._amplitude: float | None = None
         self._azimuth: float | None = None
 
     @property
@@ -139,17 +136,6 @@ class Anomaly:
     @group.setter
     def group(self, value):
         self._group = value
-
-    @property
-    def channel_group(self) -> np.ndarray | list:
-        """
-        Channel groups.
-        """
-        return self._channel_group
-
-    @channel_group.setter
-    def channel_group(self, value):
-        self._channel_group = value
 
     @property
     def azimuth(self) -> float | None:

@@ -29,18 +29,24 @@ class LineData:
         min_amplitude: int,
         min_width: float,
         max_migration: float,
+        min_value: float = -np.inf,
     ):
+        self._values = values
         self._channel = channel
         self._uid = uid
         self._position = position
         self._min_amplitude = min_amplitude
         self._min_width = min_width
         self._max_migration = max_migration
-        self._values = values
+        self._min_value = min_value
+
+        self._peaks = None
+        self._lows = None
+        self._inflect_up = None
+        self._inflect_down = None
         self._values_resampled_raw = None
         self._values_resampled = None
-
-        self._anomalies: list[Anomaly] = []
+        self._anomalies: list[Anomaly] | None = None
 
     @property
     def channel(self) -> int:
@@ -141,6 +147,17 @@ class LineData:
         self._max_migration = value
 
     @property
+    def min_value(self) -> float:
+        """
+        Min data value for anomaly.
+        """
+        return self._min_value
+
+    @min_value.setter
+    def min_value(self, value):
+        self._min_value = value
+
+    @property
     def position(self) -> LinePosition:
         """
         Line vertices and interpolation functions.
@@ -156,11 +173,83 @@ class LineData:
         """
         Full list of anomalies.
         """
+        if self._anomalies is None:
+            anomalies = self.add_anomalies()
+            self._anomalies = np.array(anomalies)
         return self._anomalies
 
-    @anomalies.setter
-    def anomalies(self, value):
-        self._anomalies = value
+    @property
+    def peaks(self) -> list[int]:
+        """
+        Find peak indices.
+        """
+        if self._peaks is None:
+            values = self.values_resampled
+
+            dx = self.derivative(order=1)  # pylint: disable=C0103
+            ddx = self.derivative(order=2)
+
+            self._peaks = np.where(
+                (np.diff(np.sign(dx)) != 0)
+                & (ddx[1:] < 0)
+                & (values[:-1] > self.min_value)  # pylint: disable=unsubscriptable-object
+            )[0]
+        return self._peaks
+
+    @property
+    def lows(self) -> list[int]:
+        """
+        Find lows indices.
+        """
+        if self._lows is None:
+            values = self.values_resampled
+
+            dx = self.derivative(order=1)  # pylint: disable=C0103
+            ddx = self.derivative(order=2)
+
+            lows = np.where(
+                (np.diff(np.sign(dx)) != 0)
+                & (ddx[1:] > 0)
+                & (values[:-1] > self.min_value)  # pylint: disable=unsubscriptable-object
+            )[0]
+            self._lows = np.r_[0, lows, self.position.locations_resampled.shape[0] - 1]
+        return self._lows
+
+    @property
+    def inflect_up(self) -> list[int]:
+        """
+        Find upward inflection indices.
+        """
+        if self._inflect_up is None:
+            values = self.values_resampled
+
+            dx = self.derivative(order=1)  # pylint: disable=C0103
+            ddx = self.derivative(order=2)
+
+            self._inflect_up = np.where(
+                (np.diff(np.sign(ddx)) != 0)
+                & (dx[1:] > 0)
+                & (values[:-1] > self.min_value)  # pylint: disable=unsubscriptable-object
+            )[0]
+        return self._inflect_up
+
+    @property
+    def inflect_down(self) -> list[int]:
+        """
+        Find downward inflection indices.
+        """
+        if self._inflect_down is None:
+            values = self.values_resampled
+
+            dx = self.derivative(order=1)  # pylint: disable=C0103
+            ddx = self.derivative(order=2)
+
+            self._inflect_down = np.where(
+                (np.diff(np.sign(ddx)) != 0)
+                & (dx[1:] < 0)
+                & (values[:-1] > self.min_value)  # pylint: disable=unsubscriptable-object
+            )[0]
+        return self._inflect_down
 
     def get_list_attr(self, attr: str) -> list | np.ndarray:
         """
@@ -175,28 +264,24 @@ class LineData:
         return np.array([getattr(a, attr) for a in self.anomalies])
 
     def get_amplitude_and_width(
-        self, locs: np.ndarray, peak: int, start: int, end: int
+        self, anomaly: Anomaly
     ) -> tuple[float, float, float]:
         """
         Get amplitude and width of anomaly.
 
-        :param locs: Line vertices.
-        :param peak: Index of peak of anomaly.
-        :param start: Index of start of anomaly.
-        :param end: Index of end of anomaly.
-
         :return: Amplitude and width of anomaly.
         """
         # Amplitude threshold
+        locs = self.position.locations_resampled
         values = self.values_resampled
         delta_amp = (
             np.abs(
                 np.min(
                     [
-                        values[peak]  # pylint: disable=unsubscriptable-object
-                        - values[start],  # pylint: disable=unsubscriptable-object
-                        values[peak]  # pylint: disable=unsubscriptable-object
-                        - values[end],  # pylint: disable=unsubscriptable-object
+                        values[anomaly.peak]  # pylint: disable=unsubscriptable-object
+                        - values[anomaly.start],  # pylint: disable=unsubscriptable-object
+                        values[anomaly.peak]  # pylint: disable=unsubscriptable-object
+                        - values[anomaly.end],  # pylint: disable=unsubscriptable-object
                     ]
                 )
             )
@@ -204,11 +289,11 @@ class LineData:
         ) * 100.0
 
         # Width threshold
-        delta_x = locs[end] - locs[start]
+        delta_x = locs[anomaly.end] - locs[anomaly.start]
 
         # Amplitude
         amplitude = (
-            np.sum(np.abs(values[start:end]))  # pylint: disable=unsubscriptable-object
+            np.sum(np.abs(values[anomaly.start:anomaly.end]))  # pylint: disable=unsubscriptable-object
             * self.position.sampling
         )
 
@@ -233,54 +318,8 @@ class LineData:
 
         return deriv
 
-    def get_peak_indices(
-        self,
-        min_value: float,
-    ):
-        """
-        Get maxima and minima for a line profile.
-
-        :param min_value: Minimum value for data.
-
-        :return: Indices of maxima.
-        :return: Indices of minima.
-        :return: Indices of upward inflection points.
-        :return: Indices of downward inflection points.
-        """
-        values = self.values_resampled
-
-        dx = self.derivative(order=1)  # pylint: disable=C0103
-        ddx = self.derivative(order=2)
-
-        # Find maxima and minima
-        peaks = np.where(
-            (np.diff(np.sign(dx)) != 0)
-            & (ddx[1:] < 0)
-            & (values[:-1] > min_value)  # pylint: disable=unsubscriptable-object
-        )[0]
-        lows = np.where(
-            (np.diff(np.sign(dx)) != 0)
-            & (ddx[1:] > 0)
-            & (values[:-1] > min_value)  # pylint: disable=unsubscriptable-object
-        )[0]
-        lows = np.r_[0, lows, self.position.locations_resampled.shape[0] - 1]
-        # Find inflection points
-        inflect_up = np.where(
-            (np.diff(np.sign(ddx)) != 0)
-            & (dx[1:] > 0)
-            & (values[:-1] > min_value)  # pylint: disable=unsubscriptable-object
-        )[0]
-        inflect_down = np.where(
-            (np.diff(np.sign(ddx)) != 0)
-            & (dx[1:] < 0)
-            & (values[:-1] > min_value)  # pylint: disable=unsubscriptable-object
-        )[0]
-
-        return peaks, lows, inflect_up, inflect_down
-
-    @staticmethod
     def get_peak_bounds(
-        locs: np.ndarray,
+        self,
         peak: int,
         inds: np.ndarray,
         shift: int,
@@ -295,6 +334,7 @@ class LineData:
 
         :return: Indices of critical points.
         """
+        locs = self.position.locations_resampled
         return np.median(
             [
                 0,
@@ -303,70 +343,56 @@ class LineData:
             ]
         ).astype(int)
 
-    def add_anomalies(  # pylint: disable=R0913, R0914
-        self,
-        channel_groups: dict,
-        peaks_inds: np.ndarray,
-        lows_inds: np.ndarray,
-        inflect_up_inds: np.ndarray,
-        inflect_down_inds: np.ndarray,
-        locs: np.ndarray,
-    ):
+    def add_anomalies(self) -> list[Anomaly]:
         """
         Iterate over peaks and add to anomalies.
 
-        :param channel_groups: Channel groups.
-        :param peaks_inds: Peak indices.
-        :param lows_inds: Minima indices.
-        :param inflect_up_inds: Upward inflection indices.
-        :param inflect_down_inds: Downward inflection indices.
-        :param locs: Locations.
+        :return: List of anomalies.
         """
         if (
-            len(peaks_inds) == 0
-            or len(lows_inds) < 2
-            or len(inflect_up_inds) < 2
-            or len(inflect_down_inds) < 2
+            len(self.peaks) == 0
+            or len(self.lows) < 2
+            or len(self.inflect_up) < 2
+            or len(self.inflect_down) < 2
         ):
-            return
+            return []
 
+        anomalies = []
+        locs = self.position.locations_resampled
         values = self.values_resampled
-        for peak in peaks_inds:
+
+        for peak in self.peaks:
             # Get start of peak
-            ind = LineData.get_peak_bounds(locs, peak, lows_inds, 1)
-            start = lows_inds[ind]
+            ind = self.get_peak_bounds(peak, self.lows, 1)
+            start = self.lows[ind]
 
             # Get end of peak
-            ind = LineData.get_peak_bounds(locs, peak, lows_inds, 0)
-            end = np.min([locs.shape[0] - 1, lows_inds[ind]])
+            ind = self.get_peak_bounds(peak, self.lows, 0)
+            end = np.min([locs.shape[0] - 1, self.lows[ind]])
 
             # Inflection points
-            ind = LineData.get_peak_bounds(locs, peak, inflect_up_inds, 1)
-            inflect_up = inflect_up_inds[ind]
+            ind = self.get_peak_bounds(peak, self.inflect_up, 1)
+            inflect_up = self.inflect_up[ind]
 
-            ind = LineData.get_peak_bounds(locs, peak, inflect_down_inds, 0)
-            inflect_down = np.min([locs.shape[0] - 1, inflect_down_inds[ind] + 1])
+            ind = self.get_peak_bounds(peak, self.inflect_down, 0)
+            inflect_down = np.min([locs.shape[0] - 1, self.inflect_down[ind] + 1])
 
+            new_anomaly = Anomaly(
+                channel=self.channel,
+                start=start,
+                end=end,
+                inflect_up=inflect_up,
+                inflect_down=inflect_down,
+                peak=peak,
+                peak_values=values[peak],  # pylint: disable=unsubscriptable-object
+                group=-1,
+            )
             # Check amplitude and width thresholds
             delta_amp, delta_x, amplitude = self.get_amplitude_and_width(
-                locs, peak, start, end
+                new_anomaly
             )
-
             if (delta_amp > self.min_amplitude) & (delta_x > self.min_width):
-                new_anomaly = Anomaly(
-                    channel=self.channel,
-                    start=start,
-                    end=end,
-                    inflect_up=inflect_up,
-                    inflect_down=inflect_down,
-                    peak=peak,
-                    peak_values=values[peak],  # pylint: disable=unsubscriptable-object
-                    amplitude=amplitude,
-                    group=-1,
-                    channel_group=[
-                        key
-                        for key, channel_group in enumerate(channel_groups.values())
-                        if self.uid in channel_group["properties"]
-                    ],
-                )
-                self.anomalies.append(new_anomaly)  # pylint: disable=no-member
+                new_anomaly.amplitude = amplitude
+                anomalies.append(new_anomaly)  # pylint: disable=no-member
+
+        return anomalies

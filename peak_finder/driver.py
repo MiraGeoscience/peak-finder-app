@@ -80,32 +80,27 @@ class PeakFinderDriver(BaseDriver):
                 )
 
             print("Submitting parallel jobs:")
-            line_anomalies = []
-            anomalies = []
 
+            anomalies = []
             for line_id in tqdm(list(lines)):
                 line_indices = np.where(line_field.values == line_id)[0]
 
-                line_anomaly = LineAnomaly(
-                    entity=survey,
-                    line_indices=line_indices,
-                    data_normalization=normalization,
-                    smoothing=self.params.smoothing,
-                    min_amplitude=self.params.min_amplitude,
-                    min_value=self.params.min_value,
-                    min_width=self.params.min_width,
-                    max_migration=self.params.max_migration,
-                    min_channels=self.params.min_channels,
-                    minimal_output=True,
-                )
-                line_anomalies += [line_anomaly]
-
-                line_computation = delayed(line_anomaly.find_anomalies, pure=True)
+                line_computation = delayed(LineAnomaly, pure=True)
 
                 anomalies += [
                     line_computation(
+                        entity=survey,
+                        line_indices=line_indices,
                         channels=active_channels,
                         channel_groups=channel_groups,
+                        data_normalization=normalization,
+                        smoothing=self.params.smoothing,
+                        min_amplitude=self.params.min_amplitude,
+                        min_value=self.params.min_value,
+                        min_width=self.params.min_width,
+                        max_migration=self.params.max_migration,
+                        min_channels=self.params.min_channels,
+                        minimal_output=True,
                     )
                 ]
             (
@@ -125,27 +120,28 @@ class PeakFinderDriver(BaseDriver):
 
             print("Processing and collecting results:")
             with ProgressBar():
-                results = compute(anomalies)[0]
+                results = compute(anomalies)
 
             for line in tqdm(results):
-                for line_group in line:
-                    for group in line_group.groups:
-                        if group.linear_fit is None:
-                            tau += [0]
-                        else:
-                            tau += [np.abs(group.linear_fit[0] ** -1.0)]
-                        channel_group.append(group.channel_group["label"])
-                        migration.append(group.migration)
-                        amplitude.append(group.amplitude)
-                        azimuth.append(group.azimuth)
-                        skew.append(group.skew)
-                        group_center.append(group.group_center)
-                        for anom in group.anomalies:
-                            inflect_down.append(anom.inflect_down)
-                            inflect_up.append(anom.inflect_up)
-                            start.append(anom.start)
-                            end.append(anom.end)
-                            peaks.append(anom.peak)
+                for line_anomaly in line:
+                    for line_group in line_anomaly.anomalies:
+                        for group in line_group.groups:
+                            if group.linear_fit is None:
+                                tau += [0]
+                            else:
+                                tau += [np.abs(group.linear_fit[0] ** -1.0)]
+                            channel_group.append(group.channel_group["label"])
+                            migration.append(group.migration)
+                            amplitude.append(group.amplitude)
+                            azimuth.append(group.azimuth)
+                            skew.append(group.skew)
+                            group_center.append(group.group_center)
+                            for anom in group.anomalies:
+                                inflect_down.append(anom.inflect_down)
+                                inflect_up.append(anom.inflect_up)
+                                start.append(anom.start)
+                                end.append(anom.end)
+                                peaks.append(anom.peak)
 
             print("Exporting . . .")
             if group_center:

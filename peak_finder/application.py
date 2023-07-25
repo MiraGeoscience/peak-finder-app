@@ -820,6 +820,8 @@ class PeakFinder(ObjectDataSelection):  # pylint: disable=R0902, R0904
         line_anomaly = LineAnomaly(
             entity=self.survey,
             line_indices=line_indices,
+            channels=self.active_channels,
+            channel_groups=self.channel_groups,
             smoothing=self.smoothing.value,
             data_normalization=self.em_system_specs[self.system.value]["normalization"],
             min_amplitude=self.min_amplitude.value,
@@ -827,20 +829,15 @@ class PeakFinder(ObjectDataSelection):  # pylint: disable=R0902, R0904
             min_width=self.min_width.value,
             max_migration=self.max_migration.value,
             min_channels=self.min_channels.value,
-            return_profile=True,
-        )
-        result = line_anomaly.find_anomalies(
-            channels=self.active_channels,
-            channel_groups=self.channel_groups,
         )
 
-        if len(result) > 0:
-            anomalies = []
-            if result[0] is not None:
-                for line_group in result[0]:
-                    anomalies += line_group.groups
+        line_groups = line_anomaly.anomalies
+        anomalies = []
+        if line_groups is not None:
+            for line_group in line_groups:
+                anomalies += line_group.groups
             self.lines.anomalies = anomalies
-            self.lines.profile = result[1]
+            self.lines.profile = line_anomaly.position
         else:
             self.group_display.disabled = True
             return
