@@ -168,27 +168,26 @@ class BaseApplication:  # pylint: disable=R0902, R0904
         """
         Change the target h5file
         """
-        if not self.file_browser._select.disabled:  # pylint: disable="protected-access"
-            if self.file_browser.selected is not None:
-                extension = Path(self.file_browser.selected).suffix
+        if (
+            not self.file_browser._select.disabled  # pylint: disable="protected-access"
+            and self.file_browser.selected is not None
+        ):
+            extension = Path(self.file_browser.selected).suffix
 
-                if isinstance(self.geoh5, Workspace):
-                    self.geoh5.close()
+            if isinstance(self.geoh5, Workspace):
+                self.geoh5.close()
 
-                if (
-                    extension == ".json"
-                    and getattr(self, "_param_class", None) is not None
-                ):
-                    self.params = getattr(self, "_param_class")(
-                        InputFile.read_ui_json(self.file_browser.selected)
-                    )
-                    self.refresh.value = False
-                    self.params.geoh5.open(mode="r")
-                    self.__populate__(**self.params.to_dict())
-                    self.refresh.value = True
+            if extension == ".json" and getattr(self, "_param_class", None) is not None:
+                self.params = getattr(self, "_param_class")(
+                    InputFile.read_ui_json(self.file_browser.selected)
+                )
+                self.refresh.value = False
+                self.params.geoh5.open(mode="r")
+                self.__populate__(**self.params.to_dict())
+                self.refresh.value = True
 
-                elif extension == ".geoh5":
-                    self.h5file = self.file_browser.selected
+            elif extension == ".geoh5":
+                self.h5file = self.file_browser.selected
 
     def export_browser_change(self, _):
         """
