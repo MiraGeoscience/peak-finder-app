@@ -25,12 +25,14 @@ class AnomalyGroup:
         channel_group: dict,
         full_azimuth: np.ndarray,
         channels: dict,
+        full_peak_values: np.ndarray,
     ):
         self._position = position
         self._anomalies = anomalies
         self._channel_group = channel_group
         self._full_azimuth = full_azimuth
         self._channels = channels
+        self._full_peak_values = full_peak_values
 
         self._linear_fit: list | None = None
         self._skew: float | None = None
@@ -70,10 +72,11 @@ class AnomalyGroup:
         Group center.
         """
         if self._group_center is None:
-            peaks = self.get_list_attr("peak")
             self._group_center = (
                 np.mean(
-                    self.position.interpolate_array(self.full_peaks[self.group_center_sort[0]]),
+                    self.position.interpolate_array(
+                        self.full_peaks[self.group_center_sort[0]]
+                    ),
                     axis=0,
                 ),
             )
@@ -101,7 +104,8 @@ class AnomalyGroup:
         if self._migration is None:
             locs = self.position.locations_resampled
             self._migration = np.abs(
-                locs[self.full_peaks[self.group_center_sort[-1]]] - locs[self.full_peaks[self.group_center_sort[0]]]
+                locs[self.full_peaks[self.group_center_sort[-1]]]
+                - locs[self.full_peaks[self.group_center_sort[0]]]
             )
         return self._migration
 
@@ -150,6 +154,7 @@ class AnomalyGroup:
     @property
     def channels(self) -> dict:
         """
+        Dict of active channels and values.
         """
         return self._channels
 
@@ -171,14 +176,26 @@ class AnomalyGroup:
         self._azimuth = value
 
     @property
-    def full_azimuth(self) -> float | None:
+    def full_azimuth(self) -> np.ndarray | None:
         """
+        Full azimuth values for line.
         """
         return self._full_azimuth
 
     @full_azimuth.setter
     def full_azimuth(self, value):
         self._full_azimuth = value
+
+    @property
+    def full_peak_values(self) -> np.ndarray | None:
+        """
+        Full peak values for group.
+        """
+        return self._full_peak_values
+
+    @full_peak_values.setter
+    def full_peak_values(self, value):
+        self._full_peak_values = value
 
     @property
     def full_peaks(self) -> np.ndarray | None:
@@ -197,8 +214,6 @@ class AnomalyGroup:
 
         :return: List of attribute.
         """
-        if attr == "channel_group":
-            return [getattr(a, attr) for a in self.anomalies]
         return np.array([getattr(a, attr) for a in self.anomalies])
 
     def minimal_output(self):
@@ -219,17 +234,15 @@ class AnomalyGroup:
         """
         Compute dip direction for an anomaly group.
 
-        :param azimuth: Azimuth values for all anomalies.
-        :param group_center: Peak indices.
-        :param group_center_sort: Indices to sort group center.
-
         :return: Dip direction.
         """
-        peak_values = self.get_list_attr("peak_values")
         dip_direction = None
         if len(self.group_center) > 0:
             dip_direction = self.full_azimuth[self.full_peaks[0]]
-        if peak_values[self.group_center_sort][0] < peak_values[self.group_center_sort][-1]:
+        if (
+            self.full_peak_values[self.group_center_sort][0]
+            < self.full_peak_values[self.group_center_sort][-1]
+        ):
             dip_direction = (dip_direction + 180) % 360.0
         return dip_direction
 
@@ -242,18 +255,17 @@ class AnomalyGroup:
         :return: Skew.
         """
         locs = self.position.locations_resampled
-        peaks = self.get_list_attr("peak")
-        azimuth_near = self.full_azimuth[peaks]
+        azimuth_near = self.full_azimuth[self.full_peaks]
 
         inflect_up = self.get_list_attr("inflect_up")
         inflect_down = self.get_list_attr("inflect_down")
 
         skew = (
-            locs[peaks][self.group_center_sort[0]]
+            locs[self.full_peaks][self.group_center_sort[0]]
             - locs[inflect_up][self.group_center_sort]
         ) / (
             locs[inflect_down][self.group_center_sort]
-            - locs[peaks][self.group_center_sort[0]]
+            - locs[self.full_peaks][self.group_center_sort[0]]
             + 1e-8
         )
         skew[azimuth_near[self.group_center_sort] > 180] = 1.0 / (
@@ -273,12 +285,9 @@ class AnomalyGroup:
         """
         Compute linear fit for the anomaly group.
 
-        :param channels: Channels.
-
         :return: List of intercept, slope for the linear fit.
         """
         gates = np.array([a.channel for a in self.anomalies])
-        values = np.array([a.peak_values for a in self.anomalies])
 
         times = [
             channel["time"]
@@ -288,10 +297,12 @@ class AnomalyGroup:
 
         linear_fit = None
         if len(times) > 2 and len(self.anomalies) > 0:
-            times = np.hstack(times)[values > 0]
+            times = np.hstack(times)[self.full_peak_values > 0]
             if len(times) > 2:
                 # Compute linear trend
-                slope, intercept = np.polyfit(times, np.log(values[values > 0]), 1)
+                slope, intercept = np.polyfit(
+                    times, np.log(self.full_peak_values[self.full_peak_values > 0]), 1
+                )
                 linear_fit = [intercept, slope]
 
         return linear_fit

@@ -1188,7 +1188,7 @@ class PeakFinder(ObjectDataSelection):  # pylint: disable=R0902, R0904
                     f"Tau: {np.abs(group.linear_fit[1] ** -1.)*1e+3:.2e} msec",
                     color="k",
                 )
-                peak_values = group.get_list_attr("peak_values")
+                peak_values = group.full_peak_values
                 axs.scatter(
                     times,
                     peak_values,

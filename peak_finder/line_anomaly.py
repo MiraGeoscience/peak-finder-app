@@ -96,6 +96,7 @@ class LineAnomaly:  # pylint: disable=R0902
     @property
     def channels(self) -> dict:
         """
+        Dict of active channels, uids and values.
         """
         return self._channels
 
@@ -106,6 +107,7 @@ class LineAnomaly:  # pylint: disable=R0902
     @property
     def channel_groups(self) -> dict:
         """
+        Dict of property groups.
         """
         return self._channel_groups
 
@@ -280,7 +282,7 @@ class LineAnomaly:  # pylint: disable=R0902
                 self.min_amplitude,
                 self.min_width,
                 self.max_migration,
-                self.min_value
+                self.min_value,
             )
 
             line_dataset.append(line_data)

@@ -7,8 +7,6 @@
 
 from __future__ import annotations
 
-import numpy as np
-
 
 class Anomaly:
     """
@@ -23,7 +21,6 @@ class Anomaly:
         inflect_up: int,
         inflect_down: int,
         peak: int,
-        peak_values: list,
         group: int,
     ):
         self._channel = channel
@@ -32,11 +29,9 @@ class Anomaly:
         self._inflect_up = inflect_up
         self._inflect_down = inflect_down
         self._peak = peak
-        self._peak_values = peak_values
         self._group = group
 
         self._amplitude: float | None = None
-        self._azimuth: float | None = None
 
     @property
     def channel(self) -> int:
@@ -105,17 +100,6 @@ class Anomaly:
         self._peak = value
 
     @property
-    def peak_values(self) -> list:
-        """
-        Values of peak of anomaly.
-        """
-        return self._peak_values
-
-    @peak_values.setter
-    def peak_values(self, value):
-        self._peak_values = value
-
-    @property
     def amplitude(self) -> float:
         """
         Amplitude of anomaly.
@@ -136,14 +120,3 @@ class Anomaly:
     @group.setter
     def group(self, value):
         self._group = value
-
-    @property
-    def azimuth(self) -> float | None:
-        """
-        Azimuth of anomaly.
-        """
-        return self._azimuth
-
-    @azimuth.setter
-    def azimuth(self, value):
-        self._azimuth = value

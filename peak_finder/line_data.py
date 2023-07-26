@@ -192,7 +192,9 @@ class LineData:
             self._peaks = np.where(
                 (np.diff(np.sign(dx)) != 0)
                 & (ddx[1:] < 0)
-                & (values[:-1] > self.min_value)  # pylint: disable=unsubscriptable-object
+                & (
+                    values[:-1] > self.min_value
+                )  # pylint: disable=unsubscriptable-object
             )[0]
         return self._peaks
 
@@ -210,7 +212,9 @@ class LineData:
             lows = np.where(
                 (np.diff(np.sign(dx)) != 0)
                 & (ddx[1:] > 0)
-                & (values[:-1] > self.min_value)  # pylint: disable=unsubscriptable-object
+                & (
+                    values[:-1] > self.min_value
+                )  # pylint: disable=unsubscriptable-object
             )[0]
             self._lows = np.r_[0, lows, self.position.locations_resampled.shape[0] - 1]
         return self._lows
@@ -229,7 +233,9 @@ class LineData:
             self._inflect_up = np.where(
                 (np.diff(np.sign(ddx)) != 0)
                 & (dx[1:] > 0)
-                & (values[:-1] > self.min_value)  # pylint: disable=unsubscriptable-object
+                & (
+                    values[:-1] > self.min_value
+                )  # pylint: disable=unsubscriptable-object
             )[0]
         return self._inflect_up
 
@@ -247,7 +253,9 @@ class LineData:
             self._inflect_down = np.where(
                 (np.diff(np.sign(ddx)) != 0)
                 & (dx[1:] < 0)
-                & (values[:-1] > self.min_value)  # pylint: disable=unsubscriptable-object
+                & (
+                    values[:-1] > self.min_value
+                )  # pylint: disable=unsubscriptable-object
             )[0]
         return self._inflect_down
 
@@ -259,15 +267,13 @@ class LineData:
 
         :return: List or np.ndarray of attribute values.
         """
-        if attr == "channel_group":
-            return [getattr(a, attr) for a in self.anomalies]
         return np.array([getattr(a, attr) for a in self.anomalies])
 
-    def get_amplitude_and_width(
-        self, anomaly: Anomaly
-    ) -> tuple[float, float, float]:
+    def get_amplitude_and_width(self, anomaly: Anomaly) -> tuple[float, float, float]:
         """
         Get amplitude and width of anomaly.
+
+        :param anomaly: Anomaly.
 
         :return: Amplitude and width of anomaly.
         """
@@ -279,7 +285,9 @@ class LineData:
                 np.min(
                     [
                         values[anomaly.peak]  # pylint: disable=unsubscriptable-object
-                        - values[anomaly.start],  # pylint: disable=unsubscriptable-object
+                        - values[
+                            anomaly.start
+                        ],  # pylint: disable=unsubscriptable-object
                         values[anomaly.peak]  # pylint: disable=unsubscriptable-object
                         - values[anomaly.end],  # pylint: disable=unsubscriptable-object
                     ]
@@ -293,7 +301,9 @@ class LineData:
 
         # Amplitude
         amplitude = (
-            np.sum(np.abs(values[anomaly.start:anomaly.end]))  # pylint: disable=unsubscriptable-object
+            np.sum(
+                np.abs(values[anomaly.start : anomaly.end])
+            )  # pylint: disable=unsubscriptable-object
             * self.position.sampling
         )
 
@@ -327,7 +337,6 @@ class LineData:
         """
         Get indices for critical points.
 
-        :param locs: Line vertices.
         :param peak: Index of peak of anomaly.
         :param inds: Indices to index locs.
         :param shift: Shift value.
@@ -384,13 +393,10 @@ class LineData:
                 inflect_up=inflect_up,
                 inflect_down=inflect_down,
                 peak=peak,
-                peak_values=values[peak],  # pylint: disable=unsubscriptable-object
                 group=-1,
             )
             # Check amplitude and width thresholds
-            delta_amp, delta_x, amplitude = self.get_amplitude_and_width(
-                new_anomaly
-            )
+            delta_amp, delta_x, amplitude = self.get_amplitude_and_width(new_anomaly)
             if (delta_amp > self.min_amplitude) & (delta_x > self.min_width):
                 new_anomaly.amplitude = amplitude
                 anomalies.append(new_anomaly)  # pylint: disable=no-member
