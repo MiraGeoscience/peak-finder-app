@@ -28,7 +28,8 @@ from peak_finder.base import geophysical_systems
 from peak_finder.base.application import BaseApplication
 from peak_finder.base.importing import warn_module_not_found
 from peak_finder.base.selection import LineOptions, ObjectDataSelection
-from peak_finder.constants import app_initializer, default_ui_json, template_dict
+from peak_finder.constants import (app_initializer, default_ui_json,
+                                   template_dict)
 from peak_finder.driver import PeakFinderDriver
 from peak_finder.line_anomaly import LineAnomaly
 from peak_finder.params import PeakFinderParams
@@ -38,24 +39,10 @@ with warn_module_not_found():
     from matplotlib import pyplot as plt
 
 with warn_module_not_found():
-    from ipywidgets import (
-        Box,
-        Checkbox,
-        ColorPicker,
-        Dropdown,
-        FloatLogSlider,
-        FloatSlider,
-        FloatText,
-        HBox,
-        IntSlider,
-        Label,
-        Layout,
-        ToggleButton,
-        ToggleButtons,
-        VBox,
-        Widget,
-        interactive_output,
-    )
+    from ipywidgets import (Box, Checkbox, ColorPicker, Dropdown,
+                            FloatLogSlider, FloatSlider, FloatText, HBox,
+                            IntSlider, Label, Layout, ToggleButton,
+                            ToggleButtons, VBox, Widget, interactive_output)
     from ipywidgets.widgets.widget_selection import TraitError
 
 
@@ -93,7 +80,7 @@ class PeakFinder(ObjectDataSelection):  # pylint: disable=R0902, R0904
     _object_types: tuple = (Curve,)
     all_anomalies: list = []
     active_channels: dict = {}
-    _survey = None
+    _survey: Curve
     _channel_groups: dict = {}
     pause_refresh: bool = False
     decay_figure = None
@@ -575,7 +562,7 @@ class PeakFinder(ObjectDataSelection):  # pylint: disable=R0902, R0904
         return self._structural_markers
 
     @property
-    def survey(self) -> Entity | None:
+    def survey(self) -> Curve:
         """
         Selected curve object
         """
@@ -638,7 +625,7 @@ class PeakFinder(ObjectDataSelection):  # pylint: disable=R0902, R0904
         return self._width
 
     @property
-    def workspace(self) -> Workspace:
+    def workspace(self) -> Workspace | None:
         """
         Target geoh5py workspace
         """
@@ -817,11 +804,14 @@ class PeakFinder(ObjectDataSelection):  # pylint: disable=R0902, R0904
 
         self.plot_trigger.value = False
         self.survey.line_indices = line_indices
+        property_groups = [
+            self.survey.find_or_create_property_group(name=name)
+            for name in self.channel_groups
+        ]
         line_anomaly = LineAnomaly(
             entity=self.survey,
             line_indices=line_indices,
-            channels=self.active_channels,
-            channel_groups=self.channel_groups,
+            property_groups=property_groups,
             smoothing=self.smoothing.value,
             data_normalization=self.em_system_specs[self.system.value]["normalization"],
             min_amplitude=self.min_amplitude.value,
@@ -969,7 +959,7 @@ class PeakFinder(ObjectDataSelection):  # pylint: disable=R0902, R0904
                 continue
 
             values = channel_dict["values"][self.survey.line_indices]
-            values, _ = self.lines.profile.resample_values(values)
+            values, raw = self.lines.profile.resample_values(values)
 
             y_min = np.nanmin([values[sub_ind].min(), y_min])
             y_max = np.nanmax([values[sub_ind].max(), y_max])
@@ -1023,7 +1013,6 @@ class PeakFinder(ObjectDataSelection):  # pylint: disable=R0902, R0904
                     dwn_markers_y += [values[group.anomalies[i].inflect_down]]
 
             if residual:
-                raw = self.lines.profile.values_resampled_raw
                 axs.fill_between(
                     locs, values, raw, where=raw > values, color=[1, 0, 0, 0.5]
                 )
@@ -1384,5 +1373,5 @@ if __name__ == "__main__":
         "'geoapps.peak_finder.driver' in version 0.7.0. "
         "This warning is likely due to the execution of older ui.json files. Please update."
     )
-    params_class = PeakFinderParams(InputFile(FILE))
+    params_class = PeakFinderParams(InputFile.read_ui_json(FILE))
     PeakFinder.run(params_class)

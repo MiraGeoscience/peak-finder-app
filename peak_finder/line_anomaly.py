@@ -21,27 +21,39 @@ class LineAnomaly:  # pylint: disable=R0902
     Contains list of LineGroup objects.
     """
 
+    _data_normalization: tuple | list | str
+    _entity: Curve
+    _line_indices: list[int] | np.ndarray
+    _max_migration: float
+    _minimal_output: bool
+    _min_amplitude: int
+    _min_channels: int
+    _min_value: float
+    _min_width: float
+    _property_groups: list[PropertyGroup]
+    _smoothing: int
+    _use_residual: bool
+
     def __init__(  # pylint: disable=R0913
         self,
         entity: Curve,
-        line_indices: list[int],
-        channels: dict,
-        channel_groups: dict,
-        smoothing: int = 1,
-        data_normalization: tuple | list | str = (1.0,),
-        min_amplitude: int = 25,
-        min_value: float = -np.inf,
-        min_width: float = 200.0,
-        max_migration: float = 50.0,
-        min_channels: int = 3,
-        use_residual: bool = False,
-        minimal_output: bool = False,
+        line_indices,
+        property_groups,
+        data_normalization=(1.0,),
+        max_migration=50.0,
+        minimal_output=False,
+        min_amplitude=25,
+        min_channels=3,
+        min_value=-np.inf,
+        min_width=200.0,
+        smoothing=1,
+        use_residual=False,
     ):
         """
         :param entity: Survey object.
         :param line_indices: Indices of vertices for line profile.
         :param channels: Channels.
-        :param channel_groups: Property groups to use for grouping anomalies.
+        :param property_groups: Property groups to use for grouping anomalies.
         :param smoothing: Smoothing factor.
         :param data_normalization: Value(s) to normalize data by.
         :param min_amplitude: Minimum amplitude of anomaly as percent.
@@ -52,24 +64,22 @@ class LineAnomaly:  # pylint: disable=R0902
         :param use_residual: Whether to use the residual of the smoothing data.
         :param minimal_output: Whether to return minimal output.
         """
-        self._entity = entity
-        self._line_indices = line_indices
-        self._channels = channels
-        self._channel_groups = channel_groups
-        self._smoothing = smoothing
-        self._data_normalization = data_normalization
-        self._min_amplitude = min_amplitude
-        self._min_value = min_value
-        self._min_width = min_width
-        self._max_migration = max_migration
-        self._min_channels = min_channels
-        self._use_residual = use_residual
-        self._minimal_output = minimal_output
-
-        self._property_group: PropertyGroup | None = None
         self._position: LinePosition | None = None
         self._anomalies: list[LineGroup] | None = None
         self._locations: np.ndarray | None = None
+
+        self.entity = entity
+        self.line_indices = line_indices
+        self.smoothing = smoothing
+        self.data_normalization = data_normalization
+        self.min_amplitude = min_amplitude
+        self.min_value = min_value
+        self.min_width = min_width
+        self.max_migration = max_migration
+        self.min_channels = min_channels
+        self.use_residual = use_residual
+        self.minimal_output = minimal_output
+        self.property_groups = property_groups
 
     @property
     def entity(self) -> Curve:
@@ -80,10 +90,13 @@ class LineAnomaly:  # pylint: disable=R0902
 
     @entity.setter
     def entity(self, value):
+        if not isinstance(value, Curve):
+            raise TypeError("Entity must be a Curve.")
+
         self._entity = value
 
     @property
-    def line_indices(self) -> list[int]:
+    def line_indices(self) -> list[int] | None:
         """
         Indices of vertices for line profile.
         """
@@ -91,29 +104,38 @@ class LineAnomaly:  # pylint: disable=R0902
 
     @line_indices.setter
     def line_indices(self, value):
+        if not isinstance(value, (list, np.ndarray)):
+            raise TypeError("Line indices must be a list or numpy array.")
+
         self._line_indices = value
 
     @property
-    def channels(self) -> dict:
+    def channels(self) -> list:
         """
         Dict of active channels, uids and values.
         """
         return self._channels
 
-    @channels.setter
-    def channels(self, value):
-        self._channels = value
-
     @property
-    def channel_groups(self) -> dict:
+    def property_groups(self) -> list[PropertyGroup]:
         """
         Dict of property groups.
         """
-        return self._channel_groups
+        return self._property_groups
 
-    @channel_groups.setter
-    def channel_groups(self, value):
-        self._channel_groups = value
+    @property_groups.setter
+    def property_groups(self, value):
+        if not isinstance(value, list) or not all(
+            isinstance(item, PropertyGroup) for item in value
+        ):
+            raise TypeError("Property groups must be a list of PropertyGroups.")
+
+        self._property_groups = value
+        channels = []
+        for group in self._property_groups:
+            channels += [self.entity.get_entity(uid)[0] for uid in group.properties]
+
+        self._channels = list(set(channels))
 
     @property
     def smoothing(self) -> int:
@@ -123,7 +145,10 @@ class LineAnomaly:  # pylint: disable=R0902
         return self._smoothing
 
     @smoothing.setter
-    def smoothing(self, value):
+    def smoothing(self, value: int):
+        if not isinstance(value, int):
+            raise TypeError("Smoothing must be an integer.")
+
         self._smoothing = value
 
     @property
@@ -237,7 +262,7 @@ class LineAnomaly:  # pylint: disable=R0902
         """
         Line position and interpolation.
         """
-        if self._position is None:
+        if self._position is None and self.locations is not None:
             self._position = LinePosition(
                 locations=self.locations[self.line_indices],
                 smoothing=self.smoothing,
@@ -255,7 +280,7 @@ class LineAnomaly:  # pylint: disable=R0902
 
         :return: List of groups and line profile.
         """
-        if self.locations is None or self.position is None:
+        if self.position is None:
             return None
 
         locs = self.position.locations_resampled
@@ -266,18 +291,15 @@ class LineAnomaly:  # pylint: disable=R0902
         if self.data_normalization == "ppm":
             self.data_normalization = [1e-6]
 
-        line_dataset = []
+        line_dataset = {}
         # Iterate over channels and add to anomalies
-        for channel, (uid, params) in enumerate(self.channels.items()):
-            if "values" not in list(params):
+        for data in self.channels:
+            if data.values is None:
                 continue
 
             # Make LineData with current channel values
-            values = params["values"][self.line_indices].copy()
             line_data = LineData(
-                values,
-                channel,
-                uid,
+                data,
                 self.position,
                 self.min_amplitude,
                 self.min_width,
@@ -285,23 +307,21 @@ class LineAnomaly:  # pylint: disable=R0902
                 self.min_value,
             )
 
-            line_dataset.append(line_data)
+            line_dataset[data.uid] = line_data
 
         if len(line_dataset) == 0:
             return None
 
         # Group anomalies
         line_groups = []
-        for property_group in list(self.channel_groups.values()):
+        for property_group in self.property_groups:
             line_group = LineGroup(
                 position=self.position,
                 line_dataset=line_dataset,
                 property_group=property_group,
                 max_migration=self.max_migration,
-                channel_groups=self.channel_groups,
                 min_channels=self.min_channels,
                 data_normalization=self.data_normalization,
-                channels=self.channels,
                 minimal_output=self.minimal_output,
             )
             line_groups.append(line_group)

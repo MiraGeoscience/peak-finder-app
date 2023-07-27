@@ -7,9 +7,8 @@
 
 from __future__ import annotations
 
-from uuid import UUID
-
 import numpy as np
+from geoh5py.data import FloatData
 
 from peak_finder.anomaly import Anomaly
 from peak_finder.line_position import LinePosition
@@ -22,24 +21,20 @@ class LineData:
 
     def __init__(  # pylint: disable=R0913
         self,
-        values: np.ndarray,
-        channel: int,
-        uid: UUID,
+        data: FloatData,
         position: LinePosition,
         min_amplitude: int,
         min_width: float,
         max_migration: float,
         min_value: float = -np.inf,
     ):
-        self._values = values
-        self._channel = channel
-        self._uid = uid
+        self._data_entity = data
         self._position = position
         self._min_amplitude = min_amplitude
         self._min_width = min_width
         self._max_migration = max_migration
         self._min_value = min_value
-
+        self._values = None
         self._peaks = None
         self._lows = None
         self._inflect_up = None
@@ -49,45 +44,30 @@ class LineData:
         self._anomalies: list[Anomaly] | None = None
 
     @property
-    def channel(self) -> int:
-        """
-        Channel.
-        """
-        return self._channel
-
-    @channel.setter
-    def channel(self, value):
-        self._channel = value
-
-    @property
-    def uid(self) -> UUID:
-        """
-        UUID.
-        """
-        return self._uid
-
-    @uid.setter
-    def uid(self, value):
-        self._uid = value
-
-    @property
     def values(self) -> np.ndarray:
         """
         Original values sorted along line.
         """
+        if self._values is None:
+            if self.data_entity is not None and self.position.sorting is not None:
+                self._values = self.data_entity.values[self.position.sorting]
+
+            if self._values is not None and len(self._values) != len(
+                self.position.locations
+            ):
+                raise ValueError(
+                    f"Number of values ({len(self._values)}) does not match "
+                    f"number of locations ({self.position.locations})"
+                )
+
         return self._values
 
-    @values.setter
-    def values(self, values):
-        self.values_resampled = None
-        self._values = None
-        if values is not None and self.position.sorting is not None:
-            self._values = values[self.position.sorting]
-        if len(self._values) != len(self.position.locations):
-            raise ValueError(
-                f"Number of values ({len(self._values)}) does not match "
-                f"number of locations ({self.position.locations})"
-            )
+    @property
+    def data_entity(self):
+        """
+        Data entity.
+        """
+        return self._data_entity
 
     @property
     def values_resampled(self) -> np.ndarray:
@@ -174,12 +154,12 @@ class LineData:
         Full list of anomalies.
         """
         if self._anomalies is None:
-            anomalies = self.add_anomalies()
+            anomalies = self.compute()
             self._anomalies = np.array(anomalies)
         return self._anomalies
 
     @property
-    def peaks(self) -> list[int]:
+    def peaks(self) -> np.ndarray | None:
         """
         Find peak indices.
         """
@@ -199,7 +179,7 @@ class LineData:
         return self._peaks
 
     @property
-    def lows(self) -> list[int]:
+    def lows(self) -> np.ndarray | None:
         """
         Find lows indices.
         """
@@ -220,7 +200,7 @@ class LineData:
         return self._lows
 
     @property
-    def inflect_up(self) -> list[int]:
+    def inflect_up(self) -> np.ndarray | None:
         """
         Find upward inflection indices.
         """
@@ -240,7 +220,7 @@ class LineData:
         return self._inflect_up
 
     @property
-    def inflect_down(self) -> list[int]:
+    def inflect_down(self) -> np.ndarray | None:
         """
         Find downward inflection indices.
         """
@@ -352,23 +332,22 @@ class LineData:
             ]
         ).astype(int)
 
-    def add_anomalies(self) -> list[Anomaly]:
+    def compute(self) -> list[Anomaly]:
         """
         Iterate over peaks and add to anomalies.
 
         :return: List of anomalies.
         """
         if (
-            len(self.peaks) == 0
-            or len(self.lows) < 2
-            or len(self.inflect_up) < 2
-            or len(self.inflect_down) < 2
+            self.peaks is None
+            or self.lows is None
+            or self.inflect_up is None
+            or self.inflect_down is None
         ):
             return []
 
         anomalies = []
         locs = self.position.locations_resampled
-        values = self.values_resampled
 
         for peak in self.peaks:
             # Get start of peak
@@ -387,13 +366,12 @@ class LineData:
             inflect_down = np.min([locs.shape[0] - 1, self.inflect_down[ind] + 1])
 
             new_anomaly = Anomaly(
-                channel=self.channel,
-                start=start,
-                end=end,
-                inflect_up=inflect_up,
-                inflect_down=inflect_down,
-                peak=peak,
-                group=-1,
+                self,
+                start,
+                end,
+                inflect_up,
+                inflect_down,
+                peak,
             )
             # Check amplitude and width thresholds
             delta_amp, delta_x, amplitude = self.get_amplitude_and_width(new_anomaly)

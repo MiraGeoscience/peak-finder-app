@@ -80,6 +80,10 @@ class PeakFinderDriver(BaseDriver):
                 )
 
             print("Submitting parallel jobs:")
+            property_groups = [
+                survey.find_or_create_property_group(name=name)
+                for name in channel_groups
+            ]
 
             anomalies = []
             for line_id in tqdm(list(lines)):
@@ -91,8 +95,7 @@ class PeakFinderDriver(BaseDriver):
                     line_computation(
                         entity=survey,
                         line_indices=line_indices,
-                        channels=active_channels,
-                        channel_groups=channel_groups,
+                        property_groups=property_groups,
                         data_normalization=normalization,
                         smoothing=self.params.smoothing,
                         min_amplitude=self.params.min_amplitude,
@@ -130,7 +133,9 @@ class PeakFinderDriver(BaseDriver):
                                 tau += [0]
                             else:
                                 tau += [np.abs(group.linear_fit[0] ** -1.0)]
-                            channel_group.append(group.channel_group["label"])
+                            channel_group.append(
+                                property_groups.index(group.property_group) + 1
+                            )
                             migration.append(group.migration)
                             amplitude.append(group.amplitude)
                             azimuth.append(group.azimuth)

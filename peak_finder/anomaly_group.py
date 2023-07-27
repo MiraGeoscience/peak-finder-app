@@ -5,9 +5,12 @@
 #  All rights reserved.
 #
 
+# pylint: disable=too-many-instance-attributes, too-many-arguments
+
 from __future__ import annotations
 
 import numpy as np
+from geoh5py.groups import PropertyGroup
 
 from peak_finder.anomaly import Anomaly
 from peak_finder.line_position import LinePosition
@@ -18,31 +21,37 @@ class AnomalyGroup:
     Group of anomalies. Contains list with a subset of anomalies.
     """
 
+    _position: LinePosition
+    _anomalies: list[Anomaly]
+    _property_group: PropertyGroup
+    _full_azimuth: np.ndarray
+    _channels: dict
+    _full_peak_values: np.ndarray
+    _linear_fit: list | None = None
+    _skew: float | None = None
+    _amplitude: float | None = None
+    _migration: float | None = None
+    _azimuth: float | None = None
+    _group_center: np.ndarray | None = None
+    _group_center_sort: np.ndarray | None = None
+    _peak: np.ndarray | None = None
+    _peaks: np.ndarray | None = None
+
     def __init__(
         self,
         position: LinePosition,
         anomalies: list[Anomaly],
-        channel_group: dict,
+        property_group: PropertyGroup,
         full_azimuth: np.ndarray,
         channels: dict,
         full_peak_values: np.ndarray,
     ):
-        self._position = position
-        self._anomalies = anomalies
-        self._channel_group = channel_group
-        self._full_azimuth = full_azimuth
-        self._channels = channels
-        self._full_peak_values = full_peak_values
-
-        self._linear_fit: list | None = None
-        self._skew: float | None = None
-        self._amplitude: float | None = None
-        self._migration: float | None = None
-        self._azimuth: float | None = None
-        self._group_center: np.ndarray | None = None
-        self._group_center_sort: np.ndarray | None = None
-        self._peak: np.ndarray | None = None
-        self._full_peaks: np.ndarray | None = None
+        self.anomalies = anomalies
+        self.channels = channels
+        self.full_azimuth = full_azimuth
+        self.full_peak_values = full_peak_values
+        self.position = position
+        self.property_group = property_group
 
     @property
     def position(self) -> LinePosition:
@@ -52,7 +61,10 @@ class AnomalyGroup:
         return self._position
 
     @position.setter
-    def position(self, value):
+    def position(self, value: LinePosition):
+        if not isinstance(value, LinePosition):
+            raise TypeError("Attribute 'position' must be a LinePosition object.")
+
         self._position = value
 
     @property
@@ -63,7 +75,12 @@ class AnomalyGroup:
         return self._anomalies
 
     @anomalies.setter
-    def anomalies(self, value):
+    def anomalies(self, value: list[Anomaly]):
+        if not isinstance(value, list) and not all(
+            isinstance(item, Anomaly) for item in value
+        ):
+            raise TypeError("Attribute 'anomalies` must be a list of Anomaly objects.")
+
         self._anomalies = value
 
     @property
@@ -71,20 +88,20 @@ class AnomalyGroup:
         """
         Group center.
         """
-        if self._group_center is None:
+        if (
+            self._group_center is None
+            and self.group_center_sort is not None
+            and self.peaks is not None
+        ):
             self._group_center = (
                 np.mean(
                     self.position.interpolate_array(
-                        self.full_peaks[self.group_center_sort[0]]
+                        self.peaks[self.group_center_sort[0]]
                     ),
                     axis=0,
                 ),
             )
         return self._group_center
-
-    @group_center.setter
-    def group_center(self, value):
-        self._group_center = value
 
     @property
     def group_center_sort(self) -> np.ndarray | None:
@@ -93,7 +110,7 @@ class AnomalyGroup:
         """
         if self._group_center_sort is None:
             locs = self.position.locations_resampled
-            self._group_center_sort = np.argsort(locs[self.full_peaks])
+            self._group_center_sort = np.argsort(locs[self.peaks])
         return self._group_center_sort
 
     @property
@@ -101,11 +118,15 @@ class AnomalyGroup:
         """
         Distance migrated from anomaly.
         """
-        if self._migration is None:
+        if (
+            self._migration is None
+            and self.group_center_sort is not None
+            and self.peaks is not None
+        ):
             locs = self.position.locations_resampled
             self._migration = np.abs(
-                locs[self.full_peaks[self.group_center_sort[-1]]]
-                - locs[self.full_peaks[self.group_center_sort[0]]]
+                locs[self.peaks[self.group_center_sort[-1]]]
+                - locs[self.peaks[self.group_center_sort[0]]]
             )
         return self._migration
 
@@ -114,7 +135,7 @@ class AnomalyGroup:
         """
         Amplitude of anomalies.
         """
-        if self._amplitude is None:
+        if self._amplitude is None and self.anomalies is not None:
             self._amplitude = np.sum([anom.amplitude for anom in self.anomalies])
         return self._amplitude
 
@@ -136,20 +157,16 @@ class AnomalyGroup:
             self._skew = self.compute_skew()
         return self._skew
 
-    @skew.setter
-    def skew(self, value):
-        self._skew = value
-
     @property
-    def channel_group(self) -> dict:
+    def property_group(self) -> PropertyGroup:
         """
         Channel group.
         """
-        return self._channel_group
+        return self._property_group
 
-    @channel_group.setter
-    def channel_group(self, value):
-        self._channel_group = value
+    @property_group.setter
+    def property_group(self, value):
+        self._property_group = value
 
     @property
     def channels(self) -> dict:
@@ -170,10 +187,6 @@ class AnomalyGroup:
         if self._azimuth is None:
             self._azimuth = self.compute_dip_direction()
         return self._azimuth
-
-    @azimuth.setter
-    def azimuth(self, value):
-        self._azimuth = value
 
     @property
     def full_azimuth(self) -> np.ndarray | None:
@@ -198,13 +211,13 @@ class AnomalyGroup:
         self._full_peak_values = value
 
     @property
-    def full_peaks(self) -> np.ndarray | None:
+    def peaks(self) -> np.ndarray | None:
         """
         List of peaks from all anomalies in group.
         """
-        if self._full_peaks is None:
-            self._full_peaks = self.get_list_attr("peak")
-        return self._full_peaks
+        if self._peaks is None:
+            self._peaks = self.get_list_attr("peak")
+        return self._peaks
 
     def get_list_attr(self, attr: str) -> list | np.ndarray:
         """
@@ -216,56 +229,61 @@ class AnomalyGroup:
         """
         return np.array([getattr(a, attr) for a in self.anomalies])
 
-    def minimal_output(self):
-        """
-        Interpolate anomaly properties for minimal output.
-        """
-        self.skew = np.mean(self.skew)
-        for anom in self.anomalies:
-            anom.start = self.position.interpolate_array(anom.start)
-            anom.end = self.position.interpolate_array(anom.end)
-            anom.inflect_up = self.position.interpolate_array(anom.inflect_up)
-            anom.inflect_down = self.position.interpolate_array(anom.inflect_down)
-            anom.peak = self.position.interpolate_array(anom.peak)
-
     def compute_dip_direction(
         self,
-    ) -> float:
+    ) -> float | None:
         """
         Compute dip direction for an anomaly group.
 
         :return: Dip direction.
         """
-        dip_direction = None
-        if len(self.group_center) > 0:
-            dip_direction = self.full_azimuth[self.full_peaks[0]]
+        if (
+            self.group_center is None
+            or self.group_center_sort is None
+            or self.full_azimuth is None
+            or self.peaks is None
+            or self.full_peak_values is None
+        ):
+            return None
+
+        dip_direction = self.full_azimuth[self.peaks[0]]
+
         if (
             self.full_peak_values[self.group_center_sort][0]
             < self.full_peak_values[self.group_center_sort][-1]
         ):
             dip_direction = (dip_direction + 180) % 360.0
+
         return dip_direction
 
     def compute_skew(
         self,
-    ) -> float:
+    ) -> float | None:
         """
         Compute skew factor for an anomaly group.
 
         :return: Skew.
         """
+        if (
+            self.group_center is None
+            or self.group_center_sort is None
+            or self.full_azimuth is None
+            or self.peaks is None
+        ):
+            return None
+
         locs = self.position.locations_resampled
-        azimuth_near = self.full_azimuth[self.full_peaks]
+        azimuth_near = self.full_azimuth[self.peaks]
 
         inflect_up = self.get_list_attr("inflect_up")
         inflect_down = self.get_list_attr("inflect_down")
 
         skew = (
-            locs[self.full_peaks][self.group_center_sort[0]]
+            locs[self.peaks][self.group_center_sort[0]]
             - locs[inflect_up][self.group_center_sort]
         ) / (
             locs[inflect_down][self.group_center_sort]
-            - locs[self.full_peaks][self.group_center_sort[0]]
+            - locs[self.peaks][self.group_center_sort[0]]
             + 1e-8
         )
         skew[azimuth_near[self.group_center_sort] > 180] = 1.0 / (
@@ -287,7 +305,14 @@ class AnomalyGroup:
 
         :return: List of intercept, slope for the linear fit.
         """
-        gates = np.array([a.channel for a in self.anomalies])
+        if (
+            self.channels is None
+            or self.anomalies is None
+            or self.full_peak_values is None
+        ):
+            return None
+
+        gates = np.array([a.parent.data_entity for a in self.anomalies])
 
         times = [
             channel["time"]
