@@ -133,7 +133,9 @@ class PeakFinderDriver(BaseDriver):
                                 tau += [0]
                             else:
                                 tau += [np.abs(group.linear_fit[0] ** -1.0)]
-                            channel_group.append(group.channel_group["label"])
+                            channel_group.append(
+                                property_groups.index(group.property_group) + 1
+                            )
                             migration.append(group.migration)
                             amplitude.append(group.amplitude)
                             azimuth.append(group.azimuth)

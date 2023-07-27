@@ -27,15 +27,15 @@ class AnomalyGroup:
     _full_azimuth: np.ndarray
     _channels: dict
     _full_peak_values: np.ndarray
-    _linear_fit: list
-    _skew: float
-    _amplitude: float
-    _migration: float
-    _azimuth: float
-    _group_center: np.ndarray
-    _group_center_sort: np.ndarray
-    _peak: np.ndarray
-    _peaks: np.ndarray
+    _linear_fit: list | None = None
+    _skew: float | None = None
+    _amplitude: float | None = None
+    _migration: float | None = None
+    _azimuth: float | None = None
+    _group_center: np.ndarray | None = None
+    _group_center_sort: np.ndarray | None = None
+    _peak: np.ndarray | None = None
+    _peaks: np.ndarray | None = None
 
     def __init__(
         self,
