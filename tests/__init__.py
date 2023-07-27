@@ -4,7 +4,3 @@
 #
 #  All rights reserved.
 #
-
-from pathlib import Path
-
-PROJECT = Path(__file__).parent.parent / "assets" / "FlinFlon.geoh5"

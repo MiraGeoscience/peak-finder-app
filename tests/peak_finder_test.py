@@ -16,13 +16,14 @@ from geoh5py.workspace import Workspace
 from ipywidgets import Widget
 
 from peak_finder.application import PeakFinder, PeakFinderDriver
-from tests import PROJECT
 
 # pytest.skip("eliminating conflicting test.", allow_module_level=True)
 
 
 def test_peak_finder_app(tmp_path: Path):
-    app = PeakFinder(geoh5=str(PROJECT), plot_result=False)
+    workspace = Workspace(tmp_path / "testPeakFinder.geoh5")
+    app = PeakFinder(geoh5=workspace, plot_result=False)
+    app.system.value = "VTEM (2007)"
 
     h5file_path = tmp_path / r"testPeakFinder.geoh5"
 
