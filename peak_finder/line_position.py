@@ -8,10 +8,8 @@
 from __future__ import annotations
 
 import numpy as np
+from geoapps_utils.numerical import running_mean, traveling_salesman
 from scipy.interpolate import interp1d
-
-from peak_finder.base.surveys import traveling_salesman
-from peak_finder.base.utils import running_mean
 
 
 class LinePosition:  # pylint: disable=R0902

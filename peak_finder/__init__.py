@@ -5,4 +5,30 @@
 #  All rights reserved.
 #
 
-from __future__ import annotations
+__version__ = "0.1.0"
+import os
+import warnings
+from pathlib import Path
+
+
+def assets_path() -> Path:
+    """Return the path to the assets folder."""
+
+    assets_dir_env_var = "GEOAPPS_ASSETS_DIR"
+    assets_dirname = os.environ.get(assets_dir_env_var, None)
+    if assets_dirname:
+        assets_folder = Path(assets_dirname)
+        if not assets_folder.is_dir():
+            warnings.warn(
+                f"Custom assets folder not found: {assets_dir_env_var}={assets_dirname}"
+            )
+        else:
+            return assets_folder
+
+    parent = Path(__file__).parent
+    folder_name = "assets"
+    assets_folder = parent.parent / folder_name
+    if not assets_folder.is_dir():
+        raise RuntimeError(f"Assets folder not found: {assets_folder}")
+
+    return assets_folder
