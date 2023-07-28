@@ -168,7 +168,10 @@ class BaseApplication:  # pylint: disable=R0902, R0904
         """
         Change the target h5file
         """
-        if not self.file_browser._select.disabled:  # pylint: disable="protected-access"
+        if (
+            not self.file_browser._select.disabled  # pylint: disable="protected-access"
+            and self.file_browser.selected is not None
+        ):
             extension = Path(self.file_browser.selected).suffix
 
             if isinstance(self.geoh5, Workspace):

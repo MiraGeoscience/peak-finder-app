@@ -207,22 +207,22 @@ class PeakFinder(ObjectDataSelection):  # pylint: disable=R0902, R0904
 
     def __populate__(self, **kwargs):
         super().__populate__(**kwargs)
+        if self.workspace is not None:
+            obj_list = self.workspace.get_entity(self.objects.value)
 
-        obj_list = self.workspace.get_entity(self.objects.value)
+            if obj_list[0] is not None and any(self.params.free_parameter_dict):
+                self._channel_groups = self.params.groups_from_free_params()
 
-        if obj_list[0] is not None and any(self.params.free_parameter_dict):
-            self._channel_groups = self.params.groups_from_free_params()
+                group_list = []
+                for prop_group, params in self._channel_groups.items():
+                    group_list += [self.add_group_widget(prop_group, params)]
+                self.groups_panel.children = group_list
 
-            group_list = []
-            for prop_group, params in self._channel_groups.items():
-                group_list += [self.add_group_widget(prop_group, params)]
-            self.groups_panel.children = group_list
-
-        else:
-            if not self.group_auto.value:
-                self.group_auto.value = True
             else:
-                self.create_default_groups(None)
+                if not self.group_auto.value:
+                    self.group_auto.value = True
+                else:
+                    self.create_default_groups(None)
 
     @property
     def main(self) -> VBox:
