@@ -10,7 +10,8 @@ homepage = "https://mirageoscience.com"
 python = "^3.9, < 3.11"
 
 ## dependencies for a minimal environment
-geoapps-utils = {version = "~0.1.0", source = "pypi"}
+#geoapps-utils = {version = "~0.1.0", source = "pypi"}
+geoapps-utils = { url = "https://github.com/MiraGeoscience/geoapps-utils/archive/refs/heads/develop.zip#sha256=" }
 
 notebook = {version = "~6.5.3"}
 dask = {version = "2022.10.0", extras = ["distributed"]}

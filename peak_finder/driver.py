@@ -23,8 +23,9 @@ from geoh5py.shared.utils import fetch_active_workspace
 from tqdm import tqdm
 
 from peak_finder.constants import validations
+from peak_finder.line_anomaly import LineAnomaly
 from peak_finder.params import PeakFinderParams
-from peak_finder.utils import default_groups_from_property_group, find_anomalies
+from peak_finder.utils import default_groups_from_property_group
 
 
 class PeakFinderDriver(BaseDriver):
@@ -79,19 +80,22 @@ class PeakFinderDriver(BaseDriver):
                 )
 
             print("Submitting parallel jobs:")
-            anomalies = []
-            locations = survey.vertices.copy()
+            property_groups = [
+                survey.find_or_create_property_group(name=name)
+                for name in channel_groups
+            ]
 
-            line_computation = delayed(find_anomalies, pure=True)
+            anomalies = []
             for line_id in tqdm(list(lines)):
                 line_indices = np.where(line_field.values == line_id)[0]
 
+                line_computation = delayed(LineAnomaly, pure=True)
+
                 anomalies += [
                     line_computation(
-                        locations,
-                        line_indices,
-                        active_channels,
-                        channel_groups,
+                        entity=survey,
+                        line_indices=line_indices,
+                        property_groups=property_groups,
                         data_normalization=normalization,
                         smoothing=self.params.smoothing,
                         min_amplitude=self.params.min_amplitude,
@@ -107,10 +111,10 @@ class PeakFinderDriver(BaseDriver):
                 tau,
                 migration,
                 azimuth,
-                cox,
+                group_center,
                 amplitude,
-                inflx_up,
-                inflx_dwn,
+                inflect_up,
+                inflect_down,
                 start,
                 end,
                 skew,
@@ -119,30 +123,33 @@ class PeakFinderDriver(BaseDriver):
 
             print("Processing and collecting results:")
             with ProgressBar():
-                results = compute(anomalies)[0]
+                results = compute(anomalies)
 
             for line in tqdm(results):
-                for group in line:
-                    if "channel_group" in group and len(group["cox"]) > 0:
-                        channel_group += group["channel_group"]["label"]
-
-                        if group["linear_fit"] is None:
-                            tau += [0]
-                        else:
-                            tau += [np.abs(group["linear_fit"][0] ** -1.0)]
-                        migration += [group["migration"]]
-                        amplitude += [group["amplitude"]]
-                        azimuth += [group["azimuth"]]
-                        cox += [group["cox"]]
-                        inflx_dwn += [group["inflx_dwn"]]
-                        inflx_up += [group["inflx_up"]]
-                        start += [group["start"]]
-                        end += [group["end"]]
-                        skew += [group["skew"]]
-                        peaks += [group["peaks"]]
+                for line_anomaly in line:
+                    for line_group in line_anomaly.anomalies:
+                        for group in line_group.groups:
+                            if group.linear_fit is None:
+                                tau += [0]
+                            else:
+                                tau += [np.abs(group.linear_fit[0] ** -1.0)]
+                            channel_group.append(
+                                property_groups.index(group.property_group) + 1
+                            )
+                            migration.append(group.migration)
+                            amplitude.append(group.amplitude)
+                            azimuth.append(group.azimuth)
+                            skew.append(group.skew)
+                            group_center.append(group.group_center)
+                            for anom in group.anomalies:
+                                inflect_down.append(anom.inflect_down)
+                                inflect_up.append(anom.inflect_up)
+                                start.append(anom.start)
+                                end.append(anom.end)
+                                peaks.append(anom.peak)
 
             print("Exporting . . .")
-            if cox:
+            if group_center:
                 channel_group = np.hstack(channel_group)  # Start count at 1
 
                 # Create reference values and color_map
@@ -158,7 +165,7 @@ class PeakFinderDriver(BaseDriver):
                 points = Points.create(
                     self.params.geoh5,
                     name="PointMarkers",
-                    vertices=np.vstack(cox),
+                    vertices=np.vstack(group_center),
                     parent=output_group,
                 )
                 points.entity_type.name = self.params.ga_group_name
@@ -226,7 +233,7 @@ class PeakFinderDriver(BaseDriver):
 
                         for azm, xyz, mig in zip(
                             np.hstack(azimuth).tolist(),
-                            np.vstack(cox).tolist(),
+                            np.vstack(group_center).tolist(),
                             migration.tolist(),
                         ):
                             marker = np.r_[
@@ -268,19 +275,19 @@ class PeakFinderDriver(BaseDriver):
                             "name": "Time Groups",
                             "values": color_map,
                         }
-                    inflx_pts = Points.create(
+                    inflect_pts = Points.create(
                         self.params.geoh5,
                         name="Inflections_Up",
-                        vertices=np.vstack(inflx_up),
+                        vertices=np.vstack(inflect_up),
                         parent=output_group,
                     )
-                    channel_group_data = inflx_pts.add_data(
+                    channel_group_data = inflect_pts.add_data(
                         {
                             "channel_group": {
                                 "type": "referenced",
                                 "values": np.repeat(
                                     np.hstack(channel_group),
-                                    [i.shape[0] for i in inflx_up],
+                                    [i.shape[0] for i in inflect_up],
                                 ),
                                 "value_map": group_map,
                             }
@@ -290,13 +297,13 @@ class PeakFinderDriver(BaseDriver):
                         "name": "Time Groups",
                         "values": color_map,
                     }
-                    inflx_pts = Points.create(
+                    inflect_pts = Points.create(
                         self.params.geoh5,
                         name="Inflections_Down",
-                        vertices=np.vstack(inflx_dwn),
+                        vertices=np.vstack(inflect_down),
                         parent=output_group,
                     )
-                    channel_group_data.copy(parent=inflx_pts)
+                    channel_group_data.copy(parent=inflect_pts)
 
                     start_pts = Points.create(
                         self.params.geoh5,

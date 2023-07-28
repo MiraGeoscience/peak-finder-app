@@ -8,13 +8,11 @@
 from __future__ import annotations
 
 from copy import deepcopy
-from uuid import UUID
 
 from geoapps_utils.geophysical_systems import parameters
 from geoh5py.ui_json.constants import default_ui_json as base_ui_json
 
 import peak_finder
-from peak_finder import assets_path
 
 defaults = {
     "version": peak_finder.__version__,
@@ -187,16 +185,4 @@ validations = {
     "width": {"types": [float, type(None)]},
 }
 
-app_initializer = {
-    "geoh5": str(assets_path() / "FlinFlon.geoh5"),
-    "objects": UUID("{bb208abb-dc1f-4820-9ea9-b8883e5ff2c6}"),
-    "data": UUID("{b834a590-dea9-48cb-abe3-8c714bb0bb7c}"),
-    "line_field": UUID("{90b1d710-8a0f-4f69-bd38-6c06c7a977ed}"),
-    "system": "VTEM (2007)",
-    "line_id": 13,
-    "center": 4041.2,
-    "width": 1000.0,
-    "tem_checkbox": True,
-    "min_value": -0.0004509940918069333,
-    "group_auto": True,
-}
+app_initializer: dict = {}
