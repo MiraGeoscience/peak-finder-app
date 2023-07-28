@@ -74,13 +74,26 @@ def test_peak_finder_app(tmp_path: Path):
 
     if app.lines is not None and hasattr(app.lines, "anomalies"):
         anomalies = app.lines.anomalies
-        assert len(anomalies) == 3, f"Expected 3 groups. Found {len(anomalies)}"
-    assert all(
-        aa["azimuth"] == 270 for aa in anomalies
+        assert len(anomalies) == 13, f"Expected 13 groups. Found {len(anomalies)}"
+    assert (
+        np.sum([aa.azimuth == 270 for aa in anomalies]) == 8
     ), "Anomalies with wrong azimuth found"
-    assert [aa["channel_group"]["label"][0] for aa in anomalies] == [
+    assert (
+        np.sum([aa.azimuth == 90 for aa in anomalies]) == 5
+    ), "Anomalies with wrong azimuth found"
+    assert [len(aa.anomalies) for aa in anomalies] == [
+        1,
+        1,
+        1,
+        1,
+        3,
+        2,
+        2,
+        2,
+        3,
         4,
-        5,
+        1,
+        3,
         3,
     ], "Grouping different than expected"
 

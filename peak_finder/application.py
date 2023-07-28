@@ -30,8 +30,9 @@ from peak_finder.base.importing import warn_module_not_found
 from peak_finder.base.selection import LineOptions, ObjectDataSelection
 from peak_finder.constants import app_initializer, default_ui_json, template_dict
 from peak_finder.driver import PeakFinderDriver
+from peak_finder.line_anomaly import LineAnomaly
 from peak_finder.params import PeakFinderParams
-from peak_finder.utils import default_groups_from_property_group, find_anomalies
+from peak_finder.utils import default_groups_from_property_group
 
 with warn_module_not_found():
     from matplotlib import pyplot as plt
@@ -92,7 +93,7 @@ class PeakFinder(ObjectDataSelection):  # pylint: disable=R0902, R0904
     _object_types: tuple = (Curve,)
     all_anomalies: list = []
     active_channels: dict = {}
-    _survey = None
+    _survey: Curve
     _channel_groups: dict = {}
     pause_refresh: bool = False
     decay_figure = None
@@ -574,7 +575,7 @@ class PeakFinder(ObjectDataSelection):  # pylint: disable=R0902, R0904
         return self._structural_markers
 
     @property
-    def survey(self) -> Entity | None:
+    def survey(self) -> Curve:
         """
         Selected curve object
         """
@@ -637,7 +638,7 @@ class PeakFinder(ObjectDataSelection):  # pylint: disable=R0902, R0904
         return self._width
 
     @property
-    def workspace(self) -> Workspace:
+    def workspace(self) -> Workspace | None:
         """
         Target geoh5py workspace
         """
@@ -816,23 +817,30 @@ class PeakFinder(ObjectDataSelection):  # pylint: disable=R0902, R0904
 
         self.plot_trigger.value = False
         self.survey.line_indices = line_indices
-        result = find_anomalies(
-            self.survey.vertices,
-            line_indices,
-            self.active_channels,
-            self.channel_groups,
-            data_normalization=self.em_system_specs[self.system.value]["normalization"],
+        property_groups = [
+            self.survey.find_or_create_property_group(name=name)
+            for name in self.channel_groups
+        ]
+        line_anomaly = LineAnomaly(
+            entity=self.survey,
+            line_indices=line_indices,
+            property_groups=property_groups,
             smoothing=self.smoothing.value,
+            data_normalization=self.em_system_specs[self.system.value]["normalization"],
             min_amplitude=self.min_amplitude.value,
             min_value=self.min_value.value,
             min_width=self.min_width.value,
             max_migration=self.max_migration.value,
             min_channels=self.min_channels.value,
-            return_profile=True,
         )
 
-        if len(result) > 0:
-            self.lines.anomalies, self.lines.profile = result
+        line_groups = line_anomaly.anomalies
+        anomalies = []
+        if line_groups is not None:
+            for line_group in line_groups:
+                anomalies += line_group.groups
+            self.lines.anomalies = anomalies
+            self.lines.profile = line_anomaly.position
         else:
             self.group_display.disabled = True
             return
@@ -852,10 +860,10 @@ class PeakFinder(ObjectDataSelection):  # pylint: disable=R0902, R0904
                 self.center.max = end
                 self.width.max = end
 
-        if len(self.lines.anomalies) > 0:
+        if self.lines.anomalies is not None and len(self.lines.anomalies) > 0:
             peaks = np.sort(
                 self.lines.profile.locations_resampled[
-                    [group["peak"][0] for group in self.lines.anomalies]
+                    [group.anomalies[0].peak for group in self.lines.anomalies]
                 ]
             )
             current = self.center.value
@@ -959,35 +967,41 @@ class PeakFinder(ObjectDataSelection):  # pylint: disable=R0902, R0904
         up_markers_x, up_markers_y = [], []
         dwn_markers_x, dwn_markers_y = [], []
 
-        for channel, channel_dict in enumerate(self.active_channels.values()):
+        for channel_dict in self.active_channels.values():
             if "values" not in channel_dict:
                 continue
 
-            self.lines.profile.values = channel_dict["values"][self.survey.line_indices]
-            values = self.lines.profile.values_resampled
+            values = channel_dict["values"][self.survey.line_indices]
+            values, raw = self.lines.profile.resample_values(values)
+
             y_min = np.nanmin([values[sub_ind].min(), y_min])
             y_max = np.nanmax([values[sub_ind].max(), y_max])
             axs.plot(locs, values, color=[0.5, 0.5, 0.5, 1])
             for group in self.lines.anomalies:
-                query = np.where(group["channels"] == channel)[0]
+                channels = np.array(
+                    [a.parent.data_entity.name for a in group.anomalies]
+                )
+                color = self.channel_groups[group.property_group.name]["color"]
+                peaks = group.get_list_attr("peak")
+                query = np.where(np.array(channels) == channel_dict["name"])[0]
 
                 if (
                     len(query) == 0
-                    or group["peak"][query[0]] < lims[0]
-                    or group["peak"][query[0]] > lims[1]
+                    or peaks[query[0]] < lims[0]
+                    or peaks[query[0]] > lims[1]
                 ):
                     continue
 
                 i = query[0]
-                start = group["start"][i]
-                end = group["end"][i]
+                start = group.anomalies[i].start
+                end = group.anomalies[i].end
                 axs.plot(
                     locs[start:end],
                     values[start:end],
-                    color=group["channel_group"]["color"],
+                    color=color,
                 )
 
-                if group["azimuth"] < 180:
+                if group.azimuth < 180:
                     ori = "right"
                 else:
                     ori = "left"
@@ -995,27 +1009,26 @@ class PeakFinder(ObjectDataSelection):  # pylint: disable=R0902, R0904
                 if markers:
                     if i == 0:
                         axs.scatter(
-                            locs[group["peak"][i]],
-                            values[group["peak"][i]],
+                            locs[peaks[i]],
+                            values[peaks[i]],
                             s=200,
                             c="k",
                             marker=self.marker[ori],
                             zorder=10,
                         )
-                    peak_markers_x += [locs[group["peak"][i]]]
-                    peak_markers_y += [values[group["peak"][i]]]
-                    peak_markers_c += [group["channel_group"]["color"]]
-                    start_markers_x += [locs[group["start"][i]]]
-                    start_markers_y += [values[group["start"][i]]]
-                    end_markers_x += [locs[group["end"][i]]]
-                    end_markers_y += [values[group["end"][i]]]
-                    up_markers_x += [locs[group["inflx_up"][i]]]
-                    up_markers_y += [values[group["inflx_up"][i]]]
-                    dwn_markers_x += [locs[group["inflx_dwn"][i]]]
-                    dwn_markers_y += [values[group["inflx_dwn"][i]]]
+                    peak_markers_x += [locs[peaks[i]]]
+                    peak_markers_y += [values[peaks[i]]]
+                    peak_markers_c += [color]
+                    start_markers_x += [locs[group.anomalies[i].start]]
+                    start_markers_y += [values[group.anomalies[i].start]]
+                    end_markers_x += [locs[group.anomalies[i].end]]
+                    end_markers_y += [values[group.anomalies[i].end]]
+                    up_markers_x += [locs[group.anomalies[i].inflect_up]]
+                    up_markers_y += [values[group.anomalies[i].inflect_up]]
+                    dwn_markers_x += [locs[group.anomalies[i].inflect_down]]
+                    dwn_markers_y += [values[group.anomalies[i].inflect_down]]
 
             if residual:
-                raw = self.lines.profile.values_resampled_raw
                 axs.fill_between(
                     locs, values, raw, where=raw > values, color=[1, 0, 0, 0.5]
                 )
@@ -1143,7 +1156,9 @@ class PeakFinder(ObjectDataSelection):  # pylint: disable=R0902, R0904
             # Find nearest decay to cursor
             group = None
             if getattr(self.lines, "anomalies", None) is not None:
-                peaks = np.r_[[group["peak"][0] for group in self.lines.anomalies]]
+                peaks = np.r_[
+                    [group.anomalies[0].peak for group in self.lines.anomalies]
+                ]
                 if len(peaks) > 0:
                     group = self.lines.anomalies[
                         np.argmin(
@@ -1155,15 +1170,16 @@ class PeakFinder(ObjectDataSelection):  # pylint: disable=R0902, R0904
 
             # Get the times of the group and plot the linear regression
             times = []
-            if group is not None and group["linear_fit"] is not None:
+            if group is not None and group.linear_fit is not None:
+                channels = group.get_list_attr("channel")
                 times = [
                     channel["time"]
                     for i, channel in enumerate(self.active_channels.values())
-                    if i in list(group["channels"])
+                    if i in list(channels)
                 ]
             if any(times):
                 times = np.hstack(times)
-                y = np.exp(times * group["linear_fit"][1] + group["linear_fit"][0])
+                y = np.exp(times * group.linear_fit[1] + group.linear_fit[0])
                 axs.plot(
                     times,
                     y,
@@ -1174,14 +1190,15 @@ class PeakFinder(ObjectDataSelection):  # pylint: disable=R0902, R0904
                 axs.text(
                     np.mean(times),
                     np.mean(y),
-                    f"Tau: {np.abs(group['linear_fit'][1] ** -1.)*1e+3:.2e} msec",
+                    f"Tau: {np.abs(group.linear_fit[1] ** -1.)*1e+3:.2e} msec",
                     color="k",
                 )
+                peak_values = group.full_peak_values
                 axs.scatter(
                     times,
-                    group["peak_values"],
+                    peak_values,
                     s=100,
-                    color=group["channel_group"]["color"],
+                    color=group.channel_group["color"],
                     marker="^",
                     edgecolors="k",
                 )
@@ -1372,5 +1389,5 @@ if __name__ == "__main__":
         "'geoapps.peak_finder.driver' in version 0.7.0. "
         "This warning is likely due to the execution of older ui.json files. Please update."
     )
-    params_class = PeakFinderParams(InputFile(FILE))
+    params_class = PeakFinderParams(InputFile.read_ui_json(FILE))
     PeakFinder.run(params_class)
