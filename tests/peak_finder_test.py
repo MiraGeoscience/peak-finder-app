@@ -14,7 +14,6 @@ from geoh5py.objects import Curve
 from geoh5py.shared.utils import compare_entities
 from geoh5py.workspace import Workspace
 from ipywidgets import Widget
-from tests import PROJECT
 
 from peak_finder.application import PeakFinder, PeakFinderDriver
 
