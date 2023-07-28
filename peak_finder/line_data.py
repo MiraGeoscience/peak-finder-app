@@ -16,7 +16,7 @@ from peak_finder.line_position import LinePosition
 
 class LineData:
     """
-    Contains full list of Anomaly objects.
+    Contains full list of Anomaly objects and line data values.
     """
 
     def __init__(  # pylint: disable=R0913
@@ -63,7 +63,7 @@ class LineData:
         return self._values
 
     @property
-    def data_entity(self):
+    def data_entity(self) -> FloatData:
         """
         Data entity.
         """

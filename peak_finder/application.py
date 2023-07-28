@@ -28,8 +28,7 @@ from peak_finder.base import geophysical_systems
 from peak_finder.base.application import BaseApplication
 from peak_finder.base.importing import warn_module_not_found
 from peak_finder.base.selection import LineOptions, ObjectDataSelection
-from peak_finder.constants import (app_initializer, default_ui_json,
-                                   template_dict)
+from peak_finder.constants import app_initializer, default_ui_json, template_dict
 from peak_finder.driver import PeakFinderDriver
 from peak_finder.line_anomaly import LineAnomaly
 from peak_finder.params import PeakFinderParams
@@ -39,10 +38,24 @@ with warn_module_not_found():
     from matplotlib import pyplot as plt
 
 with warn_module_not_found():
-    from ipywidgets import (Box, Checkbox, ColorPicker, Dropdown,
-                            FloatLogSlider, FloatSlider, FloatText, HBox,
-                            IntSlider, Label, Layout, ToggleButton,
-                            ToggleButtons, VBox, Widget, interactive_output)
+    from ipywidgets import (
+        Box,
+        Checkbox,
+        ColorPicker,
+        Dropdown,
+        FloatLogSlider,
+        FloatSlider,
+        FloatText,
+        HBox,
+        IntSlider,
+        Label,
+        Layout,
+        ToggleButton,
+        ToggleButtons,
+        VBox,
+        Widget,
+        interactive_output,
+    )
     from ipywidgets.widgets.widget_selection import TraitError
 
 
@@ -954,7 +967,7 @@ class PeakFinder(ObjectDataSelection):  # pylint: disable=R0902, R0904
         up_markers_x, up_markers_y = [], []
         dwn_markers_x, dwn_markers_y = [], []
 
-        for channel, channel_dict in enumerate(self.active_channels.values()):
+        for channel_dict in self.active_channels.values():
             if "values" not in channel_dict:
                 continue
 
@@ -965,9 +978,12 @@ class PeakFinder(ObjectDataSelection):  # pylint: disable=R0902, R0904
             y_max = np.nanmax([values[sub_ind].max(), y_max])
             axs.plot(locs, values, color=[0.5, 0.5, 0.5, 1])
             for group in self.lines.anomalies:
-                channels = group.get_list_attr("channel")
+                channels = np.array(
+                    [a.parent.data_entity.name for a in group.anomalies]
+                )
+                color = self.channel_groups[group.property_group.name]["color"]
                 peaks = group.get_list_attr("peak")
-                query = np.where(channels == channel)[0]
+                query = np.where(np.array(channels) == channel_dict["name"])[0]
 
                 if (
                     len(query) == 0
@@ -982,7 +998,7 @@ class PeakFinder(ObjectDataSelection):  # pylint: disable=R0902, R0904
                 axs.plot(
                     locs[start:end],
                     values[start:end],
-                    color=group.channel_group["color"],
+                    color=color,
                 )
 
                 if group.azimuth < 180:
@@ -1002,7 +1018,7 @@ class PeakFinder(ObjectDataSelection):  # pylint: disable=R0902, R0904
                         )
                     peak_markers_x += [locs[peaks[i]]]
                     peak_markers_y += [values[peaks[i]]]
-                    peak_markers_c += [group.channel_group["color"]]
+                    peak_markers_c += [color]
                     start_markers_x += [locs[group.anomalies[i].start]]
                     start_markers_y += [values[group.anomalies[i].start]]
                     end_markers_x += [locs[group.anomalies[i].end]]

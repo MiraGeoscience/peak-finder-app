@@ -18,6 +18,8 @@ from peak_finder.line_position import LinePosition
 
 class LineAnomaly:  # pylint: disable=R0902
     """
+    Main class for finding anomalies.
+
     Contains list of LineGroup objects.
     """
 
@@ -36,7 +38,7 @@ class LineAnomaly:  # pylint: disable=R0902
 
     def __init__(  # pylint: disable=R0913
         self,
-        entity: Curve,
+        entity,
         line_indices,
         property_groups,
         data_normalization=(1.0,),
@@ -52,7 +54,6 @@ class LineAnomaly:  # pylint: disable=R0902
         """
         :param entity: Survey object.
         :param line_indices: Indices of vertices for line profile.
-        :param channels: Channels.
         :param property_groups: Property groups to use for grouping anomalies.
         :param smoothing: Smoothing factor.
         :param data_normalization: Value(s) to normalize data by.
@@ -112,14 +113,14 @@ class LineAnomaly:  # pylint: disable=R0902
     @property
     def channels(self) -> list:
         """
-        Dict of active channels, uids and values.
+        List of active channels.
         """
         return self._channels
 
     @property
     def property_groups(self) -> list[PropertyGroup]:
         """
-        Dict of property groups.
+        List of property groups.
         """
         return self._property_groups
 

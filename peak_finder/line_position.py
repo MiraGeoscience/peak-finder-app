@@ -297,7 +297,7 @@ class LinePosition:  # pylint: disable=R0902
             self.interp_z(self.locations_resampled[inds]),
         ]
 
-    def compute_azimuth(self):
+    def compute_azimuth(self) -> np.ndarray:
         """
         Compute azimuth of line profile.
         """

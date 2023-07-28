@@ -185,7 +185,7 @@ class LineGroup:
 
         return near
 
-    def get_anomaly_attributes(self, line_data_subset: list[LineData]):
+    def get_anomaly_attributes(self, line_data_subset: list[LineData]) -> tuple:
         """
         Get full lists of anomaly attributes from line_dataset.
 

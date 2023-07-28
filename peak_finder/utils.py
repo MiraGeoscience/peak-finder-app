@@ -12,7 +12,7 @@ import numpy as np
 from geoh5py.groups import PropertyGroup
 
 
-def default_groups_from_property_group(
+def default_groups_from_property_group(  # pylint: disable=R0914
     property_group: PropertyGroup,
     start_index: int = 0,
 ) -> dict:
