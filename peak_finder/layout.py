@@ -76,6 +76,8 @@ data_selection_layout = html.Div(
             ],
             style={"margin-bottom": "20px"},
         ),
+        dcc.Store(id="objects"),
+        dcc.Store(id="system"),
     ],
     style={
         "width": "50%",
@@ -178,6 +180,7 @@ visual_params_layout = html.Div(
                         "display": "inline-block",
                         "vertical-align": "middle",
                     },
+                    value="Distance",
                 ),
             ]
         ),
@@ -192,13 +195,14 @@ visual_params_layout = html.Div(
                     },
                 ),
                 dcc.Dropdown(
-                    id="y_axis_scaling",
+                    id="y_scale",
                     options=["linear", "symlog"],
                     style={
                         "width": "70%",
                         "display": "inline-block",
                         "vertical-align": "middle",
                     },
+                    value="symlog",
                 ),
             ]
         ),
@@ -210,11 +214,19 @@ visual_params_layout = html.Div(
             [
                 dcc.Slider(
                     id="linear_threshold",
-                    marks=None,
-                    tooltip={
-                        "placement": "bottom",
-                        "always_visible": True,
+                    min=-18,
+                    max=10,
+                    step=0.1,
+                    marks={
+                        -18: "10E-18",
+                        -15: "10E-15",
+                        -10: "10E-10",
+                        -5: "10E-5",
+                        0: "1",
+                        5: "10E5",
+                        10: "10E10",
                     },
+                    value=-2,
                 ),
             ],
             style={"width": "70%", "display": "inline-block", "vertical-align": "top"},
@@ -226,13 +238,7 @@ visual_params_layout = html.Div(
     ],
     style={"width": "50%", "display": "inline-block", "vertical-align": "top"},
 )
-"""
-linear_threshold
-min=-18,
-max=10,
-step=0.1,
-base=10,
-"""
+
 detection_params_layout = html.Div(
     [
         dcc.Markdown(

@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+import string
 from copy import deepcopy
 
 from geoapps_utils.driver.params import BaseParams
@@ -365,23 +366,15 @@ class PeakFinderParams(BaseParams):  # pylint: disable=R0902, R0904
     def get_property_groups(self):
         count = 0
         property_groups = {}
-        group_names = [
-            "group_early",
-            "group_middle",
-            "group_late",
-            "group_early_middle",
-            "group_early_middle_late",
-            "group_middle_late",
-        ]
-        for name in group_names:
-            prop_group = getattr(self, f"{name}_data", None)
+        for name in string.ascii_lowercase[:6]:
+            prop_group = getattr(self, f"group_{name}_data", None)
             if prop_group is not None:
                 count += 1
                 property_groups[prop_group.name] = {
-                    "data": prop_group.uid,
+                    "data": str(prop_group.uid),
                     "color": getattr(self, f"{name}_color", None),
                     "label": [count],
-                    "properties": prop_group.properties,
+                    "properties": [str(prop) for prop in prop_group.properties],
                 }
         return property_groups
 

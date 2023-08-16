@@ -15,25 +15,26 @@ import uuid
 from pathlib import Path
 from time import time
 
+import matplotlib.pyplot as plt
 import numpy as np
 import plotly.graph_objects as go
-from dash import Dash, callback_context, dcc, no_update
-from dash.dependencies import Input, Output
+from dash import Dash, callback_context, ctx, dcc, no_update
+from dash.dependencies import Input, Output, State
 from flask import Flask
 from geoapps_utils import geophysical_systems
+from geoapps_utils.application.dash_application import (
+    BaseDashApplication,
+    ObjectSelection,
+)
 from geoh5py.data import ReferencedData
 from geoh5py.objects import ObjectBase
 from geoh5py.shared.utils import fetch_active_workspace
 from geoh5py.ui_json import InputFile
-import matplotlib.pyplot as plt
 
-from geoapps_utils.application.dash_application import BaseDashApplication, ObjectSelection
-from peak_finder.constants import app_initializer, default_ui_json
 from peak_finder.driver import PeakFinderDriver
+from peak_finder.layout import peak_finder_layout
 from peak_finder.line_anomaly import LineAnomaly
 from peak_finder.params import PeakFinderParams
-from peak_finder.utils import default_groups_from_property_group
-from peak_finder.layout import peak_finder_layout
 
 
 class PeakFinder(BaseDashApplication):
@@ -77,51 +78,33 @@ class PeakFinder(BaseDashApplication):
         self.app.callback(
             Output(component_id="linear_threshold", component_property="disabled"),
             Input(component_id="y_scale", component_property="value"),
-        )(self.disable_linear_threshold)
+        )(PeakFinder.disable_linear_threshold)
         self.app.callback(
-            Output(component_id="objects", component_property="data"),
-            Output(component_id="ui_json_data", component_property="data"),
-            Input(component_id="ui_json_data", component_property="data"),
-        )(self.set_objects_value)
-        self.app.callback(
-            Output(component_id="data", component_property="value"),
             Output(component_id="data", component_property="options"),
             Output(component_id="group_name", component_property="options"),
-            Input(component_id="objects", component_property="value"),
+            Input(component_id="objects", component_property="data"),
         )(self.update_data_options)
         self.app.callback(
-            Output(component_id="line_field", component_property="value"),
             Output(component_id="line_field", component_property="options"),
-            Input(component_id="objects", component_property="value"),
+            Input(component_id="objects", component_property="data"),
         )(self.update_lines_field_list)
         self.app.callback(
-            Output(component_id="line_id", component_property="value"),
             Output(component_id="line_id", component_property="options"),
             Input(component_id="line_field", component_property="value"),
         )(self.update_lines_list)
         self.app.callback(
-            Output(component_id="smoothing", component_property="value"),
-            Output(component_id="min_amplitude", component_property="value"),
-            Output(component_id="min_value", component_property="value"),
-            Output(component_id="min_width", component_property="value"),
-            Output(component_id="max_migration", component_property="value"),
-            Output(component_id="min_channels", component_property="value"),
-            Output(component_id="ga_group_name", component_property="value"),
-            Output(component_id="structural_markers", component_property="value"),
-            Output(component_id="monitoring_directory", component_property="value"),
-            Input(component_id="ui_json_data", component_property="data"),
-        )(self.update_remainder_from_ui_json)
-        self.app.callback(
             Output(component_id="property_groups", component_property="data"),
+            Output(component_id="color_picker", component_property="value"),
             Input(component_id="group_name", component_property="value"),
             Input(component_id="color_picker", component_property="value"),
-        )(self.update_property_groups)
+            State(component_id="property_groups", component_property="data"),
+        )(PeakFinder.update_property_groups)
         self.app.callback(
             Output(component_id="center", component_property="value"),
             Output(component_id="center", component_property="max"),
             Output(component_id="width", component_property="value"),
             Output(component_id="width", component_property="max"),
-            Input(component_id="objects", component_property="value"),
+            Input(component_id="objects", component_property="data"),
             Input(component_id="property_groups", component_property="data"),
             Input(component_id="smoothing", component_property="value"),
             Input(component_id="max_migration", component_property="value"),
@@ -131,13 +114,13 @@ class PeakFinder(BaseDashApplication):
             Input(component_id="min_width", component_property="value"),
             Input(component_id="line_field", component_property="value"),
             Input(component_id="line_id", component_property="value"),
-            Input(component_id="system", component_property="value"),
+            Input(component_id="system", component_property="data"),
             Input(component_id="center", component_property="value"),
             Input(component_id="width", component_property="value"),
         )(self.line_update)
         self.app.callback(
             Output(component_id="plot", component_property="figure"),
-            Input(component_id="objects", component_property="value"),
+            Input(component_id="objects", component_property="data"),
             Input(component_id="property_groups", component_property="data"),
             Input(component_id="show_residual", component_property="value"),
             Input(component_id="show_markers", component_property="value"),
@@ -164,131 +147,56 @@ class PeakFinder(BaseDashApplication):
 
     def set_initialized_layout(self, ui_json_data):
         self.app.layout = peak_finder_layout
-        # Adding ui_json_data to layout here, so it can be initialized properly
-        peak_finder_layout.children.append(dcc.Store(id="ui_json_data", data=ui_json_data))
+        BaseDashApplication.init_vals(self.app.layout.children, ui_json_data)
+
         # Assemble property groups
         property_groups = self.params.get_property_groups()
-        peak_finder_layout.children.append(dcc.Store(id="property_groups", data=property_groups))
+        peak_finder_layout.children.append(
+            dcc.Store(id="property_groups", data=property_groups)
+        )
 
-    def disable_linear_threshold(self, y_scale):
+    @staticmethod
+    def disable_linear_threshold(y_scale):
         if y_scale == "symlog":
             return False
         return True
 
-    def update_property_groups(self, group_name, color_picker):
-        property_groups = {}
-        return property_groups
+    @staticmethod
+    def update_property_groups(group_name, color_picker, property_groups):
+        property_groups_out, color_picker_out = no_update, no_update
 
-    def set_objects_value(self, ui_json_data: dict):
-        """
-        Initializing objects from the ObjectSelection ui_json_data. Setting ui_json_data to trigger the other functions'
-        initialization.
+        trigger = ctx.triggered_id
+        if trigger == "group_name":
+            color_picker_out = property_groups[group_name]["color"]
+        elif trigger == "color_picker":
+            property_groups[group_name]["color"] = color_picker
 
-        :param ui_json_data: Dict of input ui.json params.
-        """
-        return ui_json_data.get("objects", None), ui_json_data
+        return property_groups_out, color_picker_out
 
     def update_data_options(self, objects: str):
-        """
-        Get data dropdown options from a given object.
-        """
-        data_value = None
-        data_options = self.get_data_options(None, objects)
-
-        return data_value, data_options, data_options
-
-    def update_data_list(self, val: str | None):
-        """
-        Update dropdown data options.
-
-        :param val: object uuid.
-        """
-        """
-        refresh = self.refresh.value
-        self.refresh.value = False
-        if self._workspace is not None:
-            obj: ObjectBase | None = self._workspace.get_entity(self.objects.value)[0]
-            if obj is None or getattr(obj, "get_data_list", None) is None:
-                self.data.options = [["", None]]
-                self.refresh.value = refresh
-                return
-
-            options = [["", None]]  # type: ignore
-            if (self.add_groups or self.add_groups == "only") and obj.property_groups:
-                options = (
-                    options
-                    + [["-- Groups --", None]]
-                    + [[p_g.name, p_g.uid] for p_g in obj.property_groups]
-                )
-
-            if self.add_groups != "only":
-                options += [["--- Channels ---", None]]
-
-                children = sorted_children_dict(obj)
-                excl = ["visual parameter"]
-                if children is not None:
-                    options += [
-                        [k, v] for k, v in children.items() if k.lower() not in excl  # type: ignore
-                    ]
-
-                if self.add_xyz:
-                    options += [["X", "X"], ["Y", "Y"], ["Z", "Z"]]
-
-            value = self.data.value
-            self.data.options = options
-
-            self.update_uid_name_map()
-
-            if self.select_multiple and any(val in options for val in value):
-                self.data.value = [val for val in value if val in options]
-            elif value in dict(options).values():  # type: ignore
-                self.data.value = value
-            elif self.find_label:
-                self.data.value = find_value(self.data.options, self.find_label)
-        else:
-            self.data.options = []
-            self.data.uid_name_map = {}
-
-        self.refresh.value = refresh
-        """
-        pass
+        options = []
+        for child in self.workspace.get_entity(uuid.UUID(objects))[0].property_groups:
+            options.append({"label": child.name, "value": "{" + str(child.uid) + "}"})
+        return options, options
 
     def update_lines_field_list(self, object_uid: str | None):
-        options = [["", None]]
-        obj = self.workspace.get_entity(uuid.UUID(object_uid))
-        options += [
-            [k, v]  # type: ignore
-            for k, v in obj.children.items()
-            if isinstance(obj.get_entity(v)[0], ReferencedData)
-        ]
-        #value = self.data.value
-        #self.data.options = options
+        obj = self.workspace.get_entity(uuid.UUID(object_uid))[0]
+        options = []
+        for child in obj.children:
+            if isinstance(child, ReferencedData):
+                options.append({"label": child.name, "value": str(child.uid)})
 
-        #if value in dict(options).values():  # type: ignore
-        #    self.data.value = value
-        #elif self.find_label:
-        #    self.data.value = find_value(self.data.options, self.find_label)
-        lines_field_value = None
-
-        return lines_field_value, options
+        return options
 
     def update_lines_list(
         self,
-        lines_field: str | None,
+        line_field: str | None,
     ):
-        """
-        Update dropdown lines options.
-        """
-        # From application\selection
-        # Updates Select line, self.lines
-        options = [["", None]]
-        if lines_field and getattr(lines_field[0], "values", None) is not None:
-            if isinstance(lines_field[0], ReferencedData):
-                options += [
-                    [v, k] for k, v in lines_field[0].value_map.map.items()
-                ]
-        value = None
-        return value, options
+        line_field = self.workspace.get_entity(uuid.UUID(line_field))[0]
+        options = []
+        for key, value in line_field.value_map.map.items():
+            options.append({"label": value, "value": key})
+        return options
 
     def get_line_indices(self, line_field, line_id):
         """
@@ -333,26 +241,31 @@ class PeakFinder(BaseDashApplication):
         """
         Re-compute derivatives
         """
-        obj = self.workspace.get_entity(uuid.UUID(objects))[0]
+        center_out, center_max_out, width_out, width_max_out = (
+            no_update,
+            no_update,
+            no_update,
+            no_update,
+        )
 
+        obj = self.workspace.get_entity(uuid.UUID(objects))[0]
         if (
             obj is None
             or len(self.workspace.get_entity(uuid.UUID(line_field))) == 0
             or line_id == ""
             or len(property_groups) == 0
         ):
-            return
+            return center_out, center_max_out, width_out, width_max_out
 
         line_indices = self.get_line_indices(line_field, line_id)
-
         if line_indices is None:
-            return
+            return center_out, center_max_out, width_out, width_max_out
 
         obj.line_indices = line_indices
-        #property_groups = [
+        # property_groups = [
         #    obj.find_or_create_property_group(name=name)
         #    for name in channel_groups
-        #]
+        # ]
         em_system_specs = geophysical_systems.parameters()
         line_anomaly = LineAnomaly(
             entity=obj,
@@ -375,23 +288,22 @@ class PeakFinder(BaseDashApplication):
             self.lines.anomalies = anomalies
             self.lines.position = line_anomaly.position
         else:
-            #self.group_display.disabled = True
-            return
+            # self.group_display.disabled = True
+            return center_out, center_max_out, width_out, width_max_out
 
-        center_max, width_max = no_update, no_update
-        #if self.previous_line != line_id:
+        # if self.previous_line != line_id:
         end = self.lines.position.locations_resampled[-1]
         mid = self.lines.position.locations_resampled[-1] * 0.5
 
         if center >= end:
-            center = 0
-            center_max = end
-            #width = 0
-            width_max = end
-            width = mid
+            center_out = 0
+            center_max_out = end
+            # width = 0
+            width_max_out = end
+            width_out = mid
         else:
-            center_max = end
-            width_max = end
+            center_max_out = end
+            width_max_out = end
 
         """
         if self.lines.anomalies is not None and len(self.lines.anomalies) > 0:
@@ -406,9 +318,9 @@ class PeakFinder(BaseDashApplication):
                 np.argmin(np.abs(peaks - current))
             ]
         """
-        #self.previous_line = self.lines.lines.value
+        # self.previous_line = self.lines.lines.value
 
-        return center, center_max, width, width_max
+        return center_out, center_max_out, width_out, width_max_out
 
     def plot_data_selection(
         self,
@@ -423,6 +335,7 @@ class PeakFinder(BaseDashApplication):
         width,
         x_label,
     ):
+        linear_threshold = np.float_power(10, linear_threshold)
         obj = self.workspace.get_entity(uuid.UUID(objects))[0]
         active_channels = self.get_active_channels(obj, property_groups)
 
@@ -477,9 +390,9 @@ class PeakFinder(BaseDashApplication):
                 query = np.where(np.array(channels) == channel_dict["name"])[0]
 
                 if (
-                        len(query) == 0
-                        or peaks[query[0]] < lims[0]
-                        or peaks[query[0]] > lims[1]
+                    len(query) == 0
+                    or peaks[query[0]] < lims[0]
+                    or peaks[query[0]] > lims[1]
                 ):
                     continue
 
