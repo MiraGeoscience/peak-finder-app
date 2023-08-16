@@ -1,779 +1,300 @@
 #  Copyright (c) 2023 Mira Geoscience Ltd.
 #
-#  This file is part of peak-finder-app project.
+#  This file is part of geoapps.
 #
-#  All rights reserved.
-#
+#  geoapps is distributed under the terms and conditions of the MIT License
+#  (see LICENSE file at the root of this source code package).
 
-# pylint: disable=C0302
+# pylint: disable=W0613
 
 from __future__ import annotations
 
+import os
 import sys
 import uuid
-import warnings
-from copy import deepcopy
 from pathlib import Path
 from time import time
 
 import numpy as np
+import plotly.graph_objects as go
+from dash import Dash, callback_context, dcc, no_update
+from dash.dependencies import Input, Output
+from flask import Flask
 from geoapps_utils import geophysical_systems
-from geoapps_utils.application.application import BaseApplication
-from geoapps_utils.application.selection import LineOptions, ObjectDataSelection
-from geoapps_utils.importing import warn_module_not_found
 from geoh5py.data import ReferencedData
-from geoh5py.objects import Curve, ObjectBase
-from geoh5py.shared import Entity
+from geoh5py.objects import ObjectBase
 from geoh5py.shared.utils import fetch_active_workspace
 from geoh5py.ui_json import InputFile
-from geoh5py.workspace import Workspace
+import matplotlib.pyplot as plt
 
-from peak_finder.constants import app_initializer, default_ui_json, template_dict
+from geoapps_utils.application.dash_application import BaseDashApplication, ObjectSelection
+from peak_finder.constants import app_initializer, default_ui_json
 from peak_finder.driver import PeakFinderDriver
 from peak_finder.line_anomaly import LineAnomaly
 from peak_finder.params import PeakFinderParams
 from peak_finder.utils import default_groups_from_property_group
-
-with warn_module_not_found():
-    from matplotlib import pyplot as plt
-
-with warn_module_not_found():
-    from ipywidgets import (
-        Box,
-        Checkbox,
-        ColorPicker,
-        Dropdown,
-        FloatLogSlider,
-        FloatSlider,
-        FloatText,
-        HBox,
-        IntSlider,
-        Label,
-        Layout,
-        ToggleButton,
-        ToggleButtons,
-        VBox,
-        Widget,
-        interactive_output,
-    )
-    from ipywidgets.widgets.widget_selection import TraitError
+from peak_finder.layout import peak_finder_layout
 
 
-class PeakFinder(ObjectDataSelection):  # pylint: disable=R0902, R0904
+class PeakFinder(BaseDashApplication):
     """
-    Application for the picking of targets along Time-domain EM profiles
+    Dash app to make a scatter plot.
     """
 
     _param_class = PeakFinderParams
-    _add_groups: bool | str = "only"
-    _center: float | None = None
-    _flip_sign: bool | None = None
-    _group_auto: bool | None = None
-    _group_list: list | None = None
-    _group_display = None
-    _groups_setter = None
-    _lines: LineOptions | None = None
-    _markers: bool | None = None
-    _max_migration: float | None = None
-    _min_amplitude: int | None = None
-    _min_channels: int | None = None
-    _min_value: float | None = None
-    _min_width: float | None = None
-    _plot_trigger: bool | None = None
-    _residual = None
-    _scale_button = None
-    _scale_value = None
-    _show_decay = None
-    _smoothing: int | None = None
-    _structural_markers: bool | None = None
-    _system: str | None = None
-    _tem_checkbox: bool | None = None
-    _width = None
-    _x_label = None
-    _object_types: tuple = (Curve,)
-    all_anomalies: list = []
-    active_channels: dict = {}
-    _survey: Curve
-    _channel_groups: dict = {}
-    pause_refresh: bool = False
-    decay_figure = None
-    marker: dict = {"left": "<", "right": ">"}
-    plot_result: bool = True
+    _driver_class = PeakFinderDriver
 
-    def __init__(self, ui_json=None, plot_result=True, **kwargs):
-        self.figure = None
-        self.plot_result = plot_result
-        app_initializer.update(kwargs)
-        if ui_json is not None and Path(ui_json).is_file():
-            self.params = self._param_class(InputFile(ui_json))
-        else:
-            self.params = self._param_class(**app_initializer)
+    _lines = None
 
-        for key, value in self.params.to_dict().items():
-            if isinstance(value, Entity):
-                self.defaults[key] = value.uid
-            else:
-                self.defaults[key] = value
+    def __init__(self, ui_json=None, ui_json_data=None, params=None):
+        if params is not None:
+            # Launched from notebook
+            # Params for initialization are coming from params
+            # ui_json_data is provided
+            self.params = params
+        elif ui_json is not None and Path(ui_json.path).exists():
+            # Launched from terminal
+            # Params for initialization are coming from ui_json
+            # ui_json_data starts as None
+            self.params = self._param_class(ui_json)
+            ui_json_data = self.params.input_file.demote(self.params.to_dict())
 
-        self.groups_panel = VBox([])
-        self.group_auto.observe(self.create_default_groups, names="value")
-        self.objects.observe(self.objects_change, names="value")
-        self.groups_widget = HBox([self.group_auto, self.groups_setter])
-        self.decay_panel = VBox([self.show_decay])
-        self.tem_box = HBox(
-            [
-                self.tem_checkbox,
-                self.system,
-                self.decay_panel,
-            ]
+        super().__init__()
+
+        # Start flask server
+        external_stylesheets = ["https://codepen.io/chriddyp/pen/bWLwgP.css"]
+        server = Flask(__name__)
+        self.app = Dash(
+            server=server,
+            url_base_pathname=os.environ.get("JUPYTERHUB_SERVICE_PREFIX", "/"),
+            external_stylesheets=external_stylesheets,
         )
-        self.data.observe(self.set_data, names="value")
-        self.system.observe(self.set_data, names="value")
-        self.previous_line = None
-        super().__init__(**self.defaults)
-        self.pause_refresh = False
-        self.refresh.value = True
-        self.previous_line = self.lines.lines.value
-        self.smoothing.observe(self.line_update, names="value")
-        self.max_migration.observe(self.line_update, names="value")
-        self.min_channels.observe(self.line_update, names="value")
-        self.min_amplitude.observe(self.line_update, names="value")
-        self.min_value.observe(self.line_update, names="value")
-        self.min_width.observe(self.line_update, names="value")
-        self.lines.lines.observe(self.line_update, names="value")
-        self.scale_panel = VBox([self.scale_button, self.scale_value])
-        self.plotting = interactive_output(
-            self.plot_data_selection,
-            {
-                "residual": self.residual,
-                "markers": self.markers,
-                "scale": self.scale_button,
-                "scale_value": self.scale_value,
-                "center": self.center,
-                "width": self.width,
-                "plot_trigger": self.plot_trigger,
-                "refresh": self.refresh,
-                "x_label": self.x_label,
-            },
-        )
-        self.decay = interactive_output(
-            self.plot_decay_curve,
-            {
-                "center": self.center,
-                "plot_trigger": self.plot_trigger,
-            },
-        )
-        self.group_display.observe(self.update_center, names="value")
-        self.show_decay.observe(self.show_decay_trigger, names="value")
-        self.tem_checkbox.observe(self.tem_change, names="value")
-        self.groups_setter.observe(self.groups_trigger)
-        self.scale_button.observe(self.scale_update)
-        self.flip_sign.observe(self.set_data, names="value")
-        self.trigger.description = "Process All Lines"
-        self.trigger_panel = VBox(
-            [
-                VBox([self.trigger, self.structural_markers, self.ga_group_name]),
-                self.live_link_panel,
-            ]
-        )
-        self.ga_group_name.description = "Save As"
-        self.visual_parameters = VBox(
-            [
-                self.group_display,
-                self.center,
-                self.width,
-                self.x_label,
-                self.scale_panel,
-                self.markers,
-            ]
-        )
-        self.detection_parameters = VBox(
-            [
-                self.smoothing,
-                self.min_amplitude,
-                self.min_value,
-                self.min_width,
-                self.max_migration,
-                self.min_channels,
-                self.residual,
-            ]
-        )
-        self.output_panel = VBox(
-            [
-                self.trigger_panel,
-            ]
-        )
-        self.line_update(None)
 
-    def __populate__(self, **kwargs):
-        super().__populate__(**kwargs)
-        if self.workspace is not None:
-            obj_list = self.workspace.get_entity(self.objects.value)
+        # Getting app layout
+        self.set_initialized_layout(ui_json_data)
 
-            if obj_list[0] is not None and any(self.params.free_parameter_dict):
-                self._channel_groups = self.params.groups_from_free_params()
-
-                group_list = []
-                for prop_group, params in self._channel_groups.items():
-                    group_list += [self.add_group_widget(prop_group, params)]
-                self.groups_panel.children = group_list
-
-            else:
-                if not self.group_auto.value:
-                    self.group_auto.value = True
-                else:
-                    self.create_default_groups(None)
+        # Set up callbacks
+        self.app.callback(
+            Output(component_id="linear_threshold", component_property="disabled"),
+            Input(component_id="y_scale", component_property="value"),
+        )(self.disable_linear_threshold)
+        self.app.callback(
+            Output(component_id="objects", component_property="data"),
+            Output(component_id="ui_json_data", component_property="data"),
+            Input(component_id="ui_json_data", component_property="data"),
+        )(self.set_objects_value)
+        self.app.callback(
+            Output(component_id="data", component_property="value"),
+            Output(component_id="data", component_property="options"),
+            Output(component_id="group_name", component_property="options"),
+            Input(component_id="objects", component_property="value"),
+        )(self.update_data_options)
+        self.app.callback(
+            Output(component_id="line_field", component_property="value"),
+            Output(component_id="line_field", component_property="options"),
+            Input(component_id="objects", component_property="value"),
+        )(self.update_lines_field_list)
+        self.app.callback(
+            Output(component_id="line_id", component_property="value"),
+            Output(component_id="line_id", component_property="options"),
+            Input(component_id="line_field", component_property="value"),
+        )(self.update_lines_list)
+        self.app.callback(
+            Output(component_id="smoothing", component_property="value"),
+            Output(component_id="min_amplitude", component_property="value"),
+            Output(component_id="min_value", component_property="value"),
+            Output(component_id="min_width", component_property="value"),
+            Output(component_id="max_migration", component_property="value"),
+            Output(component_id="min_channels", component_property="value"),
+            Output(component_id="ga_group_name", component_property="value"),
+            Output(component_id="structural_markers", component_property="value"),
+            Output(component_id="monitoring_directory", component_property="value"),
+            Input(component_id="ui_json_data", component_property="data"),
+        )(self.update_remainder_from_ui_json)
+        self.app.callback(
+            Output(component_id="property_groups", component_property="data"),
+            Input(component_id="group_name", component_property="value"),
+            Input(component_id="color_picker", component_property="value"),
+        )(self.update_property_groups)
+        self.app.callback(
+            Output(component_id="center", component_property="value"),
+            Output(component_id="center", component_property="max"),
+            Output(component_id="width", component_property="value"),
+            Output(component_id="width", component_property="max"),
+            Input(component_id="objects", component_property="value"),
+            Input(component_id="property_groups", component_property="data"),
+            Input(component_id="smoothing", component_property="value"),
+            Input(component_id="max_migration", component_property="value"),
+            Input(component_id="min_channels", component_property="value"),
+            Input(component_id="min_amplitude", component_property="value"),
+            Input(component_id="min_value", component_property="value"),
+            Input(component_id="min_width", component_property="value"),
+            Input(component_id="line_field", component_property="value"),
+            Input(component_id="line_id", component_property="value"),
+            Input(component_id="system", component_property="value"),
+            Input(component_id="center", component_property="value"),
+            Input(component_id="width", component_property="value"),
+        )(self.line_update)
+        self.app.callback(
+            Output(component_id="plot", component_property="figure"),
+            Input(component_id="objects", component_property="value"),
+            Input(component_id="property_groups", component_property="data"),
+            Input(component_id="show_residual", component_property="value"),
+            Input(component_id="show_markers", component_property="value"),
+            Input(component_id="y_scale", component_property="value"),
+            Input(component_id="linear_threshold", component_property="value"),
+            Input(component_id="min_value", component_property="value"),
+            Input(component_id="center", component_property="value"),
+            Input(component_id="width", component_property="value"),
+            Input(component_id="x_label", component_property="value"),
+        )(self.plot_data_selection)
+        self.app.callback(
+            Output(component_id="export", component_property="n_clicks"),
+            Input(component_id="export", component_property="n_clicks"),
+            Input(component_id="monitoring_directory", component_property="value"),
+        )(self.trigger_click)
 
     @property
-    def main(self) -> VBox:
-        if getattr(self, "_main", None) is None and self.lines is not None:
-            self._main = VBox(
-                [
-                    self.project_panel,
-                    HBox(
-                        [
-                            VBox(
-                                [self.data_panel, self.flip_sign],
-                                layout=Layout(width="50%"),
-                            ),
-                            Box(
-                                children=[self.lines.main],
-                                layout=Layout(
-                                    display="flex",
-                                    flex_flow="row",
-                                    align_items="stretch",
-                                    width="100%",
-                                    justify_content="flex-start",
-                                ),
-                            ),
-                        ],
-                    ),
-                    self.tem_box,
-                    Label("Groups"),
-                    self.groups_widget,
-                    self.plotting,
-                    HBox(
-                        [
-                            VBox(
-                                [Label("Visual Parameters"), self.visual_parameters],
-                                layout=Layout(width="50%"),
-                            ),
-                            VBox(
-                                [
-                                    Label("Detection Parameters"),
-                                    self.detection_parameters,
-                                ],
-                                layout=Layout(width="50%"),
-                            ),
-                        ]
-                    ),
-                    self.output_panel,
-                ]
-            )
-        return self._main
-
-    @property
-    def center(self) -> FloatSlider:
-        """
-        Adjust the data plot center position along line
-        """
-        if getattr(self, "_center", None) is None:
-            self._center = FloatSlider(
-                min=0,
-                max=5000,
-                step=1.0,
-                description="Window Center",
-                disabled=False,
-                continuous_update=False,
-                orientation="horizontal",
-            )
-        return self._center
-
-    @property
-    def em_system_specs(self) -> dict:
-        return geophysical_systems.parameters()
-
-    @property
-    def flip_sign(self) -> ToggleButton:
-        """
-        Apply a sign flip to the selected data
-        """
-        if getattr(self, "_flip_sign", None) is None:
-            self._flip_sign = ToggleButton(
-                description="Flip Y (-1x)", button_style="warning"
-            )
-        return self._flip_sign
-
-    @property
-    def group_auto(self) -> ToggleButton:
-        """
-        Auto-create groups (3) from selected data channels.
-        """
-        if getattr(self, "_group_auto", None) is None:
-            self._group_auto = ToggleButton(
-                description="Use/Create Default", value=False
-            )
-        return self._group_auto
-
-    @property
-    def group_list(self) -> Dropdown:
-        """
-        List of default time data groups
-        """
-        if getattr(self, "_group_list", None) is None:
-            self._group_list = Dropdown(
-                description="",
-                options=[
-                    "early",
-                    "middle",
-                    "late",
-                ],
-            )
-        return self._group_list
-
-    @property
-    def group_display(self) -> Dropdown:
-        """
-        List of groups to chose from for display
-        """
-        if getattr(self, "_group_display", None) is None:
-            self._group_display = Dropdown(description="Select Peak")
-        return self._group_display
-
-    @property
-    def groups_setter(self) -> ToggleButton:
-        """
-        Display the group options panel
-        """
-        if getattr(self, "_groups_setter", None) is None:
-            self._groups_setter = ToggleButton(
-                description="Group Settings", value=False
-            )
-
-        return self._groups_setter
-
-    @property
-    def line_field(self) -> Dropdown | None:
-        """
-        Alias of lines.data widget
-        """
-        if self.lines is not None:
-            return self.lines.data
-        return None
-
-    @property
-    def line_id(self) -> Dropdown | None:
-        """
-        Alias of lines.lines widget
-        """
-        if self.lines is not None:
-            return self.lines.lines
-        return None
-
-    @property
-    def lines(self) -> LineOptions | None:
-        """
-        Line selection defining the profile used for plotting.
-        """
-        if getattr(self, "_lines", None) is None:
-            self._lines = LineOptions(
-                workspace=self.workspace, multiple_lines=False, objects=self.objects
-            )
-
+    def lines(self) -> LineAnomaly | None:
         return self._lines
 
-    @property
-    def markers(self) -> ToggleButton:
+    @lines.setter
+    def lines(self, value):
+        self._lines = value
+
+    def set_initialized_layout(self, ui_json_data):
+        self.app.layout = peak_finder_layout
+        # Adding ui_json_data to layout here, so it can be initialized properly
+        peak_finder_layout.children.append(dcc.Store(id="ui_json_data", data=ui_json_data))
+        # Assemble property groups
+        property_groups = self.params.get_property_groups()
+        peak_finder_layout.children.append(dcc.Store(id="property_groups", data=property_groups))
+
+    def disable_linear_threshold(self, y_scale):
+        if y_scale == "symlog":
+            return False
+        return True
+
+    def update_property_groups(self, group_name, color_picker):
+        property_groups = {}
+        return property_groups
+
+    def set_objects_value(self, ui_json_data: dict):
         """
-        Display markers on the data plot
+        Initializing objects from the ObjectSelection ui_json_data. Setting ui_json_data to trigger the other functions'
+        initialization.
+
+        :param ui_json_data: Dict of input ui.json params.
         """
-        if getattr(self, "_markers", None) is None:
-            self._markers = ToggleButton(description="Show markers", value=True)
+        return ui_json_data.get("objects", None), ui_json_data
 
-        return self._markers
-
-    @property
-    def max_migration(self) -> FloatSlider:
+    def update_data_options(self, objects: str):
         """
-        Filter anomalies based on maximum horizontal migration of peaks.
+        Get data dropdown options from a given object.
         """
-        if getattr(self, "_max_migration", None) is None:
-            self._max_migration = FloatSlider(
-                value=25,
-                min=1.0,
-                max=1000.0,
-                step=1.0,
-                continuous_update=False,
-                description="Max Peak Migration",
-                style={"description_width": "initial"},
-                disabled=False,
-            )
+        data_value = None
+        data_options = self.get_data_options(None, objects)
 
-        return self._max_migration
+        return data_value, data_options, data_options
 
-    @property
-    def min_amplitude(self) -> IntSlider:
+    def update_data_list(self, val: str | None):
         """
-        Filter small anomalies based on amplitude ratio
-        between peaks and lows.
+        Update dropdown data options.
+
+        :param val: object uuid.
         """
-        if getattr(self, "_min_amplitude", None) is None:
-            self._min_amplitude = IntSlider(
-                value=1,
-                min=0,
-                max=100,
-                continuous_update=False,
-                description="Minimum amplitude (%)",
-                style={"description_width": "initial"},
-            )
-
-        return self._min_amplitude
-
-    @property
-    def min_channels(self) -> IntSlider:
         """
-        Filter peak groups based on minimum number of data channels overlap.
-        """
-        if getattr(self, "_min_channels", None) is None:
-            self._min_channels = IntSlider(
-                value=1,
-                min=1,
-                max=10,
-                continuous_update=False,
-                description="Minimum # channels",
-                style={"description_width": "initial"},
-                disabled=False,
-            )
+        refresh = self.refresh.value
+        self.refresh.value = False
+        if self._workspace is not None:
+            obj: ObjectBase | None = self._workspace.get_entity(self.objects.value)[0]
+            if obj is None or getattr(obj, "get_data_list", None) is None:
+                self.data.options = [["", None]]
+                self.refresh.value = refresh
+                return
 
-        return self._min_channels
+            options = [["", None]]  # type: ignore
+            if (self.add_groups or self.add_groups == "only") and obj.property_groups:
+                options = (
+                    options
+                    + [["-- Groups --", None]]
+                    + [[p_g.name, p_g.uid] for p_g in obj.property_groups]
+                )
 
-    @property
-    def min_value(self) -> FloatText:
-        """
-        Filter out small data values.
-        """
-        if getattr(self, "_min_value", None) is None:
-            self._min_value = FloatText(
-                value=0,
-                continuous_update=False,
-                description="Minimum data value",
-                style={"description_width": "initial"},
-            )
+            if self.add_groups != "only":
+                options += [["--- Channels ---", None]]
 
-        return self._min_value
-
-    @property
-    def min_width(self) -> FloatSlider:
-        """
-        Filter small anomalies based on width
-        between lows.
-        """
-        if getattr(self, "_min_width", None) is None:
-            self._min_width = FloatSlider(
-                value=100,
-                min=1.0,
-                max=1000.0,
-                step=1.0,
-                continuous_update=False,
-                description="Minimum width (m)",
-                style={"description_width": "initial"},
-            )
-
-        return self._min_width
-
-    @property
-    def plot_trigger(self) -> ToggleButton:
-        """
-        Trigger refresh of all plots
-        """
-        if getattr(self, "_plot_trigger", None) is None:
-            self._plot_trigger = ToggleButton(
-                description="Pick nearest target", value=False
-            )
-        return self._plot_trigger
-
-    @property
-    def residual(self) -> Checkbox:
-        """
-        Use the residual between the original and smoothed data profile
-        """
-        if getattr(self, "_residual", None) is None:
-            self._residual = Checkbox(description="Show residual", value=False)
-
-        return self._residual
-
-    @property
-    def scale_button(self) -> ToggleButtons:
-        """
-        Scale the vertical axis of the data plot
-        """
-        if getattr(self, "_scale_button", None) is None:
-            self._scale_button = ToggleButtons(
-                options=[
-                    "linear",
-                    "symlog",
-                ],
-                value="symlog",
-                description="Y-axis scaling",
-            )
-
-        return self._scale_button
-
-    @property
-    def scale_value(self) -> FloatLogSlider:
-        """
-        Threshold value used by th symlog scaling
-        """
-        if getattr(self, "_scale_value", None) is None:
-            self._scale_value = FloatLogSlider(
-                min=-18,
-                max=10,
-                step=0.1,
-                base=10,
-                value=1e-2,
-                description="Linear threshold",
-                continuous_update=False,
-                style={"description_width": "initial"},
-            )
-
-        return self._scale_value
-
-    @property
-    def show_decay(self) -> ToggleButton:
-        """
-        Display the decay curve plot
-        """
-        if getattr(self, "_show_decay", None) is None:
-            self._show_decay = ToggleButton(description="Show decay", value=False)
-
-        return self._show_decay
-
-    @property
-    def smoothing(self) -> IntSlider:
-        """
-        Number of neighboring data points used for the running mean smoothing
-        """
-        if getattr(self, "_smoothing", None) is None:
-            self._smoothing = IntSlider(
-                min=0,
-                max=64,
-                value=0,
-                description="Smoothing",
-                continuous_update=False,
-            )
-
-        return self._smoothing
-
-    @property
-    def structural_markers(self) -> Checkbox:
-        """
-        Export peaks as structural markers
-        """
-        if getattr(self, "_structural_markers", None) is None:
-            self._structural_markers = Checkbox(description="All Markers")
-
-        return self._structural_markers
-
-    @property
-    def survey(self) -> Curve:
-        """
-        Selected curve object
-        """
-        return self._survey
-
-    @property
-    def system(self) -> Dropdown:
-        """
-        Selection of a TEM system
-        """
-        if getattr(self, "_system", None) is None:
-            self._system = Dropdown(
-                options=[
-                    key
-                    for key, specs in self.em_system_specs.items()
-                    if specs["type"] == "time"
-                ],
-                description="Time-Domain System:",
-                style={"description_width": "initial"},
-            )
-        return self._system
-
-    @property
-    def tem_checkbox(self) -> Checkbox:
-        """
-        :obj:`ipywidgets.Checkbox`: Enable options specific to TEM data groups
-        """
-        if getattr(self, "_tem_checkbox", None) is None:
-            self._tem_checkbox = Checkbox(description="TEM Data", value=True)
-
-        return self._tem_checkbox
-
-    @property
-    def channel_groups(self) -> dict:
-        """
-        Dict of time groups used to classify peaks
-        """
-        return self._channel_groups
-
-    @channel_groups.setter
-    def channel_groups(self, groups: dict):
-        self._channel_groups = groups
-
-    @property
-    def width(self) -> FloatSlider:
-        """
-        Adjust the length of data displayed on the data plot
-        """
-        if getattr(self, "_width", None) is None:
-            self._width = FloatSlider(
-                min=0.0,
-                max=5000.0,
-                step=1.0,
-                description="Window Width",
-                disabled=False,
-                continuous_update=False,
-                orientation="horizontal",
-            )
-
-        return self._width
-
-    @property
-    def workspace(self) -> Workspace | None:
-        """
-        Target geoh5py workspace
-        """
-        if (
-            getattr(self, "_workspace", None) is None
-            and getattr(self, "_h5file", None) is not None
-        ):
-            self.workspace = Workspace(self.h5file)
-        return self._workspace
-
-    @workspace.setter
-    def workspace(self, workspace):
-        assert isinstance(
-            workspace, Workspace
-        ), f"Workspace must be of class {Workspace}"
-        self.base_workspace_changes(workspace)
-        self.update_objects_list()
-        self.lines.workspace = workspace
-
-    @property
-    def x_label(self) -> ToggleButtons:
-        """
-        Units of distance displayed on the data plot
-        """
-        if getattr(self, "_x_label", None) is None:
-            self._x_label = ToggleButtons(
-                options=["Distance", "Easting", "Northing"],
-                value="Distance",
-                description="X-axis label:",
-            )
-
-        return self._x_label
-
-    def add_group_widget(self, property_group, params: dict):
-        """
-        Add a group from dictionary
-        """
-        if getattr(self, f"Group {property_group} Data", None) is None:
-            setattr(
-                self,
-                f"Group {property_group} Data",
-                Dropdown(
-                    description="Group Name:",
-                ),
-            )
-        widget = getattr(self, f"Group {property_group} Data")
-        widget.name = property_group
-        widget.value = None
-        widget.options = self.data.options
-
-        try:
-            widget.value = params["data"]
-        except TraitError:
-            pass
-        if getattr(self, f"Group {property_group} Color", None) is None:
-            setattr(
-                self,
-                f"Group {property_group} Color",
-                ColorPicker(description="Color"),
-            )
-        getattr(self, f"Group {property_group} Color").name = property_group
-        try:
-            getattr(self, f"Group {property_group} Color").value = str(params["color"])
-        except TraitError:
-            pass
-
-        getattr(self, f"Group {property_group} Data").observe(
-            self.edit_group, names="value"
-        )
-        getattr(self, f"Group {property_group} Color").observe(
-            self.edit_group, names="value"
-        )
-        return VBox(
-            [
-                getattr(self, f"Group {property_group} Data"),
-                getattr(self, f"Group {property_group} Color"),
-            ],
-            layout=Layout(border="solid"),
-        )
-
-    def create_default_groups(self, _):
-        if self.group_auto.value:
-            with fetch_active_workspace(self.workspace) as workspace:
-                obj = workspace.get_entity(self.objects.value)[0]
-                if obj is None:
-                    return
-
-                group = [pg for pg in obj.property_groups if pg.uid == self.data.value]
-                if any(group):
-                    channel_groups = default_groups_from_property_group(group[0])
-                    self._channel_groups = channel_groups
-                    self.pause_refresh = True
-
-                    group_list = []
-                    self.update_data_list(None)
-                    self.pause_refresh = True
-                    for prop_group, params in self._channel_groups.items():
-                        group_list += [self.add_group_widget(prop_group, params)]
-
-                    self.pause_refresh = False
-                    self.groups_panel.children = group_list
-
-                    self.set_data(None)
-
-        self.group_auto.value = False
-        self._group_auto.button_style = "success"
-
-    def edit_group(self, caller):
-        """
-        Observer of :obj:`geoapps.processing.peak_finder.`: Change channels associated with groups
-        """
-        widget = caller["owner"]
-        if not self.pause_refresh:
-            if isinstance(widget, Dropdown):
-                obj, _ = self.get_selected_entities()
-                group = {"color": getattr(self, f"Group {widget.name} Color").value}
-                if widget.value in [pg.uid for pg in obj.property_groups]:
-                    prop_group = [
-                        pg for pg in obj.property_groups if pg.uid == widget.value
+                children = sorted_children_dict(obj)
+                excl = ["visual parameter"]
+                if children is not None:
+                    options += [
+                        [k, v] for k, v in children.items() if k.lower() not in excl  # type: ignore
                     ]
-                    group["data"] = prop_group[0].uid
-                    group["properties"] = prop_group[0].properties
-                else:
-                    group["data"] = None
-                    group["properties"] = []
-                self._channel_groups[widget.name] = group
-            else:
-                self._channel_groups[widget.name]["color"] = widget.value
-            self.set_data(None)
 
-    def get_line_indices(self, line_id):
+                if self.add_xyz:
+                    options += [["X", "X"], ["Y", "Y"], ["Z", "Z"]]
+
+            value = self.data.value
+            self.data.options = options
+
+            self.update_uid_name_map()
+
+            if self.select_multiple and any(val in options for val in value):
+                self.data.value = [val for val in value if val in options]
+            elif value in dict(options).values():  # type: ignore
+                self.data.value = value
+            elif self.find_label:
+                self.data.value = find_value(self.data.options, self.find_label)
+        else:
+            self.data.options = []
+            self.data.uid_name_map = {}
+
+        self.refresh.value = refresh
+        """
+        pass
+
+    def update_lines_field_list(self, object_uid: str | None):
+        options = [["", None]]
+        obj = self.workspace.get_entity(uuid.UUID(object_uid))
+        options += [
+            [k, v]  # type: ignore
+            for k, v in obj.children.items()
+            if isinstance(obj.get_entity(v)[0], ReferencedData)
+        ]
+        #value = self.data.value
+        #self.data.options = options
+
+        #if value in dict(options).values():  # type: ignore
+        #    self.data.value = value
+        #elif self.find_label:
+        #    self.data.value = find_value(self.data.options, self.find_label)
+        lines_field_value = None
+
+        return lines_field_value, options
+
+    def update_lines_list(
+        self,
+        lines_field: str | None,
+    ):
+        """
+        Update dropdown lines options.
+        """
+        # From application\selection
+        # Updates Select line, self.lines
+        options = [["", None]]
+        if lines_field and getattr(lines_field[0], "values", None) is not None:
+            if isinstance(lines_field[0], ReferencedData):
+                options += [
+                    [v, k] for k, v in lines_field[0].value_map.map.items()
+                ]
+        value = None
+        return value, options
+
+    def get_line_indices(self, line_field, line_id):
         """
         Find the vertices for a given line ID
         """
-        line_data = self.workspace.get_entity(self.lines.data.value)[0]
+        line_data = self.workspace.get_entity(line_field)[0]
 
         if not isinstance(line_data, ReferencedData):
             return None
@@ -785,53 +306,65 @@ class PeakFinder(ObjectDataSelection):  # pylint: disable=R0902, R0904
 
         return indices
 
-    def groups_trigger(self, _):
-        """
-        Observer of :obj:`geoapps.processing.peak_finder.`:
-        """
-        if self.groups_setter.value:
-            self.groups_widget.children = [
-                self.group_auto,
-                self.groups_setter,
-                self.groups_panel,
-            ]
-        else:
-            self.groups_widget.children = [self.group_auto, self.groups_setter]
+    def get_active_channels(self, obj, channel_groups):
+        active_channels = {}
+        for group in channel_groups.values():
+            for channel in group["properties"]:
+                if getattr(obj, "values", None) is not None:
+                    active_channels[channel] = {"name": obj.name}
+        return active_channels
 
-    def line_update(self, _):
+    def line_update(
+        self,
+        objects,
+        property_groups,
+        smoothing,
+        max_migration,
+        min_channels,
+        min_amplitude,
+        min_value,
+        min_width,
+        line_field,
+        line_id,
+        system,
+        center,
+        width,
+    ):
         """
         Re-compute derivatives
         """
+        obj = self.workspace.get_entity(uuid.UUID(objects))[0]
+
         if (
-            getattr(self, "survey", None) is None
-            or len(self.workspace.get_entity(self.lines.data.value)) == 0
-            or self.lines.lines.value == ""
-            or len(self.channel_groups) == 0
+            obj is None
+            or len(self.workspace.get_entity(uuid.UUID(line_field))) == 0
+            or line_id == ""
+            or len(property_groups) == 0
         ):
             return
 
-        line_indices = self.get_line_indices(self.lines.lines.value)
+        line_indices = self.get_line_indices(line_field, line_id)
 
         if line_indices is None:
             return
 
-        self.plot_trigger.value = False
-        self.survey.line_indices = line_indices
-        property_groups = [
-            self.survey.find_or_create_property_group(name=name)
-            for name in self.channel_groups
-        ]
+        obj.line_indices = line_indices
+        #property_groups = [
+        #    obj.find_or_create_property_group(name=name)
+        #    for name in channel_groups
+        #]
+        em_system_specs = geophysical_systems.parameters()
         line_anomaly = LineAnomaly(
-            entity=self.survey,
+            entity=obj,
             line_indices=line_indices,
             property_groups=property_groups,
-            smoothing=self.smoothing.value,
-            data_normalization=self.em_system_specs[self.system.value]["normalization"],
-            min_amplitude=self.min_amplitude.value,
-            min_value=self.min_value.value,
-            min_width=self.min_width.value,
-            max_migration=self.max_migration.value,
-            min_channels=self.min_channels.value,
+            smoothing=smoothing,
+            data_normalization=em_system_specs[system]["normalization"],
+            min_amplitude=min_amplitude,
+            min_value=min_value,
+            min_width=min_width,
+            max_migration=max_migration,
+            min_channels=min_channels,
         )
 
         line_groups = line_anomaly.anomalies
@@ -840,29 +373,30 @@ class PeakFinder(ObjectDataSelection):  # pylint: disable=R0902, R0904
             for line_group in line_groups:
                 anomalies += line_group.groups
             self.lines.anomalies = anomalies
-            self.lines.profile = line_anomaly.position
+            self.lines.position = line_anomaly.position
         else:
-            self.group_display.disabled = True
+            #self.group_display.disabled = True
             return
 
-        self.pause_refresh = True
-        if self.previous_line != self.lines.lines.value:
-            end = self.lines.profile.locations_resampled[-1]
-            mid = self.lines.profile.locations_resampled[-1] * 0.5
+        center_max, width_max = no_update, no_update
+        #if self.previous_line != line_id:
+        end = self.lines.position.locations_resampled[-1]
+        mid = self.lines.position.locations_resampled[-1] * 0.5
 
-            if self.center.value >= end:
-                self.center.value = 0
-                self.center.max = end
-                self.width.value = 0
-                self.width.max = end
-                self.width.value = mid
-            else:
-                self.center.max = end
-                self.width.max = end
+        if center >= end:
+            center = 0
+            center_max = end
+            #width = 0
+            width_max = end
+            width = mid
+        else:
+            center_max = end
+            width_max = end
 
+        """
         if self.lines.anomalies is not None and len(self.lines.anomalies) > 0:
             peaks = np.sort(
-                self.lines.profile.locations_resampled[
+                self.lines.position.locations_resampled[
                     [group.anomalies[0].peak for group in self.lines.anomalies]
                 ]
             )
@@ -871,85 +405,42 @@ class PeakFinder(ObjectDataSelection):  # pylint: disable=R0902, R0904
             self.group_display.value = self.group_display.options[
                 np.argmin(np.abs(peaks - current))
             ]
-        self.previous_line = self.lines.lines.value
-        self.pause_refresh = False
-        self.plot_trigger.value = True
-
-    def objects_change(self, _):
         """
-        Observer of :obj:`geoapps.processing.peak_finder.objects`:
-        Reset data and auto-detect AEM system
-        """
-        obj = self.workspace.get_entity(self.objects.value)[0]
-        if obj is None:
-            return
+        #self.previous_line = self.lines.lines.value
 
-        self._survey = obj
-        self.update_data_list(None)
-        is_tem = False
-        self.active_channels = {}
-        self.channel_groups = {}
-        for child in self.groups_panel.children:
-            child.children[0].options = self.data.options
+        return center, center_max, width, width_max
 
-        for aem_system, specs in self.em_system_specs.items():
-            if specs["flag"] is not None and any(
-                specs["flag"] in channel for channel in self._survey.get_data_list()
-            ):
-                if aem_system in self.system.options:
-                    self.system.value = aem_system
-                    is_tem = True
-                    break
-
-        self.tem_checkbox.value = is_tem
-
-        if self.group_auto:
-            self.create_default_groups(None)
-
-        self.set_data(None)
-
-    def tem_change(self, _):
-        self.min_channels.disabled = not self.tem_checkbox.value
-        self.show_decay.value = False
-        self.system.disabled = not self.tem_checkbox.value
-
-    def plot_data_selection(  # pylint: disable=R0912, R0913, R0914, R0915 # noqa: C901
+    def plot_data_selection(
         self,
-        residual,
-        markers,
-        scale,
-        scale_value,
+        objects,
+        property_groups,
+        show_residual,
+        show_markers,
+        y_scale,
+        linear_threshold,
+        min_value,
         center,
         width,
-        plot_trigger,
-        refresh,
         x_label,
     ):
-        """
-        Observer of :obj:`geoapps.processing.peak_finder.`:
-        """
+        obj = self.workspace.get_entity(uuid.UUID(objects))[0]
+        active_channels = self.get_active_channels(obj, property_groups)
 
-        if (
-            self.pause_refresh
-            or not refresh
-            or plot_trigger is False
-            or not self.plot_result
-        ):
-            return
+        fig = go.Figure()
 
-        self.figure = plt.figure(figsize=(12, 6))
+        figure = plt.figure(figsize=(12, 6))
         axs = plt.subplot()
 
         if (
-            getattr(self, "survey", None) is None
-            or getattr(self.survey, "line_indices", None) is None
-            or len(self.survey.line_indices) < 2
-            or len(self.active_channels) == 0
+            obj is None
+            or getattr(obj, "line_indices", None) is None
+            or len(obj.line_indices) < 2
+            or len(active_channels) == 0
         ):
             return
 
         lims = np.searchsorted(
-            self.lines.profile.locations_resampled,
+            self.lines.position.locations_resampled,
             [
                 (center - width / 2.0),
                 (center + width / 2.0),
@@ -960,19 +451,19 @@ class PeakFinder(ObjectDataSelection):  # pylint: disable=R0902, R0904
             return
 
         y_min, y_max = np.inf, -np.inf
-        locs = self.lines.profile.locations_resampled
+        locs = self.lines.position.locations_resampled
         peak_markers_x, peak_markers_y, peak_markers_c = [], [], []
         end_markers_x, end_markers_y = [], []
         start_markers_x, start_markers_y = [], []
         up_markers_x, up_markers_y = [], []
         dwn_markers_x, dwn_markers_y = [], []
 
-        for channel_dict in self.active_channels.values():
+        for channel_dict in active_channels.values():
             if "values" not in channel_dict:
                 continue
 
-            values = channel_dict["values"][self.survey.line_indices]
-            values, raw = self.lines.profile.resample_values(values)
+            values = channel_dict["values"][obj.line_indices]
+            values, raw = self.lines.position.resample_values(values)
 
             y_min = np.nanmin([values[sub_ind].min(), y_min])
             y_max = np.nanmax([values[sub_ind].max(), y_max])
@@ -981,14 +472,14 @@ class PeakFinder(ObjectDataSelection):  # pylint: disable=R0902, R0904
                 channels = np.array(
                     [a.parent.data_entity.name for a in group.anomalies]
                 )
-                color = self.channel_groups[group.property_group.name]["color"]
+                color = property_groups[group.property_group.name]["color"]
                 peaks = group.get_list_attr("peak")
                 query = np.where(np.array(channels) == channel_dict["name"])[0]
 
                 if (
-                    len(query) == 0
-                    or peaks[query[0]] < lims[0]
-                    or peaks[query[0]] > lims[1]
+                        len(query) == 0
+                        or peaks[query[0]] < lims[0]
+                        or peaks[query[0]] > lims[1]
                 ):
                     continue
 
@@ -1005,15 +496,15 @@ class PeakFinder(ObjectDataSelection):  # pylint: disable=R0902, R0904
                     ori = "right"
                 else:
                     ori = "left"
-
-                if markers:
+                marker = {"left": "<", "right": ">"}
+                if show_markers:
                     if i == 0:
                         axs.scatter(
                             locs[peaks[i]],
                             values[peaks[i]],
                             s=200,
                             c="k",
-                            marker=self.marker[ori],
+                            marker=marker[ori],
                             zorder=10,
                         )
                     peak_markers_x += [locs[peaks[i]]]
@@ -1028,7 +519,7 @@ class PeakFinder(ObjectDataSelection):  # pylint: disable=R0902, R0904
                     dwn_markers_x += [locs[group.anomalies[i].inflect_down]]
                     dwn_markers_y += [values[group.anomalies[i].inflect_down]]
 
-            if residual:
+            if show_residual:
                 axs.fill_between(
                     locs, values, raw, where=raw > values, color=[1, 0, 0, 0.5]
                 )
@@ -1039,20 +530,20 @@ class PeakFinder(ObjectDataSelection):  # pylint: disable=R0902, R0904
         if np.isinf(y_min):
             return
 
-        if scale == "symlog":
-            plt.yscale("symlog", linthresh=scale_value)
+        if y_scale == "symlog":
+            plt.yscale("symlog", linthresh=linear_threshold)
 
         x_lims = [
             center - width / 2.0,
             center + width / 2.0,
         ]
-        y_lims = [np.nanmax([y_min, self.min_value.value]), y_max]
+        y_lims = [np.nanmax([y_min, min_value]), y_max]
         axs.set_xlim(x_lims)
         axs.set_ylim(y_lims)
         axs.set_ylabel("Data")
         axs.plot([center, center], [y_min, y_max], "k--")
 
-        if markers:
+        if show_markers:
             axs.scatter(
                 peak_markers_x,
                 peak_markers_y,
@@ -1096,13 +587,13 @@ class PeakFinder(ObjectDataSelection):  # pylint: disable=R0902, R0904
             axs.text(
                 center,
                 y_lims[0],
-                f"{self.lines.profile.interp_x(center):.0f} m E",
+                f"{self.lines.position.interp_x(center):.0f} m E",
                 va="top",
                 ha="center",
                 bbox={"edgecolor": "r"},
             )
             axs.set_xticklabels(
-                [f"{self.lines.profile.interp_x(label):.0f}" for label in ticks_loc]
+                [f"{self.lines.position.interp_x(label):.0f}" for label in ticks_loc]
             )
             axs.set_xlabel("Easting (m)")
 
@@ -1110,13 +601,13 @@ class PeakFinder(ObjectDataSelection):  # pylint: disable=R0902, R0904
             axs.text(
                 center,
                 y_lims[0],
-                f"{self.lines.profile.interp_y(center):.0f} m N",
+                f"{self.lines.position.interp_y(center):.0f} m N",
                 va="top",
                 ha="center",
                 bbox={"edgecolor": "r"},
             )
             axs.set_xticklabels(
-                [f"{self.lines.profile.interp_y(label):.0f}" for label in ticks_loc]
+                [f"{self.lines.position.interp_y(label):.0f}" for label in ticks_loc]
             )
             axs.set_xlabel("Northing (m)")
 
@@ -1132,262 +623,70 @@ class PeakFinder(ObjectDataSelection):  # pylint: disable=R0902, R0904
             axs.set_xlabel("Distance (m)")
         axs.grid(True)
         plt.show()
+        return fig
 
-    def plot_decay_curve(self, center, plot_trigger):
+    def trigger_click(
+        self,
+        n_clicks: int,
+        monitoring_directory: str,
+    ):
         """
-        Observer of :obj:`geoapps.processing.peak_finder.`:
+        Save the plot as html, write out ui.json.
+
+        :param n_clicks: Trigger export from button.
+        :param monitoring_directory: Output path.
+        :param figure: Figure created by update_plots.
         """
-        if self.pause_refresh or not self.plot_result:
-            return
 
-        if (
-            plot_trigger
-            or self.refresh.value
-            and hasattr(self.lines, "profile")
-            and self.tem_checkbox.value
-        ):
-            if self.decay_figure is None:
-                self.decay_figure = plt.figure(figsize=(8, 8))
+        trigger = callback_context.triggered[0]["prop_id"].split(".")[0]
+        if trigger == "export":
+            param_dict = self.params.to_dict()
 
-            else:
-                plt.figure(self.decay_figure.number)
-
-            axs = plt.subplot()
-            # Find nearest decay to cursor
-            group = None
-            if getattr(self.lines, "anomalies", None) is not None:
-                peaks = np.r_[
-                    [group.anomalies[0].peak for group in self.lines.anomalies]
-                ]
-                if len(peaks) > 0:
-                    group = self.lines.anomalies[
-                        np.argmin(
-                            np.abs(
-                                self.lines.profile.locations_resampled[peaks] - center
-                            )
-                        )
-                    ]
-
-            # Get the times of the group and plot the linear regression
-            times = []
-            if group is not None and group.linear_fit is not None:
-                channels = group.get_list_attr("channel")
-                times = [
-                    channel["time"]
-                    for i, channel in enumerate(self.active_channels.values())
-                    if i in list(channels)
-                ]
-            if any(times):
-                times = np.hstack(times)
-                y = np.exp(times * group.linear_fit[1] + group.linear_fit[0])
-                axs.plot(
-                    times,
-                    y,
-                    "--",
-                    linewidth=2,
-                    color="k",
+            # Get output path.
+            if (
+                monitoring_directory is not None
+                and monitoring_directory != ""
+                and Path(monitoring_directory).is_dir()
+            ):
+                param_dict["monitoring_directory"] = str(
+                    Path(monitoring_directory).resolve()
                 )
-                axs.text(
-                    np.mean(times),
-                    np.mean(y),
-                    f"Tau: {np.abs(group.linear_fit[1] ** -1.)*1e+3:.2e} msec",
-                    color="k",
+                temp_geoh5 = f"PeakFinder_{time():.0f}.geoh5"
+
+                # Get output workspace.
+                ws, _ = BaseApplication.get_output_workspace(
+                    False, param_dict["monitoring_directory"], temp_geoh5
                 )
-                peak_values = group.full_peak_values
-                axs.scatter(
-                    times,
-                    peak_values,
-                    s=100,
-                    color=group.channel_group["color"],
-                    marker="^",
-                    edgecolors="k",
-                )
-                axs.grid(True)
 
-                plt.yscale("log")
-                axs.set_ylabel("log(V)")
-                axs.set_xlabel("Time (sec)")
-                axs.set_title("Decay - MADTau")
-            else:
-                axs.set_ylabel("log(V)")
-                axs.set_xlabel("Time (sec)")
-                axs.set_title("Too few channels")
-        plt.show()
-
-    def scale_update(self, _):
-        """
-        Observer of :obj:`geoapps.processing.peak_finder.`:
-        """
-        if self.scale_button.value == "symlog":
-            self.scale_panel.children = [
-                self.scale_button,
-                self.scale_value,
-            ]
-        else:
-            self.scale_panel.children = [self.scale_button]
-
-    def set_data(self, _):
-        """
-        Observer of :obj:`geoapps.processing.peak_finder.data`
-        Populate the list of available channels and refresh groups
-        """
-        self._group_auto.button_style = "warning"
-        if getattr(self, "survey", None) is not None and self.data.value is not None:
-            self.pause_refresh = True
-            self.active_channels = {}
-            for group in self.channel_groups.values():
-                for channel in group["properties"]:
-                    obj = self.workspace.get_entity(channel)[0]
-
-                    if getattr(obj, "values", None) is not None:
-                        self.active_channels[channel] = {"name": obj.name}
-
-            d_min, d_max = np.inf, -np.inf
-            thresh_value = np.inf
-            if self.tem_checkbox.value:
-                system = self.em_system_specs[self.system.value]
-
-            for uid, params in self.active_channels.copy().items():
-                obj = self.workspace.get_entity(uid)[0]
-                try:
-                    if self.tem_checkbox.value:
-                        channel = [
-                            ch for ch in system["channels"] if ch in params["name"]
-                        ]
-                        if any(channel):
-                            self.active_channels[uid]["time"] = system["channels"][
-                                channel[0]
-                            ]
-                        else:
-                            del self.active_channels[uid]
-
-                    self.active_channels[uid]["values"] = (
-                        -1.0
-                    ) ** self.flip_sign.value * obj.values.copy()
-                    thresh_value = np.min(
-                        [
-                            thresh_value,
-                            np.percentile(
-                                np.abs(self.active_channels[uid]["values"]), 95
-                            ),
-                        ]
-                    )
-                    d_min = np.nanmin(
-                        [d_min, self.active_channels[uid]["values"].min()]
-                    )
-                    d_max = np.nanmax(
-                        [d_max, self.active_channels[uid]["values"].max()]
-                    )
-                except KeyError:
-                    continue
-
-            self.pause_refresh = False
-            self.plot_trigger.value = False
-
-            if d_max > -np.inf:
-                self.plot_trigger.value = False
-                self.min_value.value = d_min
-                self.scale_value.value = thresh_value
-
-            self.line_update(None)
-
-    def trigger_click(self, _):
-        param_dict = {}
-        ui_json = deepcopy(default_ui_json)
-        for key in ui_json:
-            try:
-                if isinstance(getattr(self, key), Widget) and hasattr(self.params, key):
-                    value = getattr(self, key).value
-
-                    if (
-                        isinstance(value, uuid.UUID)
-                        and self.workspace.get_entity(value)[0] is not None
-                    ):
-                        value = self.workspace.get_entity(value)[0]
-
-                    param_dict[key] = value
-
-            except AttributeError:
-                continue
-
-        for label, group in self._channel_groups.items():
-            for member in ["data", "color"]:
-                name = f"Group {label} {member}"
-                ui_json[name] = deepcopy(template_dict[member])
-                ui_json[name]["group"] = f"Group {label}"
-                param_dict[name] = group[member]
-
-        p_g_uid = {p_g.uid: p_g.name for p_g in param_dict["objects"].property_groups}
-
-        temp_geoh5 = f"{self.ga_group_name.value}_{time():.0f}.geoh5"
-
-        new_workspace, self.live_link.value = BaseApplication.get_output_workspace(
-            self.live_link.value, self.export_directory.selected_path, temp_geoh5
-        )
-        with new_workspace as new_ws:
-            with self.workspace.open("r"):
-                for key, value in param_dict.items():
-                    if isinstance(value, ObjectBase):
-                        if new_ws.get_entity(value.uid)[0] is None:
+                with fetch_active_workspace(ws, mode="r") as new_workspace:
+                    # Put entities in output workspace.
+                    param_dict["geoh5"] = new_workspace
+                    for key, value in param_dict.items():
+                        if isinstance(value, ObjectBase):
                             param_dict[key] = value.copy(
-                                parent=new_ws, copy_children=True
+                                parent=new_workspace, copy_children=True
                             )
-                            line_field = [
-                                c for c in param_dict[key].children if c.name == "Line"
-                            ]
-                            if line_field:
-                                param_dict["line_field"] = line_field[0]
 
-                    elif isinstance(value, uuid.UUID) and value in p_g_uid:
-                        param_dict[key] = param_dict[
-                            "objects"
-                        ].find_or_create_property_group(name=p_g_uid[value])
+                # Write output uijson.
+                new_params = PeakFinderParams(**param_dict)
+                new_params.write_input_file(
+                    name=temp_geoh5.replace(".geoh5", ".ui.json"),
+                    path=param_dict["monitoring_directory"],
+                    validate=False,
+                )
 
-            param_dict["geoh5"] = new_ws
-            if self.live_link.value:
-                param_dict["monitoring_directory"] = self.monitoring_directory
+                print("Saved to " + param_dict["monitoring_directory"])
+            else:
+                print("Invalid output path.")
 
-            new_params = PeakFinderParams(**param_dict)
-            new_params.write_input_file(name=temp_geoh5.replace(".geoh5", ".ui.json"))
-            self.run(new_params)
-
-            if self.live_link.value:
-                print("Live link active. Check your ANALYST session for result.")
-
-    def update_center(self, _):
-        """
-        Update the center view on group selection
-        """
-        if hasattr(self.lines, "anomalies"):
-            self.center.value = self.group_display.value
-
-    @classmethod
-    def run(cls, params: PeakFinderParams):  # type: ignore
-        """
-        Create an octree mesh from input values
-        """
-        driver = PeakFinderDriver(params)
-        with params.geoh5.open(mode="r+"):
-            driver.run()
-
-    def show_decay_trigger(self, _):
-        """
-        Observer of :obj:`geoapps.processing.peak_finder.`: Add the decay curve plot
-        """
-        if self.show_decay.value:
-            self.decay_panel.children = [self.show_decay, self.decay]
-            self.show_decay.description = "Hide decay curve"
-        else:
-            self.decay_panel.children = [self.show_decay]
-            self.show_decay.description = "Show decay curve"
+        return no_update
 
 
 if __name__ == "__main__":
-    FILE = sys.argv[1]
-    warnings.warn(
-        "'geoapps.peak_finder.application' replaced by "
-        "'geoapps.peak_finder.driver' in version 0.7.0. "
-        "This warning is likely due to the execution of older ui.json files. Please update."
-    )
-    params_class = PeakFinderParams(InputFile.read_ui_json(FILE))
-    PeakFinder.run(params_class)
+    print("Loading geoh5 file . . .")
+    file = sys.argv[1]
+    ifile = InputFile.read_ui_json(file)
+    ifile.workspace.open("r")
+    print("Loaded. Launching peak finder app . . .")
+    ObjectSelection.run("Peak Finder", PeakFinder, ifile)
+    print("Done")
