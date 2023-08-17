@@ -31,9 +31,11 @@ from geoh5py.objects import ObjectBase
 from geoh5py.shared.utils import fetch_active_workspace
 from geoh5py.ui_json import InputFile
 
+from peak_finder.anomaly_group import AnomalyGroup
 from peak_finder.driver import PeakFinderDriver
 from peak_finder.layout import peak_finder_layout
 from peak_finder.line_anomaly import LineAnomaly
+from peak_finder.line_position import LinePosition
 from peak_finder.params import PeakFinderParams
 
 
@@ -100,6 +102,13 @@ class PeakFinder(BaseDashApplication):
             State(component_id="property_groups", component_property="data"),
         )(PeakFinder.update_property_groups)
         self.app.callback(
+            Output(component_id="active_channels", component_property="data"),
+            Output(component_id="min_value", component_property="value"),
+            Output(component_id="linear_threshold", component_property="value"),
+            Input(component_id="property_groups", component_property="data"),
+            Input(component_id="flip_sign", component_property="value"),
+        )(self.update_active_channels)
+        self.app.callback(
             Output(component_id="center", component_property="value"),
             Output(component_id="center", component_property="max"),
             Output(component_id="width", component_property="value"),
@@ -122,6 +131,7 @@ class PeakFinder(BaseDashApplication):
             Output(component_id="plot", component_property="figure"),
             Input(component_id="objects", component_property="data"),
             Input(component_id="property_groups", component_property="data"),
+            Input(component_id="active_channels", component_property="data"),
             Input(component_id="show_residual", component_property="value"),
             Input(component_id="show_markers", component_property="value"),
             Input(component_id="y_scale", component_property="value"),
@@ -138,12 +148,20 @@ class PeakFinder(BaseDashApplication):
         )(self.trigger_click)
 
     @property
-    def lines(self) -> LineAnomaly | None:
-        return self._lines
+    def lines_position(self) -> LinePosition | None:
+        return self._lines_position
 
-    @lines.setter
-    def lines(self, value):
-        self._lines = value
+    @lines_position.setter
+    def lines_position(self, value):
+        self._lines_position = value
+
+    @property
+    def lines_anomalies(self) -> list[AnomalyGroup] | None:
+        return self._lines_anomalies
+
+    @lines_anomalies.setter
+    def lines_anomalies(self, value):
+        self._lines_anomalies = value
 
     def set_initialized_layout(self, ui_json_data):
         self.app.layout = peak_finder_layout
@@ -193,20 +211,17 @@ class PeakFinder(BaseDashApplication):
         line_field: str | None,
     ):
         line_field = self.workspace.get_entity(uuid.UUID(line_field))[0]
-        options = []
-        for key, value in line_field.value_map.map.items():
-            options.append({"label": value, "value": key})
+        # options = []
+        # for key, value in line_field.value_map.map.items():
+        # options.append({"label": value, "value": key})
+        options = list(line_field.value_map.map.values())
         return options
 
     def get_line_indices(self, line_field, line_id):
         """
         Find the vertices for a given line ID
         """
-        line_data = self.workspace.get_entity(line_field)[0]
-
-        if not isinstance(line_data, ReferencedData):
-            return None
-
+        line_data = self.workspace.get_entity(uuid.UUID(line_field))[0]
         indices = np.where(np.asarray(line_data.values) == line_id)[0]
 
         if len(indices) == 0:
@@ -214,18 +229,61 @@ class PeakFinder(BaseDashApplication):
 
         return indices
 
-    def get_active_channels(self, obj, channel_groups):
+    def update_active_channels(self, property_groups_dict, flip_sign):
+        if flip_sign:
+            flip_sign = -1
+        else:
+            flip_sign = 1
+
         active_channels = {}
-        for group in channel_groups.values():
+        for group in property_groups_dict.values():
             for channel in group["properties"]:
-                if getattr(obj, "values", None) is not None:
-                    active_channels[channel] = {"name": obj.name}
-        return active_channels
+                chan = self.workspace.get_entity(uuid.UUID(channel))[0]
+                if getattr(chan, "values", None) is not None:
+                    active_channels[channel] = {"name": chan.name}
+
+        d_min, d_max = np.inf, -np.inf
+        thresh_value = np.inf
+        # if self.tem_checkbox.value:
+        #    system = self.em_system_specs[self.system.value]
+
+        for uid, params in active_channels.copy().items():
+            chan = self.workspace.get_entity(uuid.UUID(uid))[0]
+            try:
+                # if self.tem_checkbox.value:
+                #    channel = [
+                #        ch for ch in system["channels"] if ch in params["name"]
+                #    ]
+                #    if any(channel):
+                #        self.active_channels[uid]["time"] = system["channels"][
+                #            channel[0]
+                #        ]
+                #    else:
+                #        del self.active_channels[uid]
+
+                active_channels[uid]["values"] = flip_sign * chan.values.copy()
+                thresh_value = np.min(
+                    [
+                        thresh_value,
+                        np.percentile(np.abs(active_channels[uid]["values"]), 95),
+                    ]
+                )
+                d_min = np.nanmin([d_min, active_channels[uid]["values"].min()])
+                d_max = np.nanmax([d_max, active_channels[uid]["values"].max()])
+            except KeyError:
+                continue
+
+        min_value, linear_threshold = no_update, no_update
+        if d_max > -np.inf:
+            min_value = d_min
+            linear_threshold = thresh_value
+
+        return active_channels, min_value, linear_threshold
 
     def line_update(
         self,
         objects,
-        property_groups,
+        property_groups_dict,
         smoothing,
         max_migration,
         min_channels,
@@ -253,7 +311,7 @@ class PeakFinder(BaseDashApplication):
             obj is None
             or len(self.workspace.get_entity(uuid.UUID(line_field))) == 0
             or line_id == ""
-            or len(property_groups) == 0
+            or len(property_groups_dict) == 0
         ):
             return center_out, center_max_out, width_out, width_max_out
 
@@ -262,10 +320,11 @@ class PeakFinder(BaseDashApplication):
             return center_out, center_max_out, width_out, width_max_out
 
         obj.line_indices = line_indices
-        # property_groups = [
-        #    obj.find_or_create_property_group(name=name)
-        #    for name in channel_groups
-        # ]
+        property_groups = [
+            obj.find_or_create_property_group(name=name)
+            for name in property_groups_dict
+        ]
+
         em_system_specs = geophysical_systems.parameters()
         line_anomaly = LineAnomaly(
             entity=obj,
@@ -280,6 +339,18 @@ class PeakFinder(BaseDashApplication):
             min_channels=min_channels,
         )
 
+        if line_anomaly is None:
+            return center_out, center_max_out, width_out, width_max_out
+        self.lines_position = line_anomaly.position
+
+        line_groups = line_anomaly.anomalies
+        anomalies = []
+        if line_groups is not None:
+            for line_group in line_groups:
+                anomalies += line_group.groups
+        self.lines_anomalies = anomalies
+
+        """
         line_groups = line_anomaly.anomalies
         anomalies = []
         if line_groups is not None:
@@ -290,10 +361,10 @@ class PeakFinder(BaseDashApplication):
         else:
             # self.group_display.disabled = True
             return center_out, center_max_out, width_out, width_max_out
-
+        """
         # if self.previous_line != line_id:
-        end = self.lines.position.locations_resampled[-1]
-        mid = self.lines.position.locations_resampled[-1] * 0.5
+        end = self.lines_position.locations_resampled[-1]
+        mid = self.lines_position.locations_resampled[-1] * 0.5
 
         if center >= end:
             center_out = 0
@@ -326,6 +397,7 @@ class PeakFinder(BaseDashApplication):
         self,
         objects,
         property_groups,
+        active_channels,
         show_residual,
         show_markers,
         y_scale,
@@ -337,23 +409,21 @@ class PeakFinder(BaseDashApplication):
     ):
         linear_threshold = np.float_power(10, linear_threshold)
         obj = self.workspace.get_entity(uuid.UUID(objects))[0]
-        active_channels = self.get_active_channels(obj, property_groups)
 
         fig = go.Figure()
 
         figure = plt.figure(figsize=(12, 6))
         axs = plt.subplot()
-
         if (
             obj is None
             or getattr(obj, "line_indices", None) is None
             or len(obj.line_indices) < 2
             or len(active_channels) == 0
         ):
-            return
+            return fig
 
         lims = np.searchsorted(
-            self.lines.position.locations_resampled,
+            self.lines_position.locations_resampled,
             [
                 (center - width / 2.0),
                 (center + width / 2.0),
@@ -361,32 +431,33 @@ class PeakFinder(BaseDashApplication):
         )
         sub_ind = np.arange(lims[0], lims[1])
         if len(sub_ind) == 0:
-            return
+            return fig
 
         y_min, y_max = np.inf, -np.inf
-        locs = self.lines.position.locations_resampled
+        locs = self.lines_position.locations_resampled
         peak_markers_x, peak_markers_y, peak_markers_c = [], [], []
         end_markers_x, end_markers_y = [], []
         start_markers_x, start_markers_y = [], []
         up_markers_x, up_markers_y = [], []
         dwn_markers_x, dwn_markers_y = [], []
 
-        for channel_dict in active_channels.values():
+        for channel_dict in list(active_channels.values()):
             if "values" not in channel_dict:
                 continue
 
-            values = channel_dict["values"][obj.line_indices]
-            values, raw = self.lines.position.resample_values(values)
+            values = np.array(channel_dict["values"])[obj.line_indices]
+            values, raw = self.lines_position.resample_values(values)
 
             y_min = np.nanmin([values[sub_ind].min(), y_min])
+
             y_max = np.nanmax([values[sub_ind].max(), y_max])
             axs.plot(locs, values, color=[0.5, 0.5, 0.5, 1])
-            for group in self.lines.anomalies:
+            for anomaly_group in self.lines_anomalies:
                 channels = np.array(
-                    [a.parent.data_entity.name for a in group.anomalies]
+                    [a.parent.data_entity.name for a in anomaly_group.anomalies]
                 )
-                color = property_groups[group.property_group.name]["color"]
-                peaks = group.get_list_attr("peak")
+                color = property_groups[anomaly_group.property_group.name]["color"]
+                peaks = anomaly_group.get_list_attr("peak")
                 query = np.where(np.array(channels) == channel_dict["name"])[0]
 
                 if (
@@ -397,15 +468,15 @@ class PeakFinder(BaseDashApplication):
                     continue
 
                 i = query[0]
-                start = group.anomalies[i].start
-                end = group.anomalies[i].end
+                start = anomaly_group.anomalies[i].start
+                end = anomaly_group.anomalies[i].end
                 axs.plot(
                     locs[start:end],
                     values[start:end],
                     color=color,
                 )
 
-                if group.azimuth < 180:
+                if anomaly_group.azimuth < 180:
                     ori = "right"
                 else:
                     ori = "left"
@@ -423,14 +494,14 @@ class PeakFinder(BaseDashApplication):
                     peak_markers_x += [locs[peaks[i]]]
                     peak_markers_y += [values[peaks[i]]]
                     peak_markers_c += [color]
-                    start_markers_x += [locs[group.anomalies[i].start]]
-                    start_markers_y += [values[group.anomalies[i].start]]
-                    end_markers_x += [locs[group.anomalies[i].end]]
-                    end_markers_y += [values[group.anomalies[i].end]]
-                    up_markers_x += [locs[group.anomalies[i].inflect_up]]
-                    up_markers_y += [values[group.anomalies[i].inflect_up]]
-                    dwn_markers_x += [locs[group.anomalies[i].inflect_down]]
-                    dwn_markers_y += [values[group.anomalies[i].inflect_down]]
+                    start_markers_x += [locs[anomaly_group.anomalies[i].start]]
+                    start_markers_y += [values[anomaly_group.anomalies[i].start]]
+                    end_markers_x += [locs[anomaly_group.anomalies[i].end]]
+                    end_markers_y += [values[anomaly_group.anomalies[i].end]]
+                    up_markers_x += [locs[anomaly_group.anomalies[i].inflect_up]]
+                    up_markers_y += [values[anomaly_group.anomalies[i].inflect_up]]
+                    dwn_markers_x += [locs[anomaly_group.anomalies[i].inflect_down]]
+                    dwn_markers_y += [values[anomaly_group.anomalies[i].inflect_down]]
 
             if show_residual:
                 axs.fill_between(
@@ -441,7 +512,7 @@ class PeakFinder(BaseDashApplication):
                 )
 
         if np.isinf(y_min):
-            return
+            return fig
 
         if y_scale == "symlog":
             plt.yscale("symlog", linthresh=linear_threshold)
@@ -500,13 +571,13 @@ class PeakFinder(BaseDashApplication):
             axs.text(
                 center,
                 y_lims[0],
-                f"{self.lines.position.interp_x(center):.0f} m E",
+                f"{self.lines_position.interp_x(center):.0f} m E",
                 va="top",
                 ha="center",
                 bbox={"edgecolor": "r"},
             )
             axs.set_xticklabels(
-                [f"{self.lines.position.interp_x(label):.0f}" for label in ticks_loc]
+                [f"{self.lines_position.interp_x(label):.0f}" for label in ticks_loc]
             )
             axs.set_xlabel("Easting (m)")
 
@@ -514,13 +585,13 @@ class PeakFinder(BaseDashApplication):
             axs.text(
                 center,
                 y_lims[0],
-                f"{self.lines.position.interp_y(center):.0f} m N",
+                f"{self.lines_position.interp_y(center):.0f} m N",
                 va="top",
                 ha="center",
                 bbox={"edgecolor": "r"},
             )
             axs.set_xticklabels(
-                [f"{self.lines.position.interp_y(label):.0f}" for label in ticks_loc]
+                [f"{self.lines_position.interp_y(label):.0f}" for label in ticks_loc]
             )
             axs.set_xlabel("Northing (m)")
 
@@ -534,6 +605,7 @@ class PeakFinder(BaseDashApplication):
                 bbox={"edgecolor": "r"},
             )
             axs.set_xlabel("Distance (m)")
+
         axs.grid(True)
         plt.show()
         return fig
@@ -567,7 +639,7 @@ class PeakFinder(BaseDashApplication):
                 temp_geoh5 = f"PeakFinder_{time():.0f}.geoh5"
 
                 # Get output workspace.
-                ws, _ = BaseApplication.get_output_workspace(
+                ws, _ = BaseDashApplication.get_output_workspace(
                     False, param_dict["monitoring_directory"], temp_geoh5
                 )
 

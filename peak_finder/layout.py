@@ -76,8 +76,10 @@ data_selection_layout = html.Div(
             ],
             style={"margin-bottom": "20px"},
         ),
-        dcc.Store(id="objects"),
-        dcc.Store(id="system"),
+        dcc.Checklist(
+            id="flip_sign",
+            options=[{"label": "Flip Y (-1x)", "value": True}],
+        ),
     ],
     style={
         "width": "50%",
@@ -382,5 +384,8 @@ peak_finder_layout = html.Div(
         visual_params_layout,
         detection_params_layout,
         export_layout,
+        dcc.Store(id="objects"),
+        dcc.Store(id="system"),
+        dcc.Store(id="active_channels"),
     ]
 )
