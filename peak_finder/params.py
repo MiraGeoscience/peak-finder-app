@@ -372,7 +372,7 @@ class PeakFinderParams(BaseParams):  # pylint: disable=R0902, R0904
                 count += 1
                 property_groups[prop_group.name] = {
                     "data": str(prop_group.uid),
-                    "color": getattr(self, f"{name}_color", None),
+                    "color": getattr(self, f"group_{name}_color", None),
                     "label": [count],
                     "properties": [str(prop) for prop in prop_group.properties],
                 }

@@ -125,7 +125,6 @@ class PeakFinder(BaseDashApplication):
             Input(component_id="line_id", component_property="value"),
             Input(component_id="system", component_property="data"),
             Input(component_id="center", component_property="value"),
-            Input(component_id="width", component_property="value"),
         )(self.line_update)
         self.app.callback(
             Output(component_id="plot", component_property="figure"),
@@ -185,17 +184,20 @@ class PeakFinder(BaseDashApplication):
 
         trigger = ctx.triggered_id
         if trigger == "group_name":
-            color_picker_out = property_groups[group_name]["color"]
+            color_picker_out = dict(hex=property_groups[group_name]["color"])
         elif trigger == "color_picker":
             property_groups[group_name]["color"] = color_picker
-
         return property_groups_out, color_picker_out
 
     def update_data_options(self, objects: str):
-        options = []
+        data_options = []
+        group_name_options = []
         for child in self.workspace.get_entity(uuid.UUID(objects))[0].property_groups:
-            options.append({"label": child.name, "value": "{" + str(child.uid) + "}"})
-        return options, options
+            data_options.append(
+                {"label": child.name, "value": "{" + str(child.uid) + "}"}
+            )
+            group_name_options.append(child.name)
+        return data_options, group_name_options
 
     def update_lines_field_list(self, object_uid: str | None):
         obj = self.workspace.get_entity(uuid.UUID(object_uid))[0]
@@ -294,7 +296,6 @@ class PeakFinder(BaseDashApplication):
         line_id,
         system,
         center,
-        width,
     ):
         """
         Re-compute derivatives
@@ -305,7 +306,6 @@ class PeakFinder(BaseDashApplication):
             no_update,
             no_update,
         )
-
         obj = self.workspace.get_entity(uuid.UUID(objects))[0]
         if (
             obj is None
@@ -363,18 +363,6 @@ class PeakFinder(BaseDashApplication):
             return center_out, center_max_out, width_out, width_max_out
         """
         # if self.previous_line != line_id:
-        end = self.lines_position.locations_resampled[-1]
-        mid = self.lines_position.locations_resampled[-1] * 0.5
-
-        if center >= end:
-            center_out = 0
-            center_max_out = end
-            # width = 0
-            width_max_out = end
-            width_out = mid
-        else:
-            center_max_out = end
-            width_max_out = end
 
         """
         if self.lines.anomalies is not None and len(self.lines.anomalies) > 0:
@@ -390,6 +378,18 @@ class PeakFinder(BaseDashApplication):
             ]
         """
         # self.previous_line = self.lines.lines.value
+
+        end = self.lines_position.locations_resampled[-1]
+        mid = self.lines_position.locations_resampled[-1] * 0.5
+
+        if center >= end:
+            center_out = 0
+            center_max_out = end
+            width_max_out = end
+            width_out = mid
+        else:
+            center_max_out = end
+            width_max_out = end
 
         return center_out, center_max_out, width_out, width_max_out
 
@@ -412,8 +412,6 @@ class PeakFinder(BaseDashApplication):
 
         fig = go.Figure()
 
-        figure = plt.figure(figsize=(12, 6))
-        axs = plt.subplot()
         if (
             obj is None
             or getattr(obj, "line_indices", None) is None
@@ -441,6 +439,17 @@ class PeakFinder(BaseDashApplication):
         up_markers_x, up_markers_y = [], []
         dwn_markers_x, dwn_markers_y = [], []
 
+        fig.add_trace(
+            go.Scatter(
+                x=[None],
+                y=[None],
+                mode="lines",
+                name="full lines",
+                line_color="lightgrey",
+                showlegend=False,
+            )
+        )
+        trace_map = {"lines": 0}
         for channel_dict in list(active_channels.values()):
             if "values" not in channel_dict:
                 continue
@@ -451,12 +460,16 @@ class PeakFinder(BaseDashApplication):
             y_min = np.nanmin([values[sub_ind].min(), y_min])
 
             y_max = np.nanmax([values[sub_ind].max(), y_max])
-            axs.plot(locs, values, color=[0.5, 0.5, 0.5, 1])
+            lines_trace = fig.data[trace_map["lines"]]
+            lines_trace.x += tuple(locs) + tuple([None])
+            lines_trace.y += tuple(values) + tuple([None])
+
             for anomaly_group in self.lines_anomalies:
                 channels = np.array(
                     [a.parent.data_entity.name for a in anomaly_group.anomalies]
                 )
-                color = property_groups[anomaly_group.property_group.name]["color"]
+                group_name = anomaly_group.property_group.name
+                color = property_groups[group_name]["color"]
                 peaks = anomaly_group.get_list_attr("peak")
                 query = np.where(np.array(channels) == channel_dict["name"])[0]
 
@@ -470,26 +483,55 @@ class PeakFinder(BaseDashApplication):
                 i = query[0]
                 start = anomaly_group.anomalies[i].start
                 end = anomaly_group.anomalies[i].end
-                axs.plot(
-                    locs[start:end],
-                    values[start:end],
-                    color=color,
-                )
+                # axs.plot(
+                #    locs[start:end],
+                #    values[start:end],
+                #    color=color,
+                # )
+                if group_name not in trace_map:
+                    trace_map[group_name] = len(fig.data)
+                    fig.add_trace(
+                        go.Scatter(
+                            x=[None],  # locs[start:end],
+                            y=[None],  # values[start:end],
+                            mode="lines",
+                            line_color=color,
+                            name=group_name,
+                        )
+                    )
+                # else:
+                lines_trace = fig.data[trace_map[group_name]]
+                lines_trace.x += tuple(locs[start:end]) + tuple([None])
+                lines_trace.y += tuple(values[start:end]) + tuple([None])
 
                 if anomaly_group.azimuth < 180:
                     ori = "right"
                 else:
                     ori = "left"
-                marker = {"left": "<", "right": ">"}
+
                 if show_markers:
                     if i == 0:
-                        axs.scatter(
-                            locs[peaks[i]],
-                            values[peaks[i]],
-                            s=200,
-                            c="k",
-                            marker=marker[ori],
-                            zorder=10,
+                        # axs.scatter(
+                        #    locs[peaks[i]],
+                        #    values[peaks[i]],
+                        #    s=200,
+                        #    c="k",
+                        #    marker=marker[ori],
+                        #    zorder=10,
+                        # )
+                        fig.add_trace(
+                            go.Scatter(
+                                x=[locs[peaks[i]]],
+                                y=[values[peaks[i]]],
+                                mode="markers",
+                                # color=color,
+                                marker={
+                                    # "size": 200,
+                                    "color": "black",  # [0, 1, 2, 3],
+                                    "symbol": "arrow-" + ori,
+                                },
+                                showlegend=False,
+                            )
                         )
                     peak_markers_x += [locs[peaks[i]]]
                     peak_markers_y += [values[peaks[i]]]
@@ -504,12 +546,13 @@ class PeakFinder(BaseDashApplication):
                     dwn_markers_y += [values[anomaly_group.anomalies[i].inflect_down]]
 
             if show_residual:
-                axs.fill_between(
-                    locs, values, raw, where=raw > values, color=[1, 0, 0, 0.5]
-                )
-                axs.fill_between(
-                    locs, values, raw, where=raw < values, color=[0, 0, 1, 0.5]
-                )
+                # axs.fill_between(
+                #    locs, values, raw, where=raw > values, color=[1, 0, 0, 0.5]
+                # )
+                # axs.fill_between(
+                #    locs, values, raw, where=raw < values, color=[0, 0, 1, 0.5]
+                # )
+                pass
 
         if np.isinf(y_min):
             return fig
@@ -522,53 +565,126 @@ class PeakFinder(BaseDashApplication):
             center + width / 2.0,
         ]
         y_lims = [np.nanmax([y_min, min_value]), y_max]
-        axs.set_xlim(x_lims)
-        axs.set_ylim(y_lims)
-        axs.set_ylabel("Data")
-        axs.plot([center, center], [y_min, y_max], "k--")
+        # axs.set_xlim(x_lims)
+        # axs.set_ylim(y_lims)
+        # axs.set_ylabel("Data")
+        # axs.plot([center, center], [y_min, y_max], "k--")
+        fig.update_layout(
+            xaxis_range=x_lims,
+            yaxis_range=y_lims,
+            yaxis_title="Data",
+        )
 
         if show_markers:
-            axs.scatter(
-                peak_markers_x,
-                peak_markers_y,
-                s=50,
-                c=peak_markers_c,
-                marker="o",
+            # axs.scatter(
+            #    peak_markers_x,
+            #    peak_markers_y,
+            #    s=50,
+            #    c=peak_markers_c,
+            #    marker="o",
+            # )
+            fig.add_trace(
+                go.Scatter(
+                    x=peak_markers_x,
+                    y=peak_markers_y,
+                    mode="markers",
+                    # color=color,
+                    marker={
+                        # "size": 50,
+                        "color": peak_markers_c,
+                        "symbol": "circle",
+                    },
+                    showlegend=False,
+                )
             )
-            axs.scatter(
-                start_markers_x,
-                start_markers_y,
-                s=100,
-                color="k",
-                marker="4",
+            # axs.scatter(
+            #    start_markers_x,
+            #    start_markers_y,
+            #    s=100,
+            #    color="k",
+            #    marker="4",
+            # )
+            fig.add_trace(
+                go.Scatter(
+                    x=start_markers_x,
+                    y=start_markers_y,
+                    mode="markers",
+                    # color=color,
+                    marker={
+                        # "size": 100,
+                        "color": "black",
+                        "symbol": "y-right",
+                    },
+                    showlegend=False,
+                )
             )
-            axs.scatter(
-                end_markers_x,
-                end_markers_y,
-                s=100,
-                color="k",
-                marker="3",
+            # axs.scatter(
+            #    end_markers_x,
+            #    end_markers_y,
+            #    s=100,
+            #    color="k",
+            #    marker="3",
+            # )
+            fig.add_trace(
+                go.Scatter(
+                    x=end_markers_x,
+                    y=end_markers_y,
+                    mode="markers",
+                    # color=color,
+                    marker={
+                        # "size": 100,
+                        "color": "black",
+                        "symbol": "y-left",
+                    },
+                    showlegend=False,
+                )
             )
-            axs.scatter(
-                up_markers_x,
-                up_markers_y,
-                color="k",
-                marker="1",
-                s=100,
+            # axs.scatter(
+            #    up_markers_x,
+            #    up_markers_y,
+            #    color="k",
+            #    marker="1",
+            #    s=100,
+            # )
+            fig.add_trace(
+                go.Scatter(
+                    x=up_markers_x,
+                    y=up_markers_y,
+                    mode="markers",
+                    # color=color,
+                    marker={
+                        # "size": 100,
+                        "color": "black",
+                        "symbol": "y-down",
+                    },
+                    showlegend=False,
+                )
             )
-            axs.scatter(
-                dwn_markers_x,
-                dwn_markers_y,
-                color="k",
-                marker="2",
-                s=100,
+            # axs.scatter(
+            #    dwn_markers_x,
+            #    dwn_markers_y,
+            #    color="k",
+            #    marker="2",
+            #    s=100,
+            # )
+            fig.add_trace(
+                go.Scatter(
+                    x=dwn_markers_x,
+                    y=dwn_markers_y,
+                    mode="markers",
+                    # color=color,
+                    marker={
+                        # "size": 100,
+                        "color": "black",
+                        "symbol": "y-up",
+                    },
+                )
             )
-
-        ticks_loc = axs.get_xticks().tolist()
-        axs.set_xticks(ticks_loc)
+        # ticks_loc = axs.get_xticks().tolist()
+        # axs.set_xticks(ticks_loc)
 
         if x_label == "Easting":
-            axs.text(
+            """axs.text(
                 center,
                 y_lims[0],
                 f"{self.lines_position.interp_x(center):.0f} m E",
@@ -578,11 +694,12 @@ class PeakFinder(BaseDashApplication):
             )
             axs.set_xticklabels(
                 [f"{self.lines_position.interp_x(label):.0f}" for label in ticks_loc]
-            )
-            axs.set_xlabel("Easting (m)")
+            )"""
+            # axs.set_xlabel("Easting (m)")
+            fig.update_layout(xaxis_title="Easting (m)")
 
         elif x_label == "Northing":
-            axs.text(
+            """axs.text(
                 center,
                 y_lims[0],
                 f"{self.lines_position.interp_y(center):.0f} m N",
@@ -592,21 +709,24 @@ class PeakFinder(BaseDashApplication):
             )
             axs.set_xticklabels(
                 [f"{self.lines_position.interp_y(label):.0f}" for label in ticks_loc]
-            )
-            axs.set_xlabel("Northing (m)")
+            )"""
+            # axs.set_xlabel("Northing (m)")
+            fig.update_layout(xaxis_title="Northing (m)")
 
         else:
-            axs.text(
+            """axs.text(
                 center,
                 y_min,
                 f"{center:.0f} m",
                 va="top",
                 ha="center",
                 bbox={"edgecolor": "r"},
-            )
-            axs.set_xlabel("Distance (m)")
+            )"""
+            # fig.add_annotation()
+            # axs.set_xlabel("Distance (m)")
+            fig.update_layout(xaxis_title="Distance (m)")
 
-        axs.grid(True)
+        # axs.grid(True)
         plt.show()
         return fig
 
