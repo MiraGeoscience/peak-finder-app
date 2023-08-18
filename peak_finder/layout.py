@@ -135,8 +135,8 @@ visual_params_layout = html.Div(
             [
                 dcc.Slider(
                     id="center",
-                    min=0,
-                    max=5000,
+                    min=0.0,
+                    max=5000.0,
                     step=1,
                     marks=None,
                     tooltip={
@@ -156,6 +156,8 @@ visual_params_layout = html.Div(
                 dcc.Slider(
                     id="width",
                     marks=None,
+                    min=0.0,
+                    max=5000.0,
                     tooltip={
                         "placement": "bottom",
                         "always_visible": True,
@@ -387,5 +389,7 @@ peak_finder_layout = html.Div(
         dcc.Store(id="objects"),
         dcc.Store(id="system"),
         dcc.Store(id="active_channels"),
+        dcc.Store(id="figure_layout"),
+        dcc.Store(id="figure_data"),
     ]
 )

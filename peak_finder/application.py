@@ -22,11 +22,13 @@ from dash import Dash, callback_context, ctx, dcc, no_update
 from dash.dependencies import Input, Output, State
 from flask import Flask
 from geoapps_utils import geophysical_systems
+from geoapps_utils.application.application import get_output_workspace
 from geoapps_utils.application.dash_application import (
     BaseDashApplication,
     ObjectSelection,
 )
 from geoh5py.data import ReferencedData
+from geoh5py.groups import PropertyGroup
 from geoh5py.objects import ObjectBase
 from geoh5py.shared.utils import fetch_active_workspace
 from geoh5py.ui_json import InputFile
@@ -47,7 +49,8 @@ class PeakFinder(BaseDashApplication):
     _param_class = PeakFinderParams
     _driver_class = PeakFinderDriver
 
-    _lines = None
+    _lines_position = None
+    _lines_anomalies = None
 
     def __init__(self, ui_json=None, ui_json_data=None, params=None):
         if params is not None:
@@ -113,6 +116,8 @@ class PeakFinder(BaseDashApplication):
             Output(component_id="center", component_property="max"),
             Output(component_id="width", component_property="value"),
             Output(component_id="width", component_property="max"),
+            Input(component_id="plot", component_property="relayoutData"),
+            State(component_id="plot", component_property="figure"),
             Input(component_id="objects", component_property="data"),
             Input(component_id="property_groups", component_property="data"),
             Input(component_id="smoothing", component_property="value"),
@@ -125,25 +130,37 @@ class PeakFinder(BaseDashApplication):
             Input(component_id="line_id", component_property="value"),
             Input(component_id="system", component_property="data"),
             Input(component_id="center", component_property="value"),
-        )(self.line_update)
+            Input(component_id="width", component_property="max"),
+        )(self.update_window_params)
         self.app.callback(
-            Output(component_id="plot", component_property="figure"),
+            Output(component_id="figure_layout", component_property="data"),
+            Input(component_id="center", component_property="value"),
+            Input(component_id="width", component_property="value"),
+            Input(component_id="y_scale", component_property="value"),
+            Input(component_id="linear_threshold", component_property="value"),
+            Input(component_id="min_value", component_property="value"),
+            Input(component_id="x_label", component_property="value"),
+        )(self.update_figure_layout)
+        self.app.callback(
+            Output(component_id="figure_data", component_property="data"),
             Input(component_id="objects", component_property="data"),
             Input(component_id="property_groups", component_property="data"),
             Input(component_id="active_channels", component_property="data"),
             Input(component_id="show_residual", component_property="value"),
             Input(component_id="show_markers", component_property="value"),
-            Input(component_id="y_scale", component_property="value"),
-            Input(component_id="linear_threshold", component_property="value"),
-            Input(component_id="min_value", component_property="value"),
             Input(component_id="center", component_property="value"),
             Input(component_id="width", component_property="value"),
-            Input(component_id="x_label", component_property="value"),
-        )(self.plot_data_selection)
+        )(self.update_figure_data)
+        self.app.callback(
+            Output(component_id="plot", component_property="figure"),
+            Input(component_id="figure_data", component_property="data"),
+            Input(component_id="figure_layout", component_property="data"),
+        )(PeakFinder.update_plot)
         self.app.callback(
             Output(component_id="export", component_property="n_clicks"),
             Input(component_id="export", component_property="n_clicks"),
             Input(component_id="monitoring_directory", component_property="value"),
+            prevent_initial_call=True,
         )(self.trigger_click)
 
     @property
@@ -181,8 +198,8 @@ class PeakFinder(BaseDashApplication):
     @staticmethod
     def update_property_groups(group_name, color_picker, property_groups):
         property_groups_out, color_picker_out = no_update, no_update
-
         trigger = ctx.triggered_id
+
         if trigger == "group_name":
             color_picker_out = dict(hex=property_groups[group_name]["color"])
         elif trigger == "color_picker":
@@ -204,8 +221,9 @@ class PeakFinder(BaseDashApplication):
         options = []
         for child in obj.children:
             if isinstance(child, ReferencedData):
-                options.append({"label": child.name, "value": str(child.uid)})
-
+                options.append(
+                    {"label": child.name, "value": "{" + str(child.uid) + "}"}
+                )
         return options
 
     def update_lines_list(
@@ -213,10 +231,9 @@ class PeakFinder(BaseDashApplication):
         line_field: str | None,
     ):
         line_field = self.workspace.get_entity(uuid.UUID(line_field))[0]
-        # options = []
-        # for key, value in line_field.value_map.map.items():
-        # options.append({"label": value, "value": key})
-        options = list(line_field.value_map.map.values())
+        options = []
+        for key, value in line_field.value_map.map.items():
+            options.append({"label": value, "value": key})
         return options
 
     def get_line_indices(self, line_field, line_id):
@@ -282,6 +299,154 @@ class PeakFinder(BaseDashApplication):
 
         return active_channels, min_value, linear_threshold
 
+    @staticmethod
+    def update_plot(
+        figure_data,
+        figure_layout,
+    ):
+        return go.Figure(data=figure_data, layout=figure_layout)
+
+    def update_figure_layout(
+        self,
+        center,
+        width,
+        y_scale,
+        linear_threshold,
+        min_value,
+        x_label,
+    ):
+        linear_threshold = np.float_power(10, linear_threshold)
+
+        if y_scale == "symlog":
+            plt.yscale("symlog", linthresh=linear_threshold)
+
+        x_lims = [
+            center - width / 2.0,
+            center + width / 2.0,
+        ]
+        # y_lims = [np.nanmax([y_min, min_value]), y_max]
+
+        # ticks_loc = axs.get_xticks().tolist()
+        # axs.set_xticks(ticks_loc)
+
+        if x_label == "Easting":
+            """axs.text(
+                center,
+                y_lims[0],
+                f"{self.lines_position.interp_x(center):.0f} m E",
+                va="top",
+                ha="center",
+                bbox={"edgecolor": "r"},
+            )
+            axs.set_xticklabels(
+                [f"{self.lines_position.interp_x(label):.0f}" for label in ticks_loc]
+            )"""
+            # axs.set_xlabel("Easting (m)")
+            xaxis_title = "Easting (m)"
+
+        elif x_label == "Northing":
+            """axs.text(
+                center,
+                y_lims[0],
+                f"{self.lines_position.interp_y(center):.0f} m N",
+                va="top",
+                ha="center",
+                bbox={"edgecolor": "r"},
+            )
+            axs.set_xticklabels(
+                [f"{self.lines_position.interp_y(label):.0f}" for label in ticks_loc]
+            )"""
+            # axs.set_xlabel("Northing (m)")
+            xaxis_title = "Northing (m)"
+        else:
+            """axs.text(
+                center,
+                y_min,
+                f"{center:.0f} m",
+                va="top",
+                ha="center",
+                bbox={"edgecolor": "r"},
+            )"""
+            # fig.add_annotation()
+            # axs.set_xlabel("Distance (m)")
+            xaxis_title = "Distance (m)"
+
+        fig_layout = go.Layout(
+            xaxis_title=xaxis_title,
+            xaxis_range=x_lims,
+            # yaxis_range=y_lims,
+            yaxis_title="Data",
+        )
+        return fig_layout
+
+    def update_window_params(
+        self,
+        figure_zoom_trigger,
+        figure,
+        objects,
+        property_groups_dict,
+        smoothing,
+        max_migration,
+        min_channels,
+        min_amplitude,
+        min_value,
+        min_width,
+        line_field,
+        line_id,
+        system,
+        center,
+        width_max,
+    ):
+        center_out, center_max_out, width_out, width_max_out = (
+            no_update,
+            no_update,
+            no_update,
+            no_update,
+        )
+        triggers = [t["prop_id"].split(".")[0] for t in callback_context.triggered]
+
+        if "plot" in triggers and figure is not None:
+            if (
+                "autorange" in figure["layout"]
+                and figure["layout"]["xaxis"]["autorange"]
+            ):
+                width_out = width_max
+                center_out = width_max / 2
+            else:
+                width_out = (
+                    figure["layout"]["xaxis"]["range"][1]
+                    - figure["layout"]["xaxis"]["range"][0]
+                )
+                center_out = figure["layout"]["xaxis"]["range"][0] + width_out / 2.0
+        else:
+            # Update self.lines_position and self.lines_anomalies and use to update center, width
+            self.line_update(
+                objects,
+                property_groups_dict,
+                smoothing,
+                max_migration,
+                min_channels,
+                min_amplitude,
+                min_value,
+                min_width,
+                line_field,
+                line_id,
+                system,
+            )
+            end = self.lines_position.locations_resampled[-1]
+            mid = self.lines_position.locations_resampled[-1] * 0.5
+
+            if center >= end:
+                center_out = 0
+                center_max_out = end
+                width_max_out = end
+                width_out = mid
+            else:
+                center_max_out = end
+                width_max_out = end
+
+        return center_out, center_max_out, width_out, width_max_out
+
     def line_update(
         self,
         objects,
@@ -295,17 +460,10 @@ class PeakFinder(BaseDashApplication):
         line_field,
         line_id,
         system,
-        center,
     ):
         """
         Re-compute derivatives
         """
-        center_out, center_max_out, width_out, width_max_out = (
-            no_update,
-            no_update,
-            no_update,
-            no_update,
-        )
         obj = self.workspace.get_entity(uuid.UUID(objects))[0]
         if (
             obj is None
@@ -313,11 +471,11 @@ class PeakFinder(BaseDashApplication):
             or line_id == ""
             or len(property_groups_dict) == 0
         ):
-            return center_out, center_max_out, width_out, width_max_out
+            return
 
         line_indices = self.get_line_indices(line_field, line_id)
         if line_indices is None:
-            return center_out, center_max_out, width_out, width_max_out
+            return
 
         obj.line_indices = line_indices
         property_groups = [
@@ -340,7 +498,7 @@ class PeakFinder(BaseDashApplication):
         )
 
         if line_anomaly is None:
-            return center_out, center_max_out, width_out, width_max_out
+            return
         self.lines_position = line_anomaly.position
 
         line_groups = line_anomaly.anomalies
@@ -379,38 +537,19 @@ class PeakFinder(BaseDashApplication):
         """
         # self.previous_line = self.lines.lines.value
 
-        end = self.lines_position.locations_resampled[-1]
-        mid = self.lines_position.locations_resampled[-1] * 0.5
-
-        if center >= end:
-            center_out = 0
-            center_max_out = end
-            width_max_out = end
-            width_out = mid
-        else:
-            center_max_out = end
-            width_max_out = end
-
-        return center_out, center_max_out, width_out, width_max_out
-
-    def plot_data_selection(
+    def update_figure_data(
         self,
         objects,
         property_groups,
         active_channels,
         show_residual,
         show_markers,
-        y_scale,
-        linear_threshold,
-        min_value,
         center,
         width,
-        x_label,
     ):
-        linear_threshold = np.float_power(10, linear_threshold)
         obj = self.workspace.get_entity(uuid.UUID(objects))[0]
 
-        fig = go.Figure()
+        fig_data = []
 
         if (
             obj is None
@@ -418,7 +557,7 @@ class PeakFinder(BaseDashApplication):
             or len(obj.line_indices) < 2
             or len(active_channels) == 0
         ):
-            return fig
+            return fig_data
 
         lims = np.searchsorted(
             self.lines_position.locations_resampled,
@@ -429,7 +568,7 @@ class PeakFinder(BaseDashApplication):
         )
         sub_ind = np.arange(lims[0], lims[1])
         if len(sub_ind) == 0:
-            return fig
+            return fig_data
 
         y_min, y_max = np.inf, -np.inf
         locs = self.lines_position.locations_resampled
@@ -439,7 +578,7 @@ class PeakFinder(BaseDashApplication):
         up_markers_x, up_markers_y = [], []
         dwn_markers_x, dwn_markers_y = [], []
 
-        fig.add_trace(
+        fig_data.append(
             go.Scatter(
                 x=[None],
                 y=[None],
@@ -460,7 +599,7 @@ class PeakFinder(BaseDashApplication):
             y_min = np.nanmin([values[sub_ind].min(), y_min])
 
             y_max = np.nanmax([values[sub_ind].max(), y_max])
-            lines_trace = fig.data[trace_map["lines"]]
+            lines_trace = fig_data[trace_map["lines"]]
             lines_trace.x += tuple(locs) + tuple([None])
             lines_trace.y += tuple(values) + tuple([None])
 
@@ -483,24 +622,19 @@ class PeakFinder(BaseDashApplication):
                 i = query[0]
                 start = anomaly_group.anomalies[i].start
                 end = anomaly_group.anomalies[i].end
-                # axs.plot(
-                #    locs[start:end],
-                #    values[start:end],
-                #    color=color,
-                # )
                 if group_name not in trace_map:
-                    trace_map[group_name] = len(fig.data)
-                    fig.add_trace(
+                    trace_map[group_name] = len(fig_data)
+                    fig_data.append(
                         go.Scatter(
-                            x=[None],  # locs[start:end],
-                            y=[None],  # values[start:end],
+                            x=[None],
+                            y=[None],
                             mode="lines",
                             line_color=color,
                             name=group_name,
                         )
                     )
                 # else:
-                lines_trace = fig.data[trace_map[group_name]]
+                lines_trace = fig_data[trace_map[group_name]]
                 lines_trace.x += tuple(locs[start:end]) + tuple([None])
                 lines_trace.y += tuple(values[start:end]) + tuple([None])
 
@@ -511,15 +645,7 @@ class PeakFinder(BaseDashApplication):
 
                 if show_markers:
                     if i == 0:
-                        # axs.scatter(
-                        #    locs[peaks[i]],
-                        #    values[peaks[i]],
-                        #    s=200,
-                        #    c="k",
-                        #    marker=marker[ori],
-                        #    zorder=10,
-                        # )
-                        fig.add_trace(
+                        fig_data.append(
                             go.Scatter(
                                 x=[locs[peaks[i]]],
                                 y=[values[peaks[i]]],
@@ -555,184 +681,90 @@ class PeakFinder(BaseDashApplication):
                 pass
 
         if np.isinf(y_min):
-            return fig
-
-        if y_scale == "symlog":
-            plt.yscale("symlog", linthresh=linear_threshold)
-
-        x_lims = [
-            center - width / 2.0,
-            center + width / 2.0,
-        ]
-        y_lims = [np.nanmax([y_min, min_value]), y_max]
-        # axs.set_xlim(x_lims)
-        # axs.set_ylim(y_lims)
-        # axs.set_ylabel("Data")
-        # axs.plot([center, center], [y_min, y_max], "k--")
-        fig.update_layout(
-            xaxis_range=x_lims,
-            yaxis_range=y_lims,
-            yaxis_title="Data",
-        )
+            return fig_data
 
         if show_markers:
-            # axs.scatter(
-            #    peak_markers_x,
-            #    peak_markers_y,
-            #    s=50,
-            #    c=peak_markers_c,
-            #    marker="o",
-            # )
-            fig.add_trace(
+            fig_data.append(
                 go.Scatter(
                     x=peak_markers_x,
                     y=peak_markers_y,
                     mode="markers",
-                    # color=color,
                     marker={
-                        # "size": 50,
                         "color": peak_markers_c,
                         "symbol": "circle",
                     },
                     showlegend=False,
                 )
             )
-            # axs.scatter(
-            #    start_markers_x,
-            #    start_markers_y,
-            #    s=100,
-            #    color="k",
-            #    marker="4",
-            # )
-            fig.add_trace(
+            fig_data.append(
                 go.Scatter(
                     x=start_markers_x,
                     y=start_markers_y,
                     mode="markers",
-                    # color=color,
                     marker={
-                        # "size": 100,
                         "color": "black",
                         "symbol": "y-right",
                     },
                     showlegend=False,
                 )
             )
-            # axs.scatter(
-            #    end_markers_x,
-            #    end_markers_y,
-            #    s=100,
-            #    color="k",
-            #    marker="3",
-            # )
-            fig.add_trace(
+            fig_data.append(
                 go.Scatter(
                     x=end_markers_x,
                     y=end_markers_y,
                     mode="markers",
-                    # color=color,
                     marker={
-                        # "size": 100,
                         "color": "black",
                         "symbol": "y-left",
                     },
                     showlegend=False,
                 )
             )
-            # axs.scatter(
-            #    up_markers_x,
-            #    up_markers_y,
-            #    color="k",
-            #    marker="1",
-            #    s=100,
-            # )
-            fig.add_trace(
+            fig_data.append(
                 go.Scatter(
                     x=up_markers_x,
                     y=up_markers_y,
                     mode="markers",
-                    # color=color,
                     marker={
-                        # "size": 100,
                         "color": "black",
                         "symbol": "y-down",
                     },
                     showlegend=False,
                 )
             )
-            # axs.scatter(
-            #    dwn_markers_x,
-            #    dwn_markers_y,
-            #    color="k",
-            #    marker="2",
-            #    s=100,
-            # )
-            fig.add_trace(
+            fig_data.append(
                 go.Scatter(
                     x=dwn_markers_x,
                     y=dwn_markers_y,
                     mode="markers",
-                    # color=color,
                     marker={
-                        # "size": 100,
                         "color": "black",
                         "symbol": "y-up",
                     },
                 )
             )
-        # ticks_loc = axs.get_xticks().tolist()
-        # axs.set_xticks(ticks_loc)
 
-        if x_label == "Easting":
-            """axs.text(
-                center,
-                y_lims[0],
-                f"{self.lines_position.interp_x(center):.0f} m E",
-                va="top",
-                ha="center",
-                bbox={"edgecolor": "r"},
-            )
-            axs.set_xticklabels(
-                [f"{self.lines_position.interp_x(label):.0f}" for label in ticks_loc]
-            )"""
-            # axs.set_xlabel("Easting (m)")
-            fig.update_layout(xaxis_title="Easting (m)")
-
-        elif x_label == "Northing":
-            """axs.text(
-                center,
-                y_lims[0],
-                f"{self.lines_position.interp_y(center):.0f} m N",
-                va="top",
-                ha="center",
-                bbox={"edgecolor": "r"},
-            )
-            axs.set_xticklabels(
-                [f"{self.lines_position.interp_y(label):.0f}" for label in ticks_loc]
-            )"""
-            # axs.set_xlabel("Northing (m)")
-            fig.update_layout(xaxis_title="Northing (m)")
-
-        else:
-            """axs.text(
-                center,
-                y_min,
-                f"{center:.0f} m",
-                va="top",
-                ha="center",
-                bbox={"edgecolor": "r"},
-            )"""
-            # fig.add_annotation()
-            # axs.set_xlabel("Distance (m)")
-            fig.update_layout(xaxis_title="Distance (m)")
-
-        # axs.grid(True)
-        plt.show()
-        return fig
+        return fig_data
 
     def trigger_click(
         self,
         n_clicks: int,
+        objects,
+        data,
+        flip_sign,
+        line_field,
+        system,
+        smoothing,
+        min_amplitude,
+        min_value,
+        min_width,
+        max_migration,
+        min_channels,
+        line_id,
+        center,
+        width,
+        property_groups,
+        ga_group_name,
         monitoring_directory: str,
     ):
         """
@@ -745,7 +777,8 @@ class PeakFinder(BaseDashApplication):
 
         trigger = callback_context.triggered[0]["prop_id"].split(".")[0]
         if trigger == "export":
-            param_dict = self.params.to_dict()
+            # Update self.params from dash component values
+            param_dict = self.get_params_dict(locals())
 
             # Get output path.
             if (
@@ -756,29 +789,52 @@ class PeakFinder(BaseDashApplication):
                 param_dict["monitoring_directory"] = str(
                     Path(monitoring_directory).resolve()
                 )
-                temp_geoh5 = f"PeakFinder_{time():.0f}.geoh5"
+                temp_geoh5 = f"{ga_group_name}_{time():.0f}.geoh5"
 
                 # Get output workspace.
-                ws, _ = BaseDashApplication.get_output_workspace(
+                ws, _ = get_output_workspace(
                     False, param_dict["monitoring_directory"], temp_geoh5
                 )
 
-                with fetch_active_workspace(ws, mode="r") as new_workspace:
+                p_g_uid = {
+                    p_g.uid: p_g.name for p_g in param_dict["objects"].property_groups
+                }
+                print(p_g_uid)
+                with fetch_active_workspace(ws, mode="r+") as new_workspace:
                     # Put entities in output workspace.
                     param_dict["geoh5"] = new_workspace
                     for key, value in param_dict.items():
                         if isinstance(value, ObjectBase):
-                            param_dict[key] = value.copy(
-                                parent=new_workspace, copy_children=True
-                            )
+                            if new_workspace.get_entity(value.uid)[0] is None:
+                                param_dict[key] = value.copy(
+                                    parent=new_workspace, copy_children=True
+                                )
+                                line_field = [
+                                    c
+                                    for c in param_dict[key].children
+                                    if c.name == "Line"
+                                ]
+                                if line_field:
+                                    param_dict["line_field"] = line_field[0]
+                        elif isinstance(value, uuid.UUID) and value in p_g_uid:
+                            print(value)
+                            param_dict[key] = param_dict[
+                                "objects"
+                            ].find_or_create_property_group(name=p_g_uid[value])
+                            print(param_dict[key])
 
-                # Write output uijson.
-                new_params = PeakFinderParams(**param_dict)
-                new_params.write_input_file(
-                    name=temp_geoh5.replace(".geoh5", ".ui.json"),
-                    path=param_dict["monitoring_directory"],
-                    validate=False,
-                )
+                    # Write output uijson.
+                    new_params = PeakFinderParams(**param_dict)
+                    new_params.write_input_file(
+                        name=temp_geoh5.replace(".geoh5", ".ui.json"),
+                        path=param_dict["monitoring_directory"],
+                        validate=False,
+                    )
+                    print(new_params.geoh5)
+                    print(new_params.geoh5.h5file)
+                    driver = PeakFinderDriver(new_params)
+                    # with new_params.geoh5.open(mode="r+"):
+                    driver.run()
 
                 print("Saved to " + param_dict["monitoring_directory"])
             else:
