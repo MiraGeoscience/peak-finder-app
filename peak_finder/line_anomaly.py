@@ -23,7 +23,6 @@ class LineAnomaly:  # pylint: disable=R0902
     Contains list of LineGroup objects.
     """
 
-    _data_normalization: tuple | list | str
     _entity: Curve
     _line_indices: list[int] | np.ndarray
     _max_migration: float
@@ -41,7 +40,6 @@ class LineAnomaly:  # pylint: disable=R0902
         entity,
         line_indices,
         property_groups,
-        data_normalization=(1.0,),
         max_migration=50.0,
         minimal_output=False,
         min_amplitude=25,
@@ -56,7 +54,6 @@ class LineAnomaly:  # pylint: disable=R0902
         :param line_indices: Indices of vertices for line profile.
         :param property_groups: Property groups to use for grouping anomalies.
         :param smoothing: Smoothing factor.
-        :param data_normalization: Value(s) to normalize data by.
         :param min_amplitude: Minimum amplitude of anomaly as percent.
         :param min_value: Minimum data value of anomaly.
         :param min_width: Minimum width of anomaly in meters.
@@ -72,7 +69,6 @@ class LineAnomaly:  # pylint: disable=R0902
         self.entity = entity
         self.line_indices = line_indices
         self.smoothing = smoothing
-        self.data_normalization = data_normalization
         self.min_amplitude = min_amplitude
         self.min_value = min_value
         self.min_width = min_width
@@ -151,17 +147,6 @@ class LineAnomaly:  # pylint: disable=R0902
             raise TypeError("Smoothing must be an integer.")
 
         self._smoothing = value
-
-    @property
-    def data_normalization(self) -> tuple | list | str:
-        """
-        Value(s) to normalize data by.
-        """
-        return self._data_normalization
-
-    @data_normalization.setter
-    def data_normalization(self, value):
-        self._data_normalization = value
 
     @property
     def min_amplitude(self) -> int:
@@ -289,9 +274,6 @@ class LineAnomaly:  # pylint: disable=R0902
         if locs is None:
             return None
 
-        if self.data_normalization == "ppm":
-            self.data_normalization = [1e-6]
-
         line_dataset = {}
         # Iterate over channels and add to anomalies
         for data in self.channels:
@@ -322,7 +304,6 @@ class LineAnomaly:  # pylint: disable=R0902
                 property_group=property_group,
                 max_migration=self.max_migration,
                 min_channels=self.min_channels,
-                data_normalization=self.data_normalization,
                 minimal_output=self.minimal_output,
             )
             line_groups.append(line_group)

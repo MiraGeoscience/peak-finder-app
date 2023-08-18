@@ -9,7 +9,6 @@ from __future__ import annotations
 
 from copy import deepcopy
 
-from geoapps_utils.geophysical_systems import parameters
 from geoh5py.ui_json.constants import default_ui_json as base_ui_json
 
 import peak_finder
@@ -23,7 +22,6 @@ defaults = {
     "data": None,
     "flip_sign": False,
     "line_field": None,
-    "system": None,
     "smoothing": 6,
     "min_amplitude": 1,
     "min_value": None,
@@ -96,14 +94,6 @@ default_ui_json.update(
             "main": True,
             "label": "Line Field",
             "parent": "objects",
-            "value": None,
-        },
-        "system": {
-            "choiceList": list(parameters()),
-            "main": True,
-            "label": "TEM system",
-            "dependency": "tem_checkbox",
-            "dependencyType": "enabled",
             "value": None,
         },
         "smoothing": {

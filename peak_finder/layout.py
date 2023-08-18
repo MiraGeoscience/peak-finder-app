@@ -80,18 +80,21 @@ data_selection_layout = html.Div(
             id="flip_sign",
             options=[{"label": "Flip Y (-1x)", "value": True}],
         ),
+        dcc.Checklist(
+            id="group_settings_visibility",
+            options=[{"label": "Select group colours", "value": True}],
+        ),
     ],
     style={
         "width": "50%",
-        "display": "inline-block",
         "vertical-align": "top",
-        "margin-right": "5%",
     },
 )
 group_settings_layout = html.Div(
     [
         html.Div(
-            [
+            id="group_settings",
+            children=[
                 dcc.Markdown(
                     children="Group Name",
                     style={
@@ -108,64 +111,30 @@ group_settings_layout = html.Div(
                         "vertical-align": "middle",
                     },
                 ),
+                daq.ColorPicker(
+                    id="color_picker",
+                    value=dict(hex="#000000"),
+                    style={
+                        "width": "225px",
+                    },
+                ),
             ],
         ),
-        daq.ColorPicker(
-            id="color_picker",
-            value=dict(hex="#000000"),
-        ),
     ],
-    style={"width": "45%", "display": "inline-block", "vertical-align": "top"},
+    style={"width": "50%", "vertical-align": "top"},
 )
 
-plot_layout = html.Div(
+figure_layout = html.Div(
     [
-        dcc.Graph(id="plot"),
+        dcc.Loading(
+            id="loading", type="default", children=html.Div(dcc.Graph(id="figure"))
+        ),
     ]
 )
 
 visual_params_layout = html.Div(
     [
         dcc.Markdown(children="**Visual Parameters**", style={"margin-bottom": "20px"}),
-        dcc.Markdown(
-            children="Window Center",
-            style={"width": "30%", "display": "inline-block", "vertical-align": "top"},
-        ),
-        html.Div(
-            [
-                dcc.Slider(
-                    id="center",
-                    min=0.0,
-                    max=5000.0,
-                    step=1,
-                    marks=None,
-                    tooltip={
-                        "placement": "bottom",
-                        "always_visible": True,
-                    },
-                ),
-            ],
-            style={"width": "70%", "display": "inline-block", "vertical-align": "top"},
-        ),
-        dcc.Markdown(
-            children="Window Width",
-            style={"width": "30%", "display": "inline-block", "vertical-align": "top"},
-        ),
-        html.Div(
-            [
-                dcc.Slider(
-                    id="width",
-                    marks=None,
-                    min=0.0,
-                    max=5000.0,
-                    tooltip={
-                        "placement": "bottom",
-                        "always_visible": True,
-                    },
-                ),
-            ],
-            style={"width": "70%", "display": "inline-block", "vertical-align": "top"},
-        ),
         html.Div(
             [
                 dcc.Markdown(
@@ -382,14 +351,16 @@ peak_finder_layout = html.Div(
     [
         data_selection_layout,
         group_settings_layout,
-        plot_layout,
+        figure_layout,
         visual_params_layout,
         detection_params_layout,
-        export_layout,
+        html.Div(
+            [
+                export_layout,
+            ],
+            style={"width": "70%", "display": "inline-block", "vertical-align": "top"},
+        ),
         dcc.Store(id="objects"),
-        dcc.Store(id="system"),
         dcc.Store(id="active_channels"),
-        dcc.Store(id="figure_layout"),
-        dcc.Store(id="figure_data"),
     ]
 )

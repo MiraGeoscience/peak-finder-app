@@ -13,7 +13,6 @@ import sys
 import numpy as np
 from dask import compute, delayed
 from dask.diagnostics import ProgressBar
-from geoapps_utils import geophysical_systems
 from geoapps_utils.conversions import hex_to_rgb
 from geoapps_utils.driver.driver import BaseDriver
 from geoapps_utils.formatters import string_name
@@ -43,12 +42,6 @@ class PeakFinderDriver(BaseDriver):
                 pg for pg in survey.property_groups if pg.uid == self.params.data.uid
             ]
 
-            if self.params.tem_checkbox:
-                system = geophysical_systems.parameters()[self.params.system]
-                normalization = system["normalization"]
-            else:
-                normalization = [1]
-
             output_group = ContainerGroup.create(
                 self.params.geoh5, name=string_name(self.params.ga_group_name)
             )
@@ -69,12 +62,6 @@ class PeakFinderDriver(BaseDriver):
 
             for uid, channel_params in active_channels.items():
                 obj = self.params.geoh5.get_entity(uid)[0]
-                if self.params.tem_checkbox:
-                    channel = [ch for ch in system["channels"] if ch in obj.name]
-                    if any(channel):
-                        channel_params["time"] = system["channels"][channel[0]]
-                    else:
-                        continue
                 channel_params["values"] = (
                     obj.values.copy() * (-1.0) ** self.params.flip_sign
                 )
@@ -96,7 +83,6 @@ class PeakFinderDriver(BaseDriver):
                         entity=survey,
                         line_indices=line_indices,
                         property_groups=property_groups,
-                        data_normalization=normalization,
                         smoothing=self.params.smoothing,
                         min_amplitude=self.params.min_amplitude,
                         min_value=self.params.min_value,
