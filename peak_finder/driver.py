@@ -17,7 +17,7 @@ from geoapps_utils.conversions import hex_to_rgb
 from geoapps_utils.driver.driver import BaseDriver
 from geoapps_utils.formatters import string_name
 from geoh5py.groups import ContainerGroup
-from geoh5py.objects import Curve, Points
+from geoh5py.objects import Points
 from geoh5py.shared.utils import fetch_active_workspace
 from tqdm import tqdm
 
@@ -161,15 +161,6 @@ class PeakFinderDriver(BaseDriver):
                     }
                 )
 
-                if self.params.tem_checkbox:
-                    points.add_data(
-                        {
-                            "tau": {"values": np.hstack(tau)},
-                            "azimuth": {"values": azimuth},
-                            "dip": {"values": dip},
-                        }
-                    )
-
                 channel_group_data = points.add_data(
                     {
                         "channel_group": {
@@ -184,77 +175,8 @@ class PeakFinderDriver(BaseDriver):
                     "values": color_map,
                 }
 
-                if self.params.tem_checkbox:
-                    group = points.find_or_create_property_group(
-                        name="AzmDip", property_group_type="Dip direction & dip"
-                    )
-                    group.properties = [
-                        points.get_data("azimuth")[0].uid,
-                        points.get_data("dip")[0].uid,
-                    ]
-
                 # Add structural markers
                 if self.params.structural_markers:
-                    if self.params.tem_checkbox:
-                        markers = []
-
-                        def rotation_2d(angle):
-                            rot = np.r_[
-                                np.c_[
-                                    np.cos(np.pi * angle / 180),
-                                    -np.sin(np.pi * angle / 180),
-                                ],
-                                np.c_[
-                                    np.sin(np.pi * angle / 180),
-                                    np.cos(np.pi * angle / 180),
-                                ],
-                            ]
-                            return rot
-
-                        for azm, xyz, mig in zip(
-                            np.hstack(azimuth).tolist(),
-                            np.vstack(group_center).tolist(),
-                            migration.tolist(),
-                        ):
-                            marker = np.r_[
-                                np.c_[-0.5, 0.0] * 50,
-                                np.c_[0.5, 0] * 50,
-                                np.c_[0.0, 0.0],
-                                np.c_[0.0, 1.0] * mig,
-                            ]
-
-                            marker = (
-                                np.c_[
-                                    np.dot(rotation_2d(-azm), marker.T).T, np.zeros(4)
-                                ]
-                                + xyz
-                            )
-                            markers.append(marker.squeeze())
-
-                        curves = Curve.create(
-                            self.params.geoh5,
-                            name="TickMarkers",
-                            vertices=np.vstack(markers),
-                            cells=np.arange(len(markers) * 4, dtype="uint32").reshape(
-                                (-1, 2)
-                            ),
-                            parent=output_group,
-                        )
-                        channel_group_data = curves.add_data(
-                            {
-                                "channel_group": {
-                                    "type": "referenced",
-                                    "values": np.kron(
-                                        np.hstack(channel_group), np.ones(4)
-                                    ),
-                                    "value_map": group_map,
-                                }
-                            }
-                        )
-                        channel_group_data.entity_type.color_map = {
-                            "name": "Time Groups",
-                            "values": color_map,
-                        }
                     inflect_pts = Points.create(
                         self.params.geoh5,
                         name="Inflections_Up",

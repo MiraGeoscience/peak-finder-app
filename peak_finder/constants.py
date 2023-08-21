@@ -17,7 +17,6 @@ defaults = {
     "version": peak_finder.__version__,
     "title": "Peak Finder Parameters",
     "geoh5": None,
-    "tem_checkbox": False,
     "objects": None,
     "data": None,
     "flip_sign": False,
@@ -57,11 +56,6 @@ default_ui_json.update(
     {
         "version": peak_finder.__version__,
         "title": "Peak Finder Parameters",
-        "tem_checkbox": {
-            "main": True,
-            "label": "TEM type",
-            "value": False,
-        },
         "objects": {
             "main": True,
             "group": "Data",

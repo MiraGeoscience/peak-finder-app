@@ -34,8 +34,6 @@ class PeakFinderParams(BaseParams):  # pylint: disable=R0902, R0904
         self._data: Data | None = None
         self._flip_sign: bool | None = None
         self._line_field: Data | None = None
-        self._tem_checkbox: bool | None = None
-        self._system: str | None = None
         self._smoothing: int | None = None
         self._min_amplitude: int | None = None
         self._min_value: float | None = None
@@ -217,22 +215,6 @@ class PeakFinderParams(BaseParams):  # pylint: disable=R0902, R0904
     @structural_markers.setter
     def structural_markers(self, val):
         self.setter_validator("structural_markers", val)
-
-    @property
-    def system(self):
-        return self._system
-
-    @system.setter
-    def system(self, val):
-        self.setter_validator("system", val)
-
-    @property
-    def tem_checkbox(self):
-        return self._tem_checkbox
-
-    @tem_checkbox.setter
-    def tem_checkbox(self, val):
-        self.setter_validator("tem_checkbox", val)
 
     @property
     def template_data(self):

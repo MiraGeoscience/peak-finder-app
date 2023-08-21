@@ -187,12 +187,10 @@ visual_params_layout = html.Div(
             [
                 dcc.Slider(
                     id="linear_threshold",
-                    min=-18,
+                    min=-10,
                     max=10,
                     step=0.1,
                     marks={
-                        -18: "10E-18",
-                        -15: "10E-15",
                         -10: "10E-10",
                         -5: "10E-5",
                         0: "1",
@@ -333,10 +331,6 @@ detection_params_layout = html.Div(
                 ),
             ],
             style={"width": "70%", "display": "inline-block", "vertical-align": "top"},
-        ),
-        dcc.Checklist(
-            id="show_residual",
-            options=[{"label": "Show Residual", "value": True}],
         ),
     ],
     style={"width": "50%", "display": "inline-block", "vertical-align": "top"},

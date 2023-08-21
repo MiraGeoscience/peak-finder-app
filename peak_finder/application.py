@@ -128,6 +128,7 @@ class PeakFinder(BaseDashApplication):
         )(self.update_active_channels)
         self.app.callback(
             Output(component_id="figure", component_property="figure"),
+            Output(component_id="linear_threshold", component_property="max"),
             Input(component_id="objects", component_property="data"),
             Input(component_id="property_groups", component_property="data"),
             Input(component_id="smoothing", component_property="value"),
@@ -415,35 +416,42 @@ class PeakFinder(BaseDashApplication):
                 line_id,
             )
 
-        figure_data = self.update_figure_data(
+        figure_data, y_min, y_max, thresh_max = self.update_figure_data(
             objects,
             property_groups,
             active_channels,
             show_residual,
+            linear_threshold,
         )
         figure_layout = PeakFinder.update_figure_layout(
             y_scale,
             linear_threshold,
+            y_min,
+            y_max,
             min_value,
             x_label,
         )
 
-        return go.Figure(data=figure_data, layout=figure_layout)
+        return go.Figure(data=figure_data, layout=figure_layout), thresh_max
 
     @staticmethod
     def update_figure_layout(
         y_scale,
         linear_threshold,
+        y_min,
+        y_max,
         min_value,
         x_label,
     ):
         linear_threshold = np.float_power(10, linear_threshold)
 
         if y_scale == "symlog":
-            # plt.yscale("symlog", linthresh=linear_threshold)
-            pass
+            # yaxis_type = "log"
+            yaxis_type = "linear"
+        else:
+            yaxis_type = "linear"
 
-        # y_lims = [np.nanmax([y_min, min_value]), y_max]
+        yaxis_range = [np.nanmax([y_min, min_value]), y_max]
 
         # ticks_loc = axs.get_xticks().tolist()
         # axs.set_xticks(ticks_loc)
@@ -451,9 +459,9 @@ class PeakFinder(BaseDashApplication):
 
         fig_layout = go.Layout(
             xaxis_title=xaxis_title,
-            # xaxis_range=x_lims,
-            # yaxis_range=y_lims,
             yaxis_title="Data",
+            yaxis_type=yaxis_type,
+            yaxis_range=yaxis_range,
         )
         return fig_layout
 
@@ -481,6 +489,7 @@ class PeakFinder(BaseDashApplication):
                 "marker_color": ["black"],
                 "marker_symbol": "circle",
                 "name": "peaks",
+                "legendgroup": "markers",
             }
         trace_dict["peaks"]["x"] += peak_markers_x
         trace_dict["peaks"]["y"] += peak_markers_y
@@ -494,6 +503,7 @@ class PeakFinder(BaseDashApplication):
                 "marker_color": "black",
                 "marker_symbol": "y-right",
                 "name": "start markers",
+                "legendgroup": "markers",
             }
         trace_dict["start markers"]["x"] += start_markers_x
         trace_dict["start markers"]["y"] += start_markers_y
@@ -506,6 +516,7 @@ class PeakFinder(BaseDashApplication):
                 "marker_color": "black",
                 "marker_symbol": "y-left",
                 "name": "end markers",
+                "legendgroup": "markers",
             }
         trace_dict["end markers"]["x"] += end_markers_x
         trace_dict["end markers"]["y"] += end_markers_y
@@ -518,6 +529,7 @@ class PeakFinder(BaseDashApplication):
                 "marker_color": "black",
                 "marker_symbol": "y-down",
                 "name": "up markers",
+                "legendgroup": "markers",
             }
         trace_dict["up markers"]["x"] += up_markers_x
         trace_dict["up markers"]["y"] += up_markers_y
@@ -530,11 +542,73 @@ class PeakFinder(BaseDashApplication):
                 "marker_color": "black",
                 "marker_symbol": "y-up",
                 "name": "down markers",
+                "legendgroup": "markers",
             }
         trace_dict["down markers"]["x"] += dwn_markers_x
         trace_dict["down markers"]["y"] += dwn_markers_y
 
         return trace_dict
+
+    def add_residuals(
+        self,
+        fig_data,
+        values,
+        raw,
+        locs,
+    ):
+        pos_inds = np.where(raw > values)[0]
+        neg_inds = np.where(raw < values)[0]
+
+        pos_residuals = raw.copy()
+        pos_residuals[pos_inds] = values[pos_inds]
+        neg_residuals = raw.copy()
+        neg_residuals[neg_inds] = values[neg_inds]
+
+        fig_data.append(
+            go.Scatter(
+                x=locs,
+                y=values,
+                line={"color": "rgba(0, 0, 0, 0)"},
+                showlegend=False,
+                hoverinfo="skip",
+            ),
+        )
+        fig_data.append(
+            go.Scatter(
+                x=locs,
+                y=pos_residuals,
+                line={"color": "rgba(0, 0, 0, 0)"},
+                fill="tonexty",
+                fillcolor="rgba(255, 0, 0, 0.5)",
+                name="positive residuals",
+                legendgroup="positive residuals",
+                showlegend=False,
+                hoverinfo="skip",
+            )
+        )
+
+        fig_data.append(
+            go.Scatter(
+                x=locs,
+                y=values,
+                line={"color": "rgba(0, 0, 0, 0)"},
+                showlegend=False,
+                hoverinfo="skip",
+            ),
+        )
+        fig_data.append(
+            go.Scatter(
+                x=locs,
+                y=neg_residuals,
+                line={"color": "rgba(0, 0, 0, 0)"},
+                fill="tonexty",
+                fillcolor="rgba(0, 0, 255, 0.5)",
+                name="negative residuals",
+                legendgroup="negative residuals",
+                showlegend=False,
+            )
+        )
+        return fig_data
 
     def update_figure_data(  # pylint: disable=too-many-locals
         self,
@@ -542,7 +616,9 @@ class PeakFinder(BaseDashApplication):
         property_groups,
         active_channels,
         show_residual,
+        linear_threshold,
     ):
+        linear_threshold = np.float_power(10, linear_threshold)
         obj = self.workspace.get_entity(uuid.UUID(objects))[0]
         fig_data = []
 
@@ -552,7 +628,7 @@ class PeakFinder(BaseDashApplication):
             or len(obj.line_indices) < 2
             or len(active_channels) == 0
         ):
-            return fig_data
+            return fig_data, None, None, None
 
         y_min, y_max = np.inf, -np.inf
         locs = self.lines_position.locations_resampled
@@ -573,11 +649,15 @@ class PeakFinder(BaseDashApplication):
                 "hoverinfo": "skip",
             }
         }
+        all_values = []
         for channel_dict in list(active_channels.values()):
             if "values" not in channel_dict:
                 continue
             values = np.array(channel_dict["values"])[obj.line_indices]
-            values, _ = self.lines_position.resample_values(values)
+            values, raw = self.lines_position.resample_values(values)
+            all_values.append(values)
+
+            # values = np.arcsinh(values/linear_threshold)
 
             y_min = np.nanmin([values.min(), y_min])
             y_max = np.nanmax([values.max(), y_max])
@@ -626,6 +706,7 @@ class PeakFinder(BaseDashApplication):
                             "marker_color": "black",
                             "marker_symbol": "arrow-" + ori,
                             "name": "peaks start",
+                            "legendgroup": "markers",
                         }
                     trace_dict[ori + " azimuth"]["x"] += [locs[peaks[i]]]
                     trace_dict[ori + " azimuth"]["y"] += [values[peaks[i]]]
@@ -642,17 +723,15 @@ class PeakFinder(BaseDashApplication):
                 dwn_markers_x += [locs[anomaly_group.anomalies[i].inflect_down]]
                 dwn_markers_y += [values[anomaly_group.anomalies[i].inflect_down]]
 
-            if show_residual:
-                # axs.fill_between(
-                #    locs, values, raw, where=raw > values, color=[1, 0, 0, 0.5]
-                # )
-                # axs.fill_between(
-                #    locs, values, raw, where=raw < values, color=[0, 0, 1, 0.5]
-                # )
-                pass
+            fig_data = self.add_residuals(
+                fig_data,
+                values,
+                raw,
+                locs,
+            )
 
         if np.isinf(y_min):
-            return fig_data
+            return fig_data, None, None, None
 
         trace_dict = self.add_markers(
             trace_dict,
@@ -672,7 +751,30 @@ class PeakFinder(BaseDashApplication):
         for trace in list(trace_dict.values()):
             fig_data.append(go.Scatter(**trace))
 
-        return fig_data
+        fig_data.append(
+            go.Scatter(
+                x=[None],
+                y=[None],
+                line={"color": "rgba(0, 0, 0, 0)"},
+                fillcolor="rgba(1, 0, 0, 0.5)",
+                legendgroup="positive residuals",
+                name="positive residuals",
+            ),
+        )
+        fig_data.append(
+            go.Scatter(
+                x=[None],
+                y=[None],
+                line={"color": "rgba(0, 0, 0, 0)"},
+                fillcolor="rgba(0, 0, 1, 0.5)",
+                legendgroup="negative residuals",
+                name="negative residuals",
+            ),
+        )
+
+        thresh_max = np.log(np.max([np.percentile(all_values, 10), 1]))
+
+        return fig_data, y_min, y_max, thresh_max
 
     def trigger_click(  # pylint: disable=too-many-arguments, too-many-locals
         self,
