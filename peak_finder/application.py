@@ -26,7 +26,6 @@ from geoapps_utils.application.dash_application import (
     ObjectSelection,
 )
 from geoh5py.data import ReferencedData
-from geoh5py.objects import ObjectBase
 from geoh5py.shared.utils import fetch_active_workspace
 from geoh5py.ui_json import InputFile
 
@@ -77,10 +76,6 @@ class PeakFinder(BaseDashApplication):
         self.set_initialized_layout(ui_json_data)
 
         # Set up callbacks
-        # self.app.callback(
-        #
-        #    Input(component_id="figure", component_property="figure")
-        # )(self.loading_figure)
         self.app.callback(
             Output(component_id="loading", component_property="children"),
             Input(component_id="objects", component_property="data"),
@@ -109,12 +104,9 @@ class PeakFinder(BaseDashApplication):
         )(BaseDashApplication.update_visibility_from_checklist)
         self.app.callback(
             Output(component_id="data", component_property="options"),
-            Input(component_id="objects", component_property="data"),
-        )(self.update_data_options)
-        self.app.callback(
             Output(component_id="line_field", component_property="options"),
             Input(component_id="objects", component_property="data"),
-        )(self.update_lines_field_list)
+        )(self.init_data_dropdowns)
         self.app.callback(
             Output(component_id="line_id", component_property="options"),
             Input(component_id="line_field", component_property="value"),
@@ -155,6 +147,19 @@ class PeakFinder(BaseDashApplication):
         self.app.callback(
             Output(component_id="export", component_property="n_clicks"),
             Input(component_id="export", component_property="n_clicks"),
+            Input(component_id="objects", component_property="data"),
+            Input(component_id="data", component_property="value"),
+            Input(component_id="flip_sign", component_property="value"),
+            Input(component_id="line_field", component_property="value"),
+            Input(component_id="smoothing", component_property="value"),
+            Input(component_id="min_amplitude", component_property="value"),
+            Input(component_id="min_value", component_property="value"),
+            Input(component_id="min_width", component_property="value"),
+            Input(component_id="max_migration", component_property="value"),
+            Input(component_id="min_channels", component_property="value"),
+            Input(component_id="line_id", component_property="value"),
+            Input(component_id="property_groups", component_property="data"),
+            Input(component_id="ga_group_name", component_property="value"),
             Input(component_id="monitoring_directory", component_property="value"),
             prevent_initial_call=True,
         )(self.trigger_click)
@@ -181,12 +186,15 @@ class PeakFinder(BaseDashApplication):
 
         # Assemble property groups
         property_groups = self.params.get_property_groups()
+        for value in property_groups.values():
+            value["data"] = str(value["data"])
+            value["properties"] = [str(p) for p in value["properties"]]
         peak_finder_layout.children.append(
             dcc.Store(id="property_groups", data=property_groups)
         )
 
     @staticmethod
-    def loading_figure(
+    def loading_figure(  # pylint: disable=too-many-arguments, too-many-locals
         objects,
         property_groups,
         smoothing,
@@ -203,7 +211,6 @@ class PeakFinder(BaseDashApplication):
         linear_threshold,
         x_label,
     ):
-        time.sleep(1)
         return no_update
 
     @staticmethod
@@ -231,25 +238,20 @@ class PeakFinder(BaseDashApplication):
 
         return property_groups_out, color_picker_out, group_name_options
 
-    def update_data_options(self, objects: str):
+    def init_data_dropdowns(self, objects: str):
         data_options = []
-        group_name_options = []
-        for child in self.workspace.get_entity(uuid.UUID(objects))[0].property_groups:
+        line_field_options = []
+        obj = self.workspace.get_entity(uuid.UUID(objects))[0]
+        for child in obj.property_groups:
             data_options.append(
                 {"label": child.name, "value": "{" + str(child.uid) + "}"}
             )
-            group_name_options.append(child.name)
-        return data_options, group_name_options
-
-    def update_lines_field_list(self, object_uid: str | None):
-        obj = self.workspace.get_entity(uuid.UUID(object_uid))[0]
-        options = []
         for child in obj.children:
             if isinstance(child, ReferencedData):
-                options.append(
+                line_field_options.append(
                     {"label": child.name, "value": "{" + str(child.uid) + "}"}
                 )
-        return options
+        return data_options, line_field_options
 
     def update_lines_list(
         self,
@@ -257,7 +259,7 @@ class PeakFinder(BaseDashApplication):
     ):
         line_field = self.workspace.get_entity(uuid.UUID(line_field))[0]
         options = []
-        for key, value in line_field.value_map.map.items():
+        for key, value in line_field.value_map.map.items():  # type: ignore
             options.append({"label": value, "value": key})
         return options
 
@@ -290,7 +292,8 @@ class PeakFinder(BaseDashApplication):
         d_min, d_max = np.inf, -np.inf
         thresh_value = np.inf
 
-        for uid, params in active_channels.copy().items():
+        keys = list(active_channels.keys())
+        for uid in keys:
             chan = self.workspace.get_entity(uuid.UUID(uid))[0]
             try:
                 active_channels[uid]["values"] = flip_sign * chan.values.copy()
@@ -312,7 +315,7 @@ class PeakFinder(BaseDashApplication):
 
         return active_channels, min_value, linear_threshold
 
-    def line_update(
+    def line_update(  # pylint: disable=too-many-arguments, too-many-locals
         self,
         objects,
         property_groups_dict,
@@ -367,23 +370,7 @@ class PeakFinder(BaseDashApplication):
                 anomalies += line_group.groups
         self.lines_anomalies = anomalies
 
-        # if self.previous_line != line_id:
-        """
-        if self.lines.anomalies is not None and len(self.lines.anomalies) > 0:
-            peaks = np.sort(
-                self.lines.position.locations_resampled[
-                    [group.anomalies[0].peak for group in self.lines.anomalies]
-                ]
-            )
-            current = self.center.value
-            self.group_display.options = np.round(peaks, decimals=1)
-            self.group_display.value = self.group_display.options[
-                np.argmin(np.abs(peaks - current))
-            ]
-        """
-        # self.previous_line = self.lines.lines.value
-
-    def update_figure(
+    def update_figure(  # pylint: disable=too-many-arguments, too-many-locals
         self,
         objects,
         property_groups,
@@ -414,7 +401,7 @@ class PeakFinder(BaseDashApplication):
             "line_field",
             "line_id",
         ]
-        if any([t in triggers for t in update_line_triggers]):
+        if any(t in triggers for t in update_line_triggers):
             self.line_update(
                 objects,
                 property_groups,
@@ -470,7 +457,7 @@ class PeakFinder(BaseDashApplication):
         )
         return fig_layout
 
-    def add_markers(
+    def add_markers(  # pylint: disable=too-many-arguments
         self,
         trace_dict,
         peak_markers_x,
@@ -549,7 +536,7 @@ class PeakFinder(BaseDashApplication):
 
         return trace_dict
 
-    def update_figure_data(
+    def update_figure_data(  # pylint: disable=too-many-locals
         self,
         objects,
         property_groups,
@@ -590,7 +577,7 @@ class PeakFinder(BaseDashApplication):
             if "values" not in channel_dict:
                 continue
             values = np.array(channel_dict["values"])[obj.line_indices]
-            values, raw = self.lines_position.resample_values(values)
+            values, _ = self.lines_position.resample_values(values)
 
             y_min = np.nanmin([values.min(), y_min])
             y_max = np.nanmax([values.max(), y_max])
@@ -687,14 +674,13 @@ class PeakFinder(BaseDashApplication):
 
         return fig_data
 
-    def trigger_click(
+    def trigger_click(  # pylint: disable=too-many-arguments, too-many-locals
         self,
         n_clicks: int,
         objects,
         data,
         flip_sign,
         line_field,
-        system,
         smoothing,
         min_amplitude,
         min_value,
@@ -702,20 +688,10 @@ class PeakFinder(BaseDashApplication):
         max_migration,
         min_channels,
         line_id,
-        center,
-        width,
         property_groups,
         ga_group_name,
         monitoring_directory: str,
     ):
-        """
-        Save the plot as html, write out ui.json.
-
-        :param n_clicks: Trigger export from button.
-        :param monitoring_directory: Output path.
-        :param figure: Figure created by update_plots.
-        """
-
         trigger = callback_context.triggered[0]["prop_id"].split(".")[0]
         if trigger == "export":
             # Update self.params from dash component values
@@ -733,35 +709,33 @@ class PeakFinder(BaseDashApplication):
                 temp_geoh5 = f"{ga_group_name}_{time.time():.0f}.geoh5"
 
                 # Get output workspace.
-                ws, _ = get_output_workspace(
+                workspace, _ = get_output_workspace(
                     False, param_dict["monitoring_directory"], temp_geoh5
                 )
-
-                p_g_uid = {
-                    p_g.uid: p_g.name for p_g in param_dict["objects"].property_groups
-                }
-                with fetch_active_workspace(ws, mode="r+") as new_workspace:
+                with fetch_active_workspace(workspace, mode="r+") as new_workspace:
                     # Put entities in output workspace.
                     param_dict["geoh5"] = new_workspace
-                    for key, value in param_dict.items():
-                        if isinstance(value, ObjectBase):
-                            if new_workspace.get_entity(value.uid)[0] is None:
-                                param_dict[key] = value.copy(
-                                    parent=new_workspace, copy_children=True
-                                )
-                                line_field = [
-                                    c
-                                    for c in param_dict[key].children
-                                    if c.name == "Line"
-                                ]
-                                if line_field:
-                                    param_dict["line_field"] = line_field[0]
-                        elif isinstance(value, uuid.UUID) and value in p_g_uid:
-                            print(value)
-                            param_dict[key] = param_dict[
-                                "objects"
-                            ].find_or_create_property_group(name=p_g_uid[value])
-                            print(param_dict[key])
+                    p_g_orig = {
+                        p_g.uid: p_g.name
+                        for p_g in param_dict["objects"].property_groups
+                    }
+                    param_dict["objects"] = param_dict["objects"].copy(
+                        parent=new_workspace, copy_children=True
+                    )
+                    p_g_new = {
+                        p_g.name: p_g for p_g in param_dict["objects"].property_groups
+                    }
+                    # Add line field
+                    line_field = [
+                        c for c in param_dict["objects"].children if c.name == "Line"
+                    ]
+                    if line_field:
+                        param_dict["line_field"] = line_field[0]
+                    # Add property groups
+                    param_dict["data"] = p_g_new[p_g_orig[uuid.UUID(data)]]
+                    for key, value in property_groups.items():
+                        param_dict[f"group_{value['param']}_data"] = p_g_new[key]
+                        param_dict[f"group_{value['param']}_color"] = value["color"]
 
                     # Write output uijson.
                     new_params = PeakFinderParams(**param_dict)
@@ -770,10 +744,7 @@ class PeakFinder(BaseDashApplication):
                         path=param_dict["monitoring_directory"],
                         validate=False,
                     )
-                    print(new_params.geoh5)
-                    print(new_params.geoh5.h5file)
                     driver = PeakFinderDriver(new_params)
-                    # with new_params.geoh5.open(mode="r+"):
                     driver.run()
 
                 print("Saved to " + param_dict["monitoring_directory"])
@@ -785,8 +756,8 @@ class PeakFinder(BaseDashApplication):
 
 if __name__ == "__main__":
     print("Loading geoh5 file . . .")
-    file = sys.argv[1]
-    ifile = InputFile.read_ui_json(file)
+    FILE = sys.argv[1]
+    ifile = InputFile.read_ui_json(FILE)
     ifile.workspace.open("r")
     print("Loaded. Launching peak finder app . . .")
     ObjectSelection.run("Peak Finder", PeakFinder, ifile)

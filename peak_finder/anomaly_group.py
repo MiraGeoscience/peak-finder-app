@@ -295,7 +295,7 @@ class AnomalyGroup:
         skew = 1.0 - skew
         skew[flip_skew] *= -1
 
-        return skew
+        return np.mean(skew)
 
     def compute_linear_fit(
         self,

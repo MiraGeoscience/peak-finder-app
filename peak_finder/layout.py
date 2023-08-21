@@ -111,9 +111,9 @@ group_settings_layout = html.Div(
                         "vertical-align": "middle",
                     },
                 ),
-                daq.ColorPicker(
+                daq.ColorPicker(  # pylint: disable=not-callable
                     id="color_picker",
-                    value=dict(hex="#000000"),
+                    value={"hex": "#000000"},
                     style={
                         "width": "225px",
                     },
@@ -203,10 +203,6 @@ visual_params_layout = html.Div(
                 ),
             ],
             style={"width": "70%", "display": "inline-block", "vertical-align": "top"},
-        ),
-        dcc.Checklist(
-            id="show_markers",
-            options=[{"label": "Show Markers", "value": True}],
         ),
     ],
     style={"width": "50%", "display": "inline-block", "vertical-align": "top"},

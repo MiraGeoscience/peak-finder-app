@@ -24,7 +24,6 @@ from tqdm import tqdm
 from peak_finder.constants import validations
 from peak_finder.line_anomaly import LineAnomaly
 from peak_finder.params import PeakFinderParams
-from peak_finder.utils import default_groups_from_property_group
 
 
 class PeakFinderDriver(BaseDriver):
@@ -38,9 +37,6 @@ class PeakFinderDriver(BaseDriver):
     def run(self):  # pylint: disable=R0912, R0914, R0915 # noqa: C901
         with fetch_active_workspace(self.params.geoh5, mode="r+"):
             survey = self.params.objects
-            prop_group = [
-                pg for pg in survey.property_groups if pg.uid == self.params.data.uid
-            ]
 
             output_group = ContainerGroup.create(
                 self.params.geoh5, name=string_name(self.params.ga_group_name)
@@ -49,10 +45,7 @@ class PeakFinderDriver(BaseDriver):
             line_field = self.params.line_field
             lines = np.unique(line_field.values)
 
-            if self.params.group_auto and any(prop_group):
-                channel_groups = default_groups_from_property_group(prop_group[0])
-            else:
-                channel_groups = self.params.groups_from_free_params()
+            channel_groups = self.params.get_property_groups()
 
             active_channels = {}
             for group in channel_groups.values():
@@ -160,9 +153,10 @@ class PeakFinderDriver(BaseDriver):
                 dip = np.rad2deg(np.arccos(dip))
                 skew = np.hstack(skew)
                 azimuth = np.hstack(azimuth)
+                amplitude = np.hstack(amplitude)
                 points.add_data(
                     {
-                        "amplitude": {"values": np.hstack(amplitude)},
+                        "amplitude": {"values": amplitude},
                         "skew": {"values": skew},
                     }
                 )

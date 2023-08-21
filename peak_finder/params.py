@@ -72,7 +72,6 @@ class PeakFinderParams(BaseParams):  # pylint: disable=R0902, R0904
                 validations=self.validations,
                 validate=False,
             )
-
         super().__init__(input_file=input_file, **kwargs)
 
     @property
@@ -364,6 +363,9 @@ class PeakFinderParams(BaseParams):  # pylint: disable=R0902, R0904
         self.setter_validator("group_f_color", val)
 
     def get_property_groups(self):
+        """
+        Generate a dictionary of groups with associate properties from params.
+        """
         count = 0
         property_groups = {}
         for name in string.ascii_lowercase[:6]:
@@ -371,30 +373,10 @@ class PeakFinderParams(BaseParams):  # pylint: disable=R0902, R0904
             if prop_group is not None:
                 count += 1
                 property_groups[prop_group.name] = {
-                    "data": str(prop_group.uid),
+                    "param": name,
+                    "data": prop_group.uid,
                     "color": getattr(self, f"group_{name}_color", None),
                     "label": [count],
-                    "properties": [str(prop) for prop in prop_group.properties],
+                    "properties": prop_group.properties,
                 }
         return property_groups
-
-    def groups_from_free_params(self):
-        """
-        Generate a dictionary of groups with associate properties from params.
-        """
-        count = 0
-        channel_groups = {}
-        for group_params in self.free_parameter_dict.values():
-            if group_params["data"] is not None:
-                prop_group = getattr(self, group_params["data"], None)
-
-                if prop_group is not None:
-                    count += 1
-                    channel_groups[prop_group.name] = {
-                        "data": prop_group.uid,
-                        "color": getattr(self, group_params["color"], None),
-                        "label": [count],
-                        "properties": prop_group.properties,
-                    }
-
-        return channel_groups
