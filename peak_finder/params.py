@@ -43,8 +43,6 @@ class PeakFinderParams(BaseParams):  # pylint: disable=R0902, R0904
         self._ga_group_name: str | None = None
         self._structural_markers: bool | None = None
         self._line_id: int | None = None
-        self._center: float | None = None
-        self._width: float | None = None
         self._group_a_data: PropertyGroup | None = None
         self._group_a_color: str | None = None
         self._group_b_data: PropertyGroup | None = None
@@ -71,14 +69,6 @@ class PeakFinderParams(BaseParams):  # pylint: disable=R0902, R0904
                 validate=False,
             )
         super().__init__(input_file=input_file, **kwargs)
-
-    @property
-    def center(self):
-        return self._center
-
-    @center.setter
-    def center(self, val):
-        self.setter_validator("center", val)
 
     @property
     def conda_environment(self):
@@ -239,14 +229,6 @@ class PeakFinderParams(BaseParams):  # pylint: disable=R0902, R0904
     @title.setter
     def title(self, val):
         self.setter_validator("title", val)
-
-    @property
-    def width(self):
-        return self._width
-
-    @width.setter
-    def width(self, val):
-        self.setter_validator("width", val)
 
     @property
     def group_a_data(self):

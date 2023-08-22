@@ -13,6 +13,10 @@ from geoapps_utils.application.layout import export_layout
 
 data_selection_layout = html.Div(
     [
+        dcc.Markdown(
+            children="#### Peak Finder",
+            style={"margin-bottom": "20px"},
+        ),
         html.Div(
             [
                 dcc.Markdown(
@@ -101,6 +105,7 @@ group_settings_layout = html.Div(
                         "width": "30%",
                         "display": "inline-block",
                         "vertical-align": "middle",
+                        "horizontal-align": "right",
                     },
                 ),
                 dcc.Dropdown(
@@ -109,6 +114,7 @@ group_settings_layout = html.Div(
                         "width": "70%",
                         "display": "inline-block",
                         "vertical-align": "middle",
+                        "margin-bottom": "5px",
                     },
                 ),
                 daq.ColorPicker(  # pylint: disable=not-callable
@@ -116,6 +122,7 @@ group_settings_layout = html.Div(
                     value={"hex": "#000000"},
                     style={
                         "width": "225px",
+                        "margin-left": "22%",
                     },
                 ),
             ],
@@ -129,7 +136,7 @@ figure_layout = html.Div(
         dcc.Loading(
             id="loading", type="default", children=html.Div(dcc.Graph(id="figure"))
         ),
-    ]
+    ],
 )
 
 visual_params_layout = html.Div(
@@ -155,7 +162,8 @@ visual_params_layout = html.Div(
                     },
                     value="Distance",
                 ),
-            ]
+            ],
+            style={"margin-bottom": "10px"},
         ),
         html.Div(
             [
@@ -177,7 +185,8 @@ visual_params_layout = html.Div(
                     },
                     value="symlog",
                 ),
-            ]
+            ],
+            style={"margin-bottom": "10px"},
         ),
         dcc.Markdown(
             children="Linear threshold",
@@ -200,10 +209,20 @@ visual_params_layout = html.Div(
                     value=-2,
                 ),
             ],
-            style={"width": "70%", "display": "inline-block", "vertical-align": "top"},
+            style={
+                "width": "70%",
+                "display": "inline-block",
+                "vertical-align": "top",
+                "margin-bottom": "10px",
+            },
         ),
     ],
-    style={"width": "50%", "display": "inline-block", "vertical-align": "top"},
+    style={
+        "width": "45%",
+        "display": "inline-block",
+        "vertical-align": "top",
+        "margin-right": "5%",
+    },
 )
 
 detection_params_layout = html.Div(
@@ -229,7 +248,12 @@ detection_params_layout = html.Div(
                     },
                 ),
             ],
-            style={"width": "70%", "display": "inline-block", "vertical-align": "top"},
+            style={
+                "width": "70%",
+                "display": "inline-block",
+                "vertical-align": "top",
+                "margin-bottom": "10px",
+            },
         ),
         dcc.Markdown(
             children="Minimum Amplitude (%)",
@@ -239,9 +263,9 @@ detection_params_layout = html.Div(
             [
                 dcc.Slider(
                     id="min_amplitude",
-                    min=0,
-                    max=100,
-                    step=1,
+                    min=0.0,
+                    max=100.0,
+                    step=0.1,
                     marks=None,
                     tooltip={
                         "placement": "bottom",
@@ -249,7 +273,12 @@ detection_params_layout = html.Div(
                     },
                 ),
             ],
-            style={"width": "70%", "display": "inline-block", "vertical-align": "top"},
+            style={
+                "width": "70%",
+                "display": "inline-block",
+                "vertical-align": "top",
+                "margin-bottom": "10px",
+            },
         ),
         html.Div(
             [
@@ -270,7 +299,8 @@ detection_params_layout = html.Div(
                         "vertical-align": "middle",
                     },
                 ),
-            ]
+            ],
+            style={"margin-bottom": "10px"},
         ),
         dcc.Markdown(
             children="Minimum Width (m)",
@@ -290,7 +320,12 @@ detection_params_layout = html.Div(
                     },
                 ),
             ],
-            style={"width": "70%", "display": "inline-block", "vertical-align": "top"},
+            style={
+                "width": "70%",
+                "display": "inline-block",
+                "vertical-align": "top",
+                "margin-bottom": "10px",
+            },
         ),
         dcc.Markdown(
             children="Max Peak Migration",
@@ -310,7 +345,12 @@ detection_params_layout = html.Div(
                     },
                 ),
             ],
-            style={"width": "70%", "display": "inline-block", "vertical-align": "top"},
+            style={
+                "width": "70%",
+                "display": "inline-block",
+                "vertical-align": "top",
+                "margin-bottom": "10px",
+            },
         ),
         dcc.Markdown(
             children="Minimum # Channels",
@@ -330,10 +370,15 @@ detection_params_layout = html.Div(
                     },
                 ),
             ],
-            style={"width": "70%", "display": "inline-block", "vertical-align": "top"},
+            style={
+                "width": "70%",
+                "display": "inline-block",
+                "vertical-align": "top",
+                "margin-bottom": "10px",
+            },
         ),
     ],
-    style={"width": "50%", "display": "inline-block", "vertical-align": "top"},
+    style={"width": "45%", "display": "inline-block", "vertical-align": "top"},
 )
 
 
@@ -352,5 +397,5 @@ peak_finder_layout = html.Div(
         ),
         dcc.Store(id="objects"),
         dcc.Store(id="active_channels"),
-    ]
+    ],
 )

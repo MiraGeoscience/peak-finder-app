@@ -18,7 +18,7 @@ from pathlib import Path
 import numpy as np
 import plotly.graph_objects as go
 from dash import Dash, callback_context, ctx, dcc, no_update
-from dash.dependencies import Input, Output
+from dash.dependencies import Input, Output, State
 from flask import Flask
 from geoapps_utils.application.application import get_output_workspace
 from geoapps_utils.application.dash_application import (
@@ -49,19 +49,7 @@ class PeakFinder(BaseDashApplication):
     _lines_anomalies = None
 
     def __init__(self, ui_json=None, ui_json_data=None, params=None):
-        if params is not None:
-            # Launched from notebook
-            # Params for initialization are coming from params
-            # ui_json_data is provided
-            self.params = params
-        elif ui_json is not None and Path(ui_json.path).exists():
-            # Launched from terminal
-            # Params for initialization are coming from ui_json
-            # ui_json_data starts as None
-            self.params = self._param_class(ui_json)
-            ui_json_data = self.params.input_file.demote(self.params.to_dict())
-
-        super().__init__()
+        super().__init__(ui_json, ui_json_data, params)
 
         # Start flask server
         external_stylesheets = ["https://codepen.io/chriddyp/pen/bWLwgP.css"]
@@ -73,11 +61,11 @@ class PeakFinder(BaseDashApplication):
         )
 
         # Getting app layout
-        self.set_initialized_layout(ui_json_data)
+        self.set_initialized_layout()
 
         # Set up callbacks
-        self.app.callback(
-            Output(component_id="loading", component_property="children"),
+        figure_inputs = [
+            Input(component_id="figure", component_property="figure"),
             Input(component_id="objects", component_property="data"),
             Input(component_id="property_groups", component_property="data"),
             Input(component_id="smoothing", component_property="value"),
@@ -89,10 +77,13 @@ class PeakFinder(BaseDashApplication):
             Input(component_id="line_field", component_property="value"),
             Input(component_id="line_id", component_property="value"),
             Input(component_id="active_channels", component_property="data"),
-            Input(component_id="show_residual", component_property="value"),
             Input(component_id="y_scale", component_property="value"),
             Input(component_id="linear_threshold", component_property="value"),
             Input(component_id="x_label", component_property="value"),
+        ]
+        self.app.callback(
+            Output(component_id="loading", component_property="children"),
+            *figure_inputs,
         )(PeakFinder.loading_figure)
         self.app.callback(
             Output(component_id="linear_threshold", component_property="disabled"),
@@ -129,39 +120,25 @@ class PeakFinder(BaseDashApplication):
         self.app.callback(
             Output(component_id="figure", component_property="figure"),
             Output(component_id="linear_threshold", component_property="max"),
-            Input(component_id="objects", component_property="data"),
-            Input(component_id="property_groups", component_property="data"),
-            Input(component_id="smoothing", component_property="value"),
-            Input(component_id="max_migration", component_property="value"),
-            Input(component_id="min_channels", component_property="value"),
-            Input(component_id="min_amplitude", component_property="value"),
-            Input(component_id="min_value", component_property="value"),
-            Input(component_id="min_width", component_property="value"),
-            Input(component_id="line_field", component_property="value"),
-            Input(component_id="line_id", component_property="value"),
-            Input(component_id="active_channels", component_property="data"),
-            Input(component_id="show_residual", component_property="value"),
-            Input(component_id="y_scale", component_property="value"),
-            Input(component_id="linear_threshold", component_property="value"),
-            Input(component_id="x_label", component_property="value"),
+            *figure_inputs,
         )(self.update_figure)
         self.app.callback(
-            Output(component_id="export", component_property="n_clicks"),
+            Output(component_id="output_message", component_property="children"),
             Input(component_id="export", component_property="n_clicks"),
-            Input(component_id="objects", component_property="data"),
-            Input(component_id="data", component_property="value"),
-            Input(component_id="flip_sign", component_property="value"),
-            Input(component_id="line_field", component_property="value"),
-            Input(component_id="smoothing", component_property="value"),
-            Input(component_id="min_amplitude", component_property="value"),
-            Input(component_id="min_value", component_property="value"),
-            Input(component_id="min_width", component_property="value"),
-            Input(component_id="max_migration", component_property="value"),
-            Input(component_id="min_channels", component_property="value"),
-            Input(component_id="line_id", component_property="value"),
-            Input(component_id="property_groups", component_property="data"),
-            Input(component_id="ga_group_name", component_property="value"),
-            Input(component_id="monitoring_directory", component_property="value"),
+            State(component_id="objects", component_property="data"),
+            State(component_id="data", component_property="value"),
+            State(component_id="flip_sign", component_property="value"),
+            State(component_id="line_field", component_property="value"),
+            State(component_id="smoothing", component_property="value"),
+            State(component_id="min_amplitude", component_property="value"),
+            State(component_id="min_value", component_property="value"),
+            State(component_id="min_width", component_property="value"),
+            State(component_id="max_migration", component_property="value"),
+            State(component_id="min_channels", component_property="value"),
+            State(component_id="line_id", component_property="value"),
+            State(component_id="property_groups", component_property="data"),
+            State(component_id="ga_group_name", component_property="value"),
+            State(component_id="monitoring_directory", component_property="value"),
             prevent_initial_call=True,
         )(self.trigger_click)
 
@@ -181,9 +158,9 @@ class PeakFinder(BaseDashApplication):
     def lines_anomalies(self, value):
         self._lines_anomalies = value
 
-    def set_initialized_layout(self, ui_json_data):
+    def set_initialized_layout(self):
         self.app.layout = peak_finder_layout
-        BaseDashApplication.init_vals(self.app.layout.children, ui_json_data)
+        BaseDashApplication.init_vals(self.app.layout.children, self._ui_json_data)
 
         # Assemble property groups
         property_groups = self.params.get_property_groups()
@@ -195,23 +172,7 @@ class PeakFinder(BaseDashApplication):
         )
 
     @staticmethod
-    def loading_figure(  # pylint: disable=too-many-arguments, too-many-locals
-        objects,
-        property_groups,
-        smoothing,
-        max_migration,
-        min_channels,
-        min_amplitude,
-        min_value,
-        min_width,
-        line_field,
-        line_id,
-        active_channels,
-        show_residual,
-        y_scale,
-        linear_threshold,
-        x_label,
-    ):
+    def loading_figure(*args):
         return no_update
 
     @staticmethod
@@ -373,6 +334,7 @@ class PeakFinder(BaseDashApplication):
 
     def update_figure(  # pylint: disable=too-many-arguments, too-many-locals
         self,
+        figure,
         objects,
         property_groups,
         smoothing,
@@ -384,7 +346,6 @@ class PeakFinder(BaseDashApplication):
         line_field,
         line_id,
         active_channels,
-        show_residual,
         y_scale,
         linear_threshold,
         x_label,
@@ -420,10 +381,10 @@ class PeakFinder(BaseDashApplication):
             objects,
             property_groups,
             active_channels,
-            show_residual,
             linear_threshold,
         )
         figure_layout = PeakFinder.update_figure_layout(
+            figure,
             y_scale,
             linear_threshold,
             y_min,
@@ -435,7 +396,8 @@ class PeakFinder(BaseDashApplication):
         return go.Figure(data=figure_data, layout=figure_layout), thresh_max
 
     @staticmethod
-    def update_figure_layout(
+    def update_figure_layout(  # pylint: disable=too-many-arguments
+        figure,
         y_scale,
         linear_threshold,
         y_min,
@@ -443,26 +405,30 @@ class PeakFinder(BaseDashApplication):
         min_value,
         x_label,
     ):
+        if figure is None:
+            layout_dict = {}
+        else:
+            layout_dict = figure["layout"]
+
         linear_threshold = np.float_power(10, linear_threshold)
 
         if y_scale == "symlog":
-            # yaxis_type = "log"
-            yaxis_type = "linear"
+            layout_dict.update({"yaxis_type": "linear"})
         else:
-            yaxis_type = "linear"
+            layout_dict.update({"yaxis_type": "linear"})
 
         yaxis_range = [np.nanmax([y_min, min_value]), y_max]
 
-        # ticks_loc = axs.get_xticks().tolist()
-        # axs.set_xticks(ticks_loc)
-        xaxis_title = x_label + " (m)"
-
-        fig_layout = go.Layout(
-            xaxis_title=xaxis_title,
-            yaxis_title="Data",
-            yaxis_type=yaxis_type,
-            yaxis_range=yaxis_range,
+        layout_dict.update(
+            {
+                "yaxis_range": yaxis_range,
+                "xaxis_title": x_label + " (m)",
+                "yaxis_title": "Data",
+            }
         )
+
+        fig_layout = go.Layout(layout_dict)
+
         return fig_layout
 
     def add_markers(  # pylint: disable=too-many-arguments
@@ -481,71 +447,86 @@ class PeakFinder(BaseDashApplication):
         dwn_markers_y,
     ):
         # Add markers
-        if "peaks" not in trace_dict:
-            trace_dict["peaks"] = {
+        if "peaks" not in trace_dict["markers"]:
+            trace_dict["markers"]["peaks"] = {
                 "x": [None],
                 "y": [None],
                 "mode": "markers",
                 "marker_color": ["black"],
                 "marker_symbol": "circle",
+                "marker_size": 8,
                 "name": "peaks",
                 "legendgroup": "markers",
+                "showlegend": False,
+                "visible": "legendonly",
             }
-        trace_dict["peaks"]["x"] += peak_markers_x
-        trace_dict["peaks"]["y"] += peak_markers_y
-        trace_dict["peaks"]["marker_color"] += peak_markers_c
+        trace_dict["markers"]["peaks"]["x"] += peak_markers_x
+        trace_dict["markers"]["peaks"]["y"] += peak_markers_y
+        trace_dict["markers"]["peaks"]["marker_color"] += peak_markers_c
 
-        if "start markers" not in trace_dict:
-            trace_dict["start markers"] = {
+        if "start_markers" not in trace_dict["markers"]:
+            trace_dict["markers"]["start_markers"] = {
                 "x": [None],
                 "y": [None],
                 "mode": "markers",
                 "marker_color": "black",
                 "marker_symbol": "y-right",
+                "marker_size": 8,
                 "name": "start markers",
                 "legendgroup": "markers",
+                "showlegend": False,
+                "visible": "legendonly",
             }
-        trace_dict["start markers"]["x"] += start_markers_x
-        trace_dict["start markers"]["y"] += start_markers_y
+        trace_dict["markers"]["start_markers"]["x"] += start_markers_x
+        trace_dict["markers"]["start_markers"]["y"] += start_markers_y
 
-        if "end markers" not in trace_dict:
-            trace_dict["end markers"] = {
+        if "end_markers" not in trace_dict["markers"]:
+            trace_dict["markers"]["end_markers"] = {
                 "x": [None],
                 "y": [None],
                 "mode": "markers",
                 "marker_color": "black",
                 "marker_symbol": "y-left",
+                "marker_size": 8,
                 "name": "end markers",
                 "legendgroup": "markers",
+                "showlegend": False,
+                "visible": "legendonly",
             }
-        trace_dict["end markers"]["x"] += end_markers_x
-        trace_dict["end markers"]["y"] += end_markers_y
+        trace_dict["markers"]["end_markers"]["x"] += end_markers_x
+        trace_dict["markers"]["end_markers"]["y"] += end_markers_y
 
-        if "up markers" not in trace_dict:
-            trace_dict["up markers"] = {
+        if "up_markers" not in trace_dict["markers"]:
+            trace_dict["markers"]["up_markers"] = {
                 "x": [None],
                 "y": [None],
                 "mode": "markers",
                 "marker_color": "black",
                 "marker_symbol": "y-down",
+                "marker_size": 8,
                 "name": "up markers",
                 "legendgroup": "markers",
+                "showlegend": False,
+                "visible": "legendonly",
             }
-        trace_dict["up markers"]["x"] += up_markers_x
-        trace_dict["up markers"]["y"] += up_markers_y
+        trace_dict["markers"]["up_markers"]["x"] += up_markers_x
+        trace_dict["markers"]["up_markers"]["y"] += up_markers_y
 
-        if "down markers" not in trace_dict:
-            trace_dict["down markers"] = {
+        if "down_markers" not in trace_dict["markers"]:
+            trace_dict["markers"]["down_markers"] = {
                 "x": [None],
                 "y": [None],
                 "mode": "markers",
                 "marker_color": "black",
                 "marker_symbol": "y-up",
+                "marker_size": 8,
                 "name": "down markers",
                 "legendgroup": "markers",
+                "showlegend": False,
+                "visible": "legendonly",
             }
-        trace_dict["down markers"]["x"] += dwn_markers_x
-        trace_dict["down markers"]["y"] += dwn_markers_y
+        trace_dict["markers"]["down_markers"]["x"] += dwn_markers_x
+        trace_dict["markers"]["down_markers"]["y"] += dwn_markers_y
 
         return trace_dict
 
@@ -583,7 +564,7 @@ class PeakFinder(BaseDashApplication):
                 name="positive residuals",
                 legendgroup="positive residuals",
                 showlegend=False,
-                hoverinfo="skip",
+                visible="legendonly",
             )
         )
 
@@ -606,6 +587,7 @@ class PeakFinder(BaseDashApplication):
                 name="negative residuals",
                 legendgroup="negative residuals",
                 showlegend=False,
+                visible="legendonly",
             )
         )
         return fig_data
@@ -615,7 +597,6 @@ class PeakFinder(BaseDashApplication):
         objects,
         property_groups,
         active_channels,
-        show_residual,
         linear_threshold,
     ):
         linear_threshold = np.float_power(10, linear_threshold)
@@ -640,14 +621,18 @@ class PeakFinder(BaseDashApplication):
 
         trace_dict = {
             "lines": {
-                "x": [None],
-                "y": [None],
-                "mode": "lines",
-                "name": "full lines",
-                "line_color": "lightgrey",
-                "showlegend": False,
-                "hoverinfo": "skip",
-            }
+                "lines": {
+                    "x": [None],
+                    "y": [None],
+                    "mode": "lines",
+                    "name": "full lines",
+                    "line_color": "lightgrey",
+                    "showlegend": False,
+                    "hoverinfo": "skip",
+                }
+            },
+            "property_groups": {},
+            "markers": {},
         }
         all_values = []
         for channel_dict in list(active_channels.values()):
@@ -662,8 +647,8 @@ class PeakFinder(BaseDashApplication):
             y_min = np.nanmin([values.min(), y_min])
             y_max = np.nanmax([values.max(), y_max])
 
-            trace_dict["lines"]["x"] += list(locs) + [None]
-            trace_dict["lines"]["y"] += list(values) + [None]
+            trace_dict["lines"]["lines"]["x"] += list(locs) + [None]
+            trace_dict["lines"]["lines"]["y"] += list(values) + [None]
 
             for anomaly_group in self.lines_anomalies:
                 channels = np.array(
@@ -680,16 +665,20 @@ class PeakFinder(BaseDashApplication):
                 start = anomaly_group.anomalies[i].start
                 end = anomaly_group.anomalies[i].end
 
-                if group_name not in trace_dict:
-                    trace_dict[group_name] = {
+                if group_name not in trace_dict["property_groups"]:
+                    trace_dict["property_groups"][group_name] = {
                         "x": [None],
                         "y": [None],
                         "mode": "lines",
                         "line_color": color,
                         "name": group_name,
                     }
-                trace_dict[group_name]["x"] += list(locs[start:end]) + [None]
-                trace_dict[group_name]["y"] += list(values[start:end]) + [None]
+                trace_dict["property_groups"][group_name]["x"] += list(
+                    locs[start:end]
+                ) + [None]
+                trace_dict["property_groups"][group_name]["y"] += list(
+                    values[start:end]
+                ) + [None]
 
                 if anomaly_group.azimuth < 180:
                     ori = "right"
@@ -698,18 +687,21 @@ class PeakFinder(BaseDashApplication):
 
                 # Add markers
                 if i == 0:
-                    if ori + " azimuth" not in trace_dict:
-                        trace_dict[ori + " azimuth"] = {
+                    if ori + "_azimuth" not in trace_dict["markers"]:
+                        trace_dict["markers"][ori + "_azimuth"] = {
                             "x": [None],
                             "y": [None],
                             "mode": "markers",
                             "marker_color": "black",
                             "marker_symbol": "arrow-" + ori,
+                            "marker_size": 8,
                             "name": "peaks start",
                             "legendgroup": "markers",
+                            "showlegend": False,
+                            "visible": "legendonly",
                         }
-                    trace_dict[ori + " azimuth"]["x"] += [locs[peaks[i]]]
-                    trace_dict[ori + " azimuth"]["y"] += [values[peaks[i]]]
+                    trace_dict["markers"][ori + "_azimuth"]["x"] += [locs[peaks[i]]]
+                    trace_dict["markers"][ori + "_azimuth"]["y"] += [values[peaks[i]]]
 
                 peak_markers_x += [locs[peaks[i]]]
                 peak_markers_y += [values[peaks[i]]]
@@ -748,27 +740,44 @@ class PeakFinder(BaseDashApplication):
             dwn_markers_y,
         )
 
-        for trace in list(trace_dict.values()):
-            fig_data.append(go.Scatter(**trace))
+        for trace_name in ["lines", "property_groups", "markers"]:
+            for trace in list(trace_dict[trace_name].values()):
+                fig_data.append(go.Scatter(**trace))
 
         fig_data.append(
             go.Scatter(
                 x=[None],
                 y=[None],
-                line={"color": "rgba(0, 0, 0, 0)"},
-                fillcolor="rgba(1, 0, 0, 0.5)",
-                legendgroup="positive residuals",
-                name="positive residuals",
+                mode="markers",
+                marker_color="black",
+                marker_symbol="circle",
+                legendgroup="markers",
+                name="markers",
+                visible="legendonly",
             ),
         )
         fig_data.append(
             go.Scatter(
                 x=[None],
                 y=[None],
-                line={"color": "rgba(0, 0, 0, 0)"},
-                fillcolor="rgba(0, 0, 1, 0.5)",
+                mode="lines",
+                line_color="rgba(255, 0, 0, 0.5)",
+                line_width=8,
+                legendgroup="positive residuals",
+                name="positive residuals",
+                visible="legendonly",
+            ),
+        )
+        fig_data.append(
+            go.Scatter(
+                x=[None],
+                y=[None],
+                mode="lines",
+                line_color="rgba(0, 0, 255, 0.5)",
+                line_width=8,
                 legendgroup="negative residuals",
                 name="negative residuals",
+                visible="legendonly",
             ),
         )
 
@@ -794,73 +803,71 @@ class PeakFinder(BaseDashApplication):
         ga_group_name,
         monitoring_directory: str,
     ):
-        trigger = callback_context.triggered[0]["prop_id"].split(".")[0]
-        if trigger == "export":
-            # Update self.params from dash component values
-            param_dict = self.get_params_dict(locals())
+        # Update self.params from dash component values
+        param_dict = self.get_params_dict(locals())
 
-            # Get output path.
-            if (
-                monitoring_directory is not None
-                and monitoring_directory != ""
-                and Path(monitoring_directory).is_dir()
-            ):
-                param_dict["monitoring_directory"] = str(
-                    Path(monitoring_directory).resolve()
+        # Get output path.
+        if (
+            monitoring_directory is not None
+            and monitoring_directory != ""
+            and Path(monitoring_directory).is_dir()
+        ):
+            param_dict["monitoring_directory"] = str(
+                Path(monitoring_directory).resolve()
+            )
+            temp_geoh5 = f"{ga_group_name}_{time.time():.0f}.geoh5"
+
+            # Get output workspace.
+            workspace, _ = get_output_workspace(
+                False, param_dict["monitoring_directory"], temp_geoh5
+            )
+            with fetch_active_workspace(workspace, mode="r+") as new_workspace:
+                # Put entities in output workspace.
+                param_dict["geoh5"] = new_workspace
+                p_g_orig = {
+                    p_g.uid: p_g.name for p_g in param_dict["objects"].property_groups
+                }
+                param_dict["objects"] = param_dict["objects"].copy(
+                    parent=new_workspace, copy_children=True
                 )
-                temp_geoh5 = f"{ga_group_name}_{time.time():.0f}.geoh5"
+                p_g_new = {
+                    p_g.name: p_g for p_g in param_dict["objects"].property_groups
+                }
+                # Add line field
+                line_field = [
+                    c for c in param_dict["objects"].children if c.name == "Line"
+                ]
+                if line_field:
+                    param_dict["line_field"] = line_field[0]
+                # Add property groups
+                param_dict["data"] = p_g_new[p_g_orig[uuid.UUID(data)]]
+                for key, value in property_groups.items():
+                    param_dict[f"group_{value['param']}_data"] = p_g_new[key]
+                    param_dict[f"group_{value['param']}_color"] = value["color"]
 
-                # Get output workspace.
-                workspace, _ = get_output_workspace(
-                    False, param_dict["monitoring_directory"], temp_geoh5
+                # Write output uijson.
+                new_params = PeakFinderParams(**param_dict)
+                new_params.write_input_file(
+                    name=temp_geoh5.replace(".geoh5", ".ui.json"),
+                    path=param_dict["monitoring_directory"],
+                    validate=False,
                 )
-                with fetch_active_workspace(workspace, mode="r+") as new_workspace:
-                    # Put entities in output workspace.
-                    param_dict["geoh5"] = new_workspace
-                    p_g_orig = {
-                        p_g.uid: p_g.name
-                        for p_g in param_dict["objects"].property_groups
-                    }
-                    param_dict["objects"] = param_dict["objects"].copy(
-                        parent=new_workspace, copy_children=True
-                    )
-                    p_g_new = {
-                        p_g.name: p_g for p_g in param_dict["objects"].property_groups
-                    }
-                    # Add line field
-                    line_field = [
-                        c for c in param_dict["objects"].children if c.name == "Line"
-                    ]
-                    if line_field:
-                        param_dict["line_field"] = line_field[0]
-                    # Add property groups
-                    param_dict["data"] = p_g_new[p_g_orig[uuid.UUID(data)]]
-                    for key, value in property_groups.items():
-                        param_dict[f"group_{value['param']}_data"] = p_g_new[key]
-                        param_dict[f"group_{value['param']}_color"] = value["color"]
+                driver = PeakFinderDriver(new_params)
+                driver.run()
 
-                    # Write output uijson.
-                    new_params = PeakFinderParams(**param_dict)
-                    new_params.write_input_file(
-                        name=temp_geoh5.replace(".geoh5", ".ui.json"),
-                        path=param_dict["monitoring_directory"],
-                        validate=False,
-                    )
-                    driver = PeakFinderDriver(new_params)
-                    driver.run()
-
-                print("Saved to " + param_dict["monitoring_directory"])
-            else:
-                print("Invalid output path.")
-
-        return no_update
+            return ["Saved to " + param_dict["monitoring_directory"]]
+        return ["Invalid output path."]
 
 
 if __name__ == "__main__":
     print("Loading geoh5 file . . .")
     FILE = sys.argv[1]
     ifile = InputFile.read_ui_json(FILE)
-    ifile.workspace.open("r")
-    print("Loaded. Launching peak finder app . . .")
-    ObjectSelection.run("Peak Finder", PeakFinder, ifile)
+    if ifile.data["launch_dash"]:
+        ifile.workspace.open("r")
+        print("Loaded. Launching peak finder app . . .")
+        ObjectSelection.run("Peak Finder", PeakFinder, ifile)
+    else:
+        print("Loaded. Running peak finder driver . . .")
+        PeakFinderDriver.start(FILE)
     print("Done")
