@@ -103,7 +103,6 @@ def test_peak_finder_app(tmp_path: Path):  # pylint: disable=too-many-locals
     app.trigger_click(
         n_clicks=0,
         objects=objects,
-        data=str(curve.find_or_create_property_group(name="obs").uid),
         flip_sign=[],
         line_field=line_field,
         smoothing=smoothing,

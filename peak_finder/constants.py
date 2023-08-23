@@ -56,28 +56,13 @@ default_ui_json.update(
     {
         "version": peak_finder.__version__,
         "title": "Peak Finder Parameters",
-        "launch_dash": {
-            "main": True,
-            "label": "Run interactive app",
-            "value": True,
-        },
         "objects": {
-            "main": False,
+            "main": True,
             "group": "Data",
             "label": "Object",
             "meshType": [
                 "{6A057FDC-B355-11E3-95BE-FD84A7FFCB88}",
             ],
-            "value": None,
-        },
-        "data": {
-            "association": "Vertex",
-            "dataType": "Float",
-            "group": "Data",
-            "main": False,
-            "dataGroupType": "Multi-element",
-            "label": "Channels",
-            "parent": "objects",
             "value": None,
         },
         "flip_sign": {
@@ -90,7 +75,7 @@ default_ui_json.update(
             "association": "Vertex",
             "dataType": "Referenced",
             "group": "Data",
-            "main": False,
+            "main": True,
             "label": "Line Field",
             "parent": "objects",
             "value": None,
@@ -146,7 +131,7 @@ default_ui_json.update(
         },
         "line_id": None,
         "group_a_data": {
-            "main": False,
+            "main": True,
             "association": "Vertex",
             "group": "Group A",
             "dataGroupType": "Multi-element",
@@ -155,7 +140,7 @@ default_ui_json.update(
             "value": None,
         },
         "group_a_color": {
-            "main": False,
+            "main": True,
             "dataType": "Text",
             "group": "Group A",
             "label": "Color",
@@ -260,6 +245,11 @@ default_ui_json.update(
             "dependency": "group_f_data",
             "dependencyType": "enabled",
             "value": None,
+        },
+        "launch_dash": {
+            "main": True,
+            "label": "Run interactive app",
+            "value": True,
         },
         "conda_environment": "geoapps",
         "run_command": "geoapps.peak_finder.driver",

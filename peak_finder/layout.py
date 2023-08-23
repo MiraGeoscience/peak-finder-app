@@ -20,27 +20,6 @@ data_selection_layout = html.Div(
         html.Div(
             [
                 dcc.Markdown(
-                    children="Data",
-                    style={
-                        "width": "30%",
-                        "display": "inline-block",
-                        "vertical-align": "middle",
-                    },
-                ),
-                dcc.Dropdown(
-                    id="data",
-                    style={
-                        "width": "70%",
-                        "display": "inline-block",
-                        "vertical-align": "middle",
-                    },
-                ),
-            ],
-            style={"margin-bottom": "20px"},
-        ),
-        html.Div(
-            [
-                dcc.Markdown(
                     children="Lines Field",
                     style={
                         "width": "30%",
@@ -391,6 +370,10 @@ peak_finder_layout = html.Div(
         detection_params_layout,
         html.Div(
             [
+                dcc.Checklist(
+                    id="structural_markers",
+                    options=[{"label": "Export all markers", "value": True}],
+                ),
                 export_layout,
             ],
             style={"width": "70%", "display": "inline-block", "vertical-align": "top"},

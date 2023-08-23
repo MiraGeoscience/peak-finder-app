@@ -106,10 +106,9 @@ class PeakFinder(BaseDashApplication):
             Input(component_id="group_settings_visibility", component_property="value"),
         )(BaseDashApplication.update_visibility_from_checklist)
         self.app.callback(
-            Output(component_id="data", component_property="options"),
             Output(component_id="line_field", component_property="options"),
             Input(component_id="objects", component_property="data"),
-        )(self.init_data_dropdowns)
+        )(self.init_line_field_dropdown)
         self.app.callback(
             Output(component_id="line_id", component_property="options"),
             Input(component_id="line_field", component_property="value"),
@@ -139,7 +138,6 @@ class PeakFinder(BaseDashApplication):
             Output(component_id="output_message", component_property="children"),
             Input(component_id="export", component_property="n_clicks"),
             State(component_id="objects", component_property="data"),
-            State(component_id="data", component_property="value"),
             State(component_id="flip_sign", component_property="value"),
             State(component_id="line_field", component_property="value"),
             State(component_id="smoothing", component_property="value"),
@@ -150,6 +148,7 @@ class PeakFinder(BaseDashApplication):
             State(component_id="min_channels", component_property="value"),
             State(component_id="line_id", component_property="value"),
             State(component_id="property_groups", component_property="data"),
+            State(component_id="structural_markers", component_property="value"),
             State(component_id="ga_group_name", component_property="value"),
             State(component_id="live_link", component_property="value"),
             State(component_id="monitoring_directory", component_property="value"),
@@ -247,28 +246,22 @@ class PeakFinder(BaseDashApplication):
 
         return property_groups_out, color_picker_out, group_name_options
 
-    def init_data_dropdowns(self, objects: str) -> tuple[list[dict], list[dict]]:
+    def init_line_field_dropdown(self, objects: str) -> list[dict]:
         """
         Initialize data and line field dropdowns from input object.
 
         :param objects: Input object.
 
-        :return: Data dropdown options.
         :return: Line field dropdown options.
         """
-        data_options = []
         line_field_options = []
         obj = self.workspace.get_entity(uuid.UUID(objects))[0]
-        for child in obj.property_groups:
-            data_options.append(
-                {"label": child.name, "value": "{" + str(child.uid) + "}"}
-            )
         for child in obj.children:
             if isinstance(child, ReferencedData):
                 line_field_options.append(
                     {"label": child.name, "value": "{" + str(child.uid) + "}"}
                 )
-        return data_options, line_field_options
+        return line_field_options
 
     def update_line_id_options(
         self,
@@ -478,6 +471,7 @@ class PeakFinder(BaseDashApplication):
             "line_field",
             "line_id",
         ]
+        update_line = False
         if any(t in triggers for t in update_line_triggers):
             # Update line position and anomalies
             self.line_update(
@@ -492,6 +486,7 @@ class PeakFinder(BaseDashApplication):
                 line_field,
                 line_id,
             )
+            update_line = True
 
         figure_data, figure_layout, y_min, y_max, y_label, y_ticks = (
             None,
@@ -513,7 +508,11 @@ class PeakFinder(BaseDashApplication):
             "y_scale",
             "linear_threshold",
         ]
-        if figure_data is None or any(t in triggers for t in figure_data_triggers):
+        if (
+            figure_data is None
+            or update_line
+            or any(t in triggers for t in figure_data_triggers)
+        ):
             (
                 figure_data,
                 y_label,
@@ -673,8 +672,8 @@ class PeakFinder(BaseDashApplication):
                 "y": [None],
                 "mode": "markers",
                 "marker_color": "black",
-                "marker_symbol": "y-right",
-                "marker_size": 8,
+                "marker_symbol": "y-right-open",
+                "marker_size": 6,
                 "name": "start markers",
                 "legendgroup": "markers",
                 "showlegend": False,
@@ -689,8 +688,8 @@ class PeakFinder(BaseDashApplication):
                 "y": [None],
                 "mode": "markers",
                 "marker_color": "black",
-                "marker_symbol": "y-left",
-                "marker_size": 8,
+                "marker_symbol": "y-left-open",
+                "marker_size": 6,
                 "name": "end markers",
                 "legendgroup": "markers",
                 "showlegend": False,
@@ -705,8 +704,8 @@ class PeakFinder(BaseDashApplication):
                 "y": [None],
                 "mode": "markers",
                 "marker_color": "black",
-                "marker_symbol": "y-down",
-                "marker_size": 8,
+                "marker_symbol": "y-down-open",
+                "marker_size": 6,
                 "name": "up markers",
                 "legendgroup": "markers",
                 "showlegend": False,
@@ -721,8 +720,8 @@ class PeakFinder(BaseDashApplication):
                 "y": [None],
                 "mode": "markers",
                 "marker_color": "black",
-                "marker_symbol": "y-up",
-                "marker_size": 8,
+                "marker_symbol": "y-up-open",
+                "marker_size": 6,
                 "name": "down markers",
                 "legendgroup": "markers",
                 "showlegend": False,
@@ -1042,7 +1041,6 @@ class PeakFinder(BaseDashApplication):
         self,
         n_clicks: int,
         objects: str,
-        data: str,
         flip_sign: list[bool],
         line_field: str,
         smoothing: float,
@@ -1062,7 +1060,6 @@ class PeakFinder(BaseDashApplication):
 
         :param n_clicks: Trigger for callback.
         :param objects: Input object.
-        :param data: Data.
         :param flip_sign: Whether to flip the sign of the data.
         :param line_field: Line field.
         :param smoothing: Smoothing factor.
@@ -1110,9 +1107,6 @@ class PeakFinder(BaseDashApplication):
         with workspace as new_workspace:
             # Put entities in output workspace.
             param_dict["geoh5"] = new_workspace
-            p_g_orig = {
-                p_g.uid: p_g.name for p_g in param_dict["objects"].property_groups
-            }
             param_dict["objects"] = param_dict["objects"].copy(
                 parent=new_workspace, copy_children=True
             )
@@ -1124,7 +1118,6 @@ class PeakFinder(BaseDashApplication):
             if line_field:
                 param_dict["line_field"] = line_field[0]
             # Add property groups
-            param_dict["data"] = p_g_new[p_g_orig[uuid.UUID(data)]]
             for key, value in property_groups.items():
                 param_dict[f"group_{value['param']}_data"] = p_g_new[key]
                 param_dict[f"group_{value['param']}_color"] = value["color"]
