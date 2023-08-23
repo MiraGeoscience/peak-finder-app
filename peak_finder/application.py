@@ -25,6 +25,7 @@ from geoapps_utils.application.dash_application import (
     BaseDashApplication,
     ObjectSelection,
 )
+from geoapps_utils.plotting import format_axis, symlog
 from geoh5py.data import ReferencedData
 from geoh5py.ui_json import InputFile
 
@@ -478,6 +479,7 @@ class PeakFinder(BaseDashApplication):
             "line_id",
         ]
         if any(t in triggers for t in update_line_triggers):
+            # Update line position and anomalies
             self.line_update(
                 objects,
                 property_groups,
@@ -491,16 +493,50 @@ class PeakFinder(BaseDashApplication):
                 line_id,
             )
 
-        figure_data, y_min, y_max, thresh_max = self.update_figure_data(
-            objects,
-            property_groups,
-            active_channels,
-            linear_threshold,
+        figure_data, figure_layout, y_min, y_max, y_label, y_ticks = (
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
         )
+        thresh_max = no_update
+        if figure is not None:
+            figure_data = figure["data"]
+            figure_layout = figure["layout"]
+
+        # Update figure data
+        figure_data_triggers = [
+            "objects",
+            "active_channels",
+            "y_scale",
+            "linear_threshold",
+        ]
+        if figure_data is None or any(t in triggers for t in figure_data_triggers):
+            (
+                figure_data,
+                y_label,
+                y_ticks,
+                y_min,
+                y_max,
+                thresh_max,
+            ) = self.update_figure_data(
+                objects,
+                property_groups,
+                active_channels,
+                y_scale,
+                linear_threshold,
+            )
+        elif "property_groups" in triggers:
+            # Update trace colours if property groups are the only change
+            figure_data = PeakFinder.update_data_colours(figure_data, property_groups)
+
+        # Update figure layout
         figure_layout = PeakFinder.update_figure_layout(
-            figure,
-            y_scale,
-            linear_threshold,
+            figure_layout,
+            y_label,
+            y_ticks,
             y_min,
             y_max,
             min_value,
@@ -510,10 +546,28 @@ class PeakFinder(BaseDashApplication):
         return go.Figure(data=figure_data, layout=figure_layout), thresh_max
 
     @staticmethod
+    def update_data_colours(
+        figure_data: list[dict],
+        property_groups: dict,
+    ):
+        """
+        Update figure data on colour change.
+
+        :param figure_data: Figure data.
+        :param property_groups: Property groups dictionary.
+
+        :return: Updated figure data.
+        """
+        for trace in figure_data:
+            if trace["name"] in property_groups:
+                trace["line_color"] = property_groups[trace["name"]]["color"]
+        return figure_data
+
+    @staticmethod
     def update_figure_layout(  # pylint: disable=too-many-arguments
-        figure: dict | None,
-        y_scale: str,
-        linear_threshold: float,
+        figure_layout: dict | None,
+        y_label: str | None,
+        y_ticks: np.ndarray | None,
         y_min: float | None,
         y_max: float | None,
         min_value: float,
@@ -522,9 +576,9 @@ class PeakFinder(BaseDashApplication):
         """
         Update the figure layout.
 
-        :param figure: Figure dictionary.
-        :param y_scale: Whether y-axis ticks are linear or symlog.
-        :param linear_threshold: Linear threshold slider value.
+        :param figure_layout: Figure layout dictionary.
+        :param y_label: Label for y-axis.
+        :param y_ticks: Y-axis ticks.
         :param y_min: Minimum y-axis value.
         :param y_max: Maximum y-axis value.
         :param min_value: Minimum value.
@@ -532,25 +586,29 @@ class PeakFinder(BaseDashApplication):
 
         :return: Updated figure layout.
         """
-        if figure is None:
+        if figure_layout is None:
             layout_dict = {}
         else:
-            layout_dict = figure["layout"]
+            layout_dict = figure_layout
 
-        linear_threshold = np.float_power(10, linear_threshold)
-
-        if y_scale == "symlog":
-            layout_dict.update({"yaxis_type": "log"})
-        else:
-            layout_dict.update({"yaxis_type": "linear"})
-
-        yaxis_range = [np.nanmax([y_min, min_value]), y_max]
+        if y_min is not None and y_max is not None:
+            layout_dict.update({"yaxis_range": [np.nanmax([y_min, min_value]), y_max]})
+        if y_label is not None:
+            layout_dict.update(
+                {
+                    "yaxis_title": y_label,
+                }
+            )
+        if y_ticks is not None:
+            layout_dict.update(
+                {
+                    "yaxis_tickvals": y_ticks,
+                }
+            )
 
         layout_dict.update(
             {
-                "yaxis_range": yaxis_range,
                 "xaxis_title": x_label + " (m)",
-                "yaxis_title": "Data",
             }
         )
 
@@ -747,13 +805,21 @@ class PeakFinder(BaseDashApplication):
         )
         return fig_data
 
-    def update_figure_data(  # pylint: disable=too-many-locals
+    def update_figure_data(  # pylint: disable=too-many-locals, too-many-branches, too-many-statements
         self,
         objects: str,
         property_groups: dict,
         active_channels: dict,
+        y_scale: str,
         linear_threshold: float,
-    ) -> tuple[list[go.Scatter], float | None, float | None, float | None]:
+    ) -> tuple[
+        list[go.Scatter],
+        str | None,
+        np.ndarray | None,
+        float | None,
+        float | None,
+        float | None,
+    ]:
         """
         Update the figure data.
 
@@ -763,11 +829,12 @@ class PeakFinder(BaseDashApplication):
         :param linear_threshold: Linear threshold.
 
         :return: Updated figure data.
+        :return: Label for y-axis.
+        :return: Y-axis ticks.
         :return: Minimum y-axis value.
         :return: Maximum y-axis value.
         :return: Linear threshold slider max.
         """
-        linear_threshold = np.float_power(10, linear_threshold)
         obj = self.workspace.get_entity(uuid.UUID(objects))[0]
         fig_data: list[go.Scatter] = []
 
@@ -778,7 +845,7 @@ class PeakFinder(BaseDashApplication):
             or len(active_channels) == 0
             or self.lines_position is None
         ):
-            return fig_data, None, None, None
+            return fig_data, None, None, None, None, None
 
         y_min, y_max = np.inf, -np.inf
         locs = self.lines_position.locations_resampled
@@ -803,6 +870,10 @@ class PeakFinder(BaseDashApplication):
             "property_groups": {},
             "markers": {},
         }
+
+        log = y_scale == "symlog"
+        threshold = np.float_power(10, linear_threshold)
+
         all_values = []
         for channel_dict in list(active_channels.values()):
             if "values" not in channel_dict:
@@ -811,7 +882,9 @@ class PeakFinder(BaseDashApplication):
             values, raw = self.lines_position.resample_values(values)
             all_values.append(values)
 
-            # values = np.arcsinh(values/linear_threshold)
+            if log:
+                values = symlog(values, threshold)
+                raw = symlog(raw, threshold)
 
             y_min = np.nanmin([values.min(), y_min])
             y_max = np.nanmax([values.max(), y_max])
@@ -896,7 +969,14 @@ class PeakFinder(BaseDashApplication):
             )
 
         if np.isinf(y_min):
-            return fig_data, None, None, None
+            return fig_data, None, None, None, None, None
+
+        all_values, y_label, y_ticks, _ = format_axis(
+            channel="Data",
+            axis=np.array(all_values),
+            log=log,
+            threshold=threshold,
+        )
 
         trace_dict = PeakFinder.add_markers(
             trace_dict,
@@ -956,7 +1036,7 @@ class PeakFinder(BaseDashApplication):
 
         thresh_max = np.log(np.max([np.percentile(all_values, 10), 1]))
 
-        return fig_data, y_min, y_max, thresh_max
+        return fig_data, y_label, y_ticks, y_min, y_max, thresh_max
 
     def trigger_click(  # pylint: disable=too-many-arguments, too-many-locals
         self,
