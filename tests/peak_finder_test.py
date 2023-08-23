@@ -95,9 +95,9 @@ def test_peak_finder_app(tmp_path: Path):  # pylint: disable=too-many-locals
     smoothing = 6
     max_migration = 1.0
     min_channels = 1
-    min_amplitude = 0  # 1e-2
-    min_value = -1.4  # -0.0004509940918069333
-    min_width = 1.0  # 1e-2
+    min_amplitude = 0
+    min_value = -1.4
+    min_width = 1.0
     line_field = "{" + str(line.uid) + "}"
 
     app.trigger_click(
@@ -115,6 +115,7 @@ def test_peak_finder_app(tmp_path: Path):  # pylint: disable=too-many-locals
         line_id=1,
         property_groups=property_groups,
         ga_group_name="peak_finder",
+        live_link=[],
         monitoring_directory=str(tmp_path),
     )
 

@@ -5,7 +5,7 @@
 #  geoapps is distributed under the terms and conditions of the MIT License
 #  (see LICENSE file at the root of this source code package).
 
-# pylint: disable=W0613
+# pylint: disable=W0613, C0302
 
 from __future__ import annotations
 
@@ -26,7 +26,6 @@ from geoapps_utils.application.dash_application import (
     ObjectSelection,
 )
 from geoh5py.data import ReferencedData
-from geoh5py.shared.utils import fetch_active_workspace
 from geoh5py.ui_json import InputFile
 
 from peak_finder.anomaly_group import AnomalyGroup
@@ -48,7 +47,19 @@ class PeakFinder(BaseDashApplication):
     _lines_position = None
     _lines_anomalies = None
 
-    def __init__(self, ui_json=None, ui_json_data=None, params=None):
+    def __init__(
+        self,
+        ui_json: InputFile | None = None,
+        ui_json_data: dict | None = None,
+        params: PeakFinderParams | None = None,
+    ):
+        """
+        Initialize the peak finder layout, callbacks, and server.
+
+        :param ui_json: ui.json file to load.
+        :param ui_json_data: Data from ui.json file.
+        :param params: Peak finder params.
+        """
         super().__init__(ui_json, ui_json_data, params)
 
         # Start flask server
@@ -101,7 +112,7 @@ class PeakFinder(BaseDashApplication):
         self.app.callback(
             Output(component_id="line_id", component_property="options"),
             Input(component_id="line_field", component_property="value"),
-        )(self.update_lines_list)
+        )(self.update_line_id_options)
         self.app.callback(
             Output(component_id="property_groups", component_property="data"),
             Output(component_id="color_picker", component_property="value"),
@@ -123,6 +134,7 @@ class PeakFinder(BaseDashApplication):
             *figure_inputs,
         )(self.update_figure)
         self.app.callback(
+            Output(component_id="live_link", component_property="value"),
             Output(component_id="output_message", component_property="children"),
             Input(component_id="export", component_property="n_clicks"),
             State(component_id="objects", component_property="data"),
@@ -138,12 +150,16 @@ class PeakFinder(BaseDashApplication):
             State(component_id="line_id", component_property="value"),
             State(component_id="property_groups", component_property="data"),
             State(component_id="ga_group_name", component_property="value"),
+            State(component_id="live_link", component_property="value"),
             State(component_id="monitoring_directory", component_property="value"),
             prevent_initial_call=True,
         )(self.trigger_click)
 
     @property
     def lines_position(self) -> LinePosition | None:
+        """
+        Line position for the current plot.
+        """
         return self._lines_position
 
     @lines_position.setter
@@ -152,6 +168,9 @@ class PeakFinder(BaseDashApplication):
 
     @property
     def lines_anomalies(self) -> list[AnomalyGroup] | None:
+        """
+        Anomalies for the current plot.
+        """
         return self._lines_anomalies
 
     @lines_anomalies.setter
@@ -159,6 +178,9 @@ class PeakFinder(BaseDashApplication):
         self._lines_anomalies = value
 
     def set_initialized_layout(self):
+        """
+        Initialize the app layout from ui.json data.
+        """
         self.app.layout = peak_finder_layout
         BaseDashApplication.init_vals(self.app.layout.children, self._ui_json_data)
 
@@ -172,17 +194,41 @@ class PeakFinder(BaseDashApplication):
         )
 
     @staticmethod
-    def loading_figure(*args):
+    def loading_figure(*args) -> no_update:
+        """
+        Callback for loading symbol on figure update.
+
+        :param args: Same inputs as update_figure.
+        """
         return no_update
 
     @staticmethod
-    def disable_linear_threshold(y_scale):
+    def disable_linear_threshold(y_scale: str) -> bool:
+        """
+        Disable linear threshold input if y_scale is symlog.
+
+        :param y_scale: Whether y-axis ticks are linear or symlog.
+
+        :return: Whether linear threshold input is disabled.
+        """
         if y_scale == "symlog":
             return False
         return True
 
     @staticmethod
-    def update_property_groups(group_name, color_picker, property_groups):
+    def update_property_groups(
+        group_name: str, color_picker: dict, property_groups: dict
+    ) -> tuple[dict, dict, list[str]]:
+        """
+        Update property groups on color change.
+        Update color picker on group name dropdown change.
+
+        :param group_name: Name of property group from dropdown.
+        :param color_picker: Color picker hex value.
+        :param property_groups: Property groups dictionary.
+
+        :return: Updated property groups, color picker, and group name options.
+        """
         property_groups_out, color_picker_out, group_name_options = (
             no_update,
             no_update,
@@ -200,7 +246,15 @@ class PeakFinder(BaseDashApplication):
 
         return property_groups_out, color_picker_out, group_name_options
 
-    def init_data_dropdowns(self, objects: str):
+    def init_data_dropdowns(self, objects: str) -> tuple[list[dict], list[dict]]:
+        """
+        Initialize data and line field dropdowns from input object.
+
+        :param objects: Input object.
+
+        :return: Data dropdown options.
+        :return: Line field dropdown options.
+        """
         data_options = []
         line_field_options = []
         obj = self.workspace.get_entity(uuid.UUID(objects))[0]
@@ -215,19 +269,31 @@ class PeakFinder(BaseDashApplication):
                 )
         return data_options, line_field_options
 
-    def update_lines_list(
+    def update_line_id_options(
         self,
         line_field: str | None,
-    ):
+    ) -> list[dict]:
+        """
+        Update line ID dropdown options from line field.
+
+        :param line_field: Line field.
+
+        :return: Line ID dropdown options.
+        """
         line_field = self.workspace.get_entity(uuid.UUID(line_field))[0]
         options = []
         for key, value in line_field.value_map.map.items():  # type: ignore
             options.append({"label": value, "value": key})
         return options
 
-    def get_line_indices(self, line_field, line_id):
+    def get_line_indices(self, line_field: str, line_id: int) -> np.ndarray | None:
         """
-        Find the vertices for a given line ID
+        Find the vertices for a given line ID.
+
+        :param line_field: Line field.
+        :param line_id: Line ID.
+
+        :return: Line indices.
         """
         line_data = self.workspace.get_entity(uuid.UUID(line_field))[0]
         indices = np.where(np.asarray(line_data.values) == line_id)[0]
@@ -237,11 +303,23 @@ class PeakFinder(BaseDashApplication):
 
         return indices
 
-    def update_active_channels(self, property_groups_dict, flip_sign):
+    def update_active_channels(
+        self, property_groups_dict: dict, flip_sign: list[bool]
+    ) -> tuple[dict, float, float]:
+        """
+        Update active channels from property groups.
+
+        :param property_groups_dict: Property groups dictionary.
+        :param flip_sign: Whether to flip the sign of the data.
+
+        :return: Active channels.
+        :return: Minimum value.
+        :return: Linear threshold slider max.
+        """
         if flip_sign:
-            flip_sign = -1
+            flip_sign = -1  # type: ignore
         else:
-            flip_sign = 1
+            flip_sign = 1  # type: ignore
 
         active_channels = {}
         property_groups_dict = dict(property_groups_dict)
@@ -279,17 +357,31 @@ class PeakFinder(BaseDashApplication):
 
     def line_update(  # pylint: disable=too-many-arguments, too-many-locals
         self,
-        objects,
-        property_groups_dict,
-        smoothing,
-        max_migration,
-        min_channels,
-        min_amplitude,
-        min_value,
-        min_width,
-        line_field,
-        line_id,
+        objects: str,
+        property_groups_dict: dict,
+        smoothing: float,
+        max_migration: float,
+        min_channels: int,
+        min_amplitude: float,
+        min_value: float,
+        min_width: float,
+        line_field: str,
+        line_id: int,
     ):
+        """
+        Update the line position and anomalies.
+
+        :param objects: Input object.
+        :param property_groups_dict: Property groups dictionary.
+        :param smoothing: Smoothing factor.
+        :param max_migration: Maximum migration.
+        :param min_channels: Minimum number of channels.
+        :param min_amplitude: Minimum amplitude.
+        :param min_value: Minimum value.
+        :param min_width: Minimum width.
+        :param line_field: Line field.
+        :param line_id: Line ID.
+        """
         obj = self.workspace.get_entity(uuid.UUID(objects))[0]
         if (
             obj is None
@@ -326,30 +418,52 @@ class PeakFinder(BaseDashApplication):
         self.lines_position = line_anomaly.position
 
         line_groups = line_anomaly.anomalies
-        anomalies = []
+        anomalies: list[AnomalyGroup] = []
         if line_groups is not None:
             for line_group in line_groups:
-                anomalies += line_group.groups
+                anomalies += line_group.groups  # type: ignore
         self.lines_anomalies = anomalies
 
     def update_figure(  # pylint: disable=too-many-arguments, too-many-locals
         self,
-        figure,
-        objects,
-        property_groups,
-        smoothing,
-        max_migration,
-        min_channels,
-        min_amplitude,
-        min_value,
-        min_width,
-        line_field,
-        line_id,
-        active_channels,
-        y_scale,
-        linear_threshold,
-        x_label,
-    ):
+        figure: dict | None,
+        objects: str,
+        property_groups: dict,
+        smoothing: float,
+        max_migration: float,
+        min_channels: int,
+        min_amplitude: float,
+        min_value: float,
+        min_width: float,
+        line_field: str,
+        line_id: int,
+        active_channels: dict,
+        y_scale: str,
+        linear_threshold: float,
+        x_label: str,
+    ) -> tuple[go.Figure, float | None]:
+        """
+        Update the figure.
+
+        :param figure: Figure dictionary.
+        :param objects: Input object.
+        :param property_groups: Property groups dictionary.
+        :param smoothing: Smoothing factor.
+        :param max_migration: Maximum migration.
+        :param min_channels: Minimum number of channels.
+        :param min_amplitude: Minimum amplitude.
+        :param min_value: Minimum value.
+        :param min_width: Minimum width.
+        :param line_field: Line field.
+        :param line_id: Line ID.
+        :param active_channels: Active channels.
+        :param y_scale: Whether y-axis ticks are linear or symlog.
+        :param linear_threshold: Linear threshold slider value.
+        :param x_label: X-axis label.
+
+        :return: Updated figure.
+        :return: Linear threshold slider max.
+        """
         triggers = [t["prop_id"].split(".")[0] for t in callback_context.triggered]
         update_line_triggers = [
             "objects",
@@ -397,14 +511,27 @@ class PeakFinder(BaseDashApplication):
 
     @staticmethod
     def update_figure_layout(  # pylint: disable=too-many-arguments
-        figure,
-        y_scale,
-        linear_threshold,
-        y_min,
-        y_max,
-        min_value,
-        x_label,
-    ):
+        figure: dict | None,
+        y_scale: str,
+        linear_threshold: float,
+        y_min: float | None,
+        y_max: float | None,
+        min_value: float,
+        x_label: str,
+    ) -> go.Layout:
+        """
+        Update the figure layout.
+
+        :param figure: Figure dictionary.
+        :param y_scale: Whether y-axis ticks are linear or symlog.
+        :param linear_threshold: Linear threshold slider value.
+        :param y_min: Minimum y-axis value.
+        :param y_max: Maximum y-axis value.
+        :param min_value: Minimum value.
+        :param x_label: X-axis label.
+
+        :return: Updated figure layout.
+        """
         if figure is None:
             layout_dict = {}
         else:
@@ -413,7 +540,7 @@ class PeakFinder(BaseDashApplication):
         linear_threshold = np.float_power(10, linear_threshold)
 
         if y_scale == "symlog":
-            layout_dict.update({"yaxis_type": "linear"})
+            layout_dict.update({"yaxis_type": "log"})
         else:
             layout_dict.update({"yaxis_type": "linear"})
 
@@ -431,21 +558,39 @@ class PeakFinder(BaseDashApplication):
 
         return fig_layout
 
+    @staticmethod
     def add_markers(  # pylint: disable=too-many-arguments
-        self,
-        trace_dict,
-        peak_markers_x,
-        peak_markers_y,
-        peak_markers_c,
-        start_markers_x,
-        start_markers_y,
-        end_markers_x,
-        end_markers_y,
-        up_markers_x,
-        up_markers_y,
-        dwn_markers_x,
-        dwn_markers_y,
-    ):
+        trace_dict: dict,
+        peak_markers_x: list[float],
+        peak_markers_y: list[float],
+        peak_markers_c: list[str],
+        start_markers_x: list[float],
+        start_markers_y: list[float],
+        end_markers_x: list[float],
+        end_markers_y: list[float],
+        up_markers_x: list[float],
+        up_markers_y: list[float],
+        dwn_markers_x: list[float],
+        dwn_markers_y: list[float],
+    ) -> dict:
+        """
+        Add markers to the figure.
+
+        :param trace_dict: Dictionary of figure traces.
+        :param peak_markers_x: Peak marker x-coordinates.
+        :param peak_markers_y: Peak marker y-coordinates.
+        :param peak_markers_c: Peak marker colors.
+        :param start_markers_x: Start marker x-coordinates.
+        :param start_markers_y: Start marker y-coordinates.
+        :param end_markers_x: End marker x-coordinates.
+        :param end_markers_y: End marker y-coordinates.
+        :param up_markers_x: Up marker x-coordinates.
+        :param up_markers_y: Up marker y-coordinates.
+        :param dwn_markers_x: Down marker x-coordinates.
+        :param dwn_markers_y: Down marker y-coordinates.
+
+        :return: Updated trace dictionary.
+        """
         # Add markers
         if "peaks" not in trace_dict["markers"]:
             trace_dict["markers"]["peaks"] = {
@@ -530,13 +675,23 @@ class PeakFinder(BaseDashApplication):
 
         return trace_dict
 
+    @staticmethod
     def add_residuals(
-        self,
-        fig_data,
-        values,
-        raw,
-        locs,
-    ):
+        fig_data: list[go.Scatter],
+        values: np.ndarray,
+        raw: np.ndarray,
+        locs: np.ndarray,
+    ) -> list[go.Scatter]:
+        """
+        Add residuals to the figure.
+
+        :param fig_data: Figure data.
+        :param values: Resampled values.
+        :param raw: Raw values.
+        :param locs: Locations.
+
+        :return: Updated figure data.
+        """
         pos_inds = np.where(raw > values)[0]
         neg_inds = np.where(raw < values)[0]
 
@@ -594,20 +749,34 @@ class PeakFinder(BaseDashApplication):
 
     def update_figure_data(  # pylint: disable=too-many-locals
         self,
-        objects,
-        property_groups,
-        active_channels,
-        linear_threshold,
-    ):
+        objects: str,
+        property_groups: dict,
+        active_channels: dict,
+        linear_threshold: float,
+    ) -> tuple[list[go.Scatter], float | None, float | None, float | None]:
+        """
+        Update the figure data.
+
+        :param objects: Input object.
+        :param property_groups: Property groups dictionary.
+        :param active_channels: Active channels.
+        :param linear_threshold: Linear threshold.
+
+        :return: Updated figure data.
+        :return: Minimum y-axis value.
+        :return: Maximum y-axis value.
+        :return: Linear threshold slider max.
+        """
         linear_threshold = np.float_power(10, linear_threshold)
         obj = self.workspace.get_entity(uuid.UUID(objects))[0]
-        fig_data = []
+        fig_data: list[go.Scatter] = []
 
         if (
             obj is None
             or getattr(obj, "line_indices", None) is None
             or len(obj.line_indices) < 2
             or len(active_channels) == 0
+            or self.lines_position is None
         ):
             return fig_data, None, None, None
 
@@ -647,10 +816,10 @@ class PeakFinder(BaseDashApplication):
             y_min = np.nanmin([values.min(), y_min])
             y_max = np.nanmax([values.max(), y_max])
 
-            trace_dict["lines"]["lines"]["x"] += list(locs) + [None]
-            trace_dict["lines"]["lines"]["y"] += list(values) + [None]
+            trace_dict["lines"]["lines"]["x"] += list(locs) + [None]  # type: ignore
+            trace_dict["lines"]["lines"]["y"] += list(values) + [None]  # type: ignore
 
-            for anomaly_group in self.lines_anomalies:
+            for anomaly_group in self.lines_anomalies:  # type: ignore
                 channels = np.array(
                     [a.parent.data_entity.name for a in anomaly_group.anomalies]
                 )
@@ -665,30 +834,30 @@ class PeakFinder(BaseDashApplication):
                 start = anomaly_group.anomalies[i].start
                 end = anomaly_group.anomalies[i].end
 
-                if group_name not in trace_dict["property_groups"]:
-                    trace_dict["property_groups"][group_name] = {
+                if group_name not in trace_dict["property_groups"]:  # type: ignore
+                    trace_dict["property_groups"][group_name] = {  # type: ignore
                         "x": [None],
                         "y": [None],
                         "mode": "lines",
                         "line_color": color,
                         "name": group_name,
                     }
-                trace_dict["property_groups"][group_name]["x"] += list(
+                trace_dict["property_groups"][group_name]["x"] += list(  # type: ignore
                     locs[start:end]
                 ) + [None]
-                trace_dict["property_groups"][group_name]["y"] += list(
+                trace_dict["property_groups"][group_name]["y"] += list(  # type: ignore
                     values[start:end]
                 ) + [None]
 
-                if anomaly_group.azimuth < 180:
+                if anomaly_group.azimuth < 180:  # type: ignore
                     ori = "right"
                 else:
                     ori = "left"
 
                 # Add markers
                 if i == 0:
-                    if ori + "_azimuth" not in trace_dict["markers"]:
-                        trace_dict["markers"][ori + "_azimuth"] = {
+                    if ori + "_azimuth" not in trace_dict["markers"]:  # type: ignore
+                        trace_dict["markers"][ori + "_azimuth"] = {  # type: ignore
                             "x": [None],
                             "y": [None],
                             "mode": "markers",
@@ -700,8 +869,12 @@ class PeakFinder(BaseDashApplication):
                             "showlegend": False,
                             "visible": "legendonly",
                         }
-                    trace_dict["markers"][ori + "_azimuth"]["x"] += [locs[peaks[i]]]
-                    trace_dict["markers"][ori + "_azimuth"]["y"] += [values[peaks[i]]]
+                    trace_dict["markers"][ori + "_azimuth"]["x"] += [  # type: ignore
+                        locs[peaks[i]]
+                    ]
+                    trace_dict["markers"][ori + "_azimuth"]["y"] += [  # type: ignore
+                        values[peaks[i]]
+                    ]
 
                 peak_markers_x += [locs[peaks[i]]]
                 peak_markers_y += [values[peaks[i]]]
@@ -715,7 +888,7 @@ class PeakFinder(BaseDashApplication):
                 dwn_markers_x += [locs[anomaly_group.anomalies[i].inflect_down]]
                 dwn_markers_y += [values[anomaly_group.anomalies[i].inflect_down]]
 
-            fig_data = self.add_residuals(
+            fig_data = PeakFinder.add_residuals(
                 fig_data,
                 values,
                 raw,
@@ -725,7 +898,7 @@ class PeakFinder(BaseDashApplication):
         if np.isinf(y_min):
             return fig_data, None, None, None
 
-        trace_dict = self.add_markers(
+        trace_dict = PeakFinder.add_markers(
             trace_dict,
             peak_markers_x,
             peak_markers_y,
@@ -741,7 +914,7 @@ class PeakFinder(BaseDashApplication):
         )
 
         for trace_name in ["lines", "property_groups", "markers"]:
-            for trace in list(trace_dict[trace_name].values()):
+            for trace in list(trace_dict[trace_name].values()):  # type: ignore
                 fig_data.append(go.Scatter(**trace))
 
         fig_data.append(
@@ -788,75 +961,109 @@ class PeakFinder(BaseDashApplication):
     def trigger_click(  # pylint: disable=too-many-arguments, too-many-locals
         self,
         n_clicks: int,
-        objects,
-        data,
-        flip_sign,
-        line_field,
-        smoothing,
-        min_amplitude,
-        min_value,
-        min_width,
-        max_migration,
-        min_channels,
-        line_id,
-        property_groups,
-        ga_group_name,
+        objects: str,
+        data: str,
+        flip_sign: list[bool],
+        line_field: str,
+        smoothing: float,
+        min_amplitude: float,
+        min_value: float,
+        min_width: float,
+        max_migration: float,
+        min_channels: int,
+        line_id: int,
+        property_groups: dict,
+        ga_group_name: str,
+        live_link: list[bool],
         monitoring_directory: str,
-    ):
+    ) -> tuple[list[bool], list[str]]:
+        """
+        Write output ui.json file and workspace, run driver.
+
+        :param n_clicks: Trigger for callback.
+        :param objects: Input object.
+        :param data: Data.
+        :param flip_sign: Whether to flip the sign of the data.
+        :param line_field: Line field.
+        :param smoothing: Smoothing factor.
+        :param min_amplitude: Minimum amplitude.
+        :param min_value: Minimum value.
+        :param min_width: Minimum width.
+        :param max_migration: Maximum migration.
+        :param min_channels: Minimum number of channels.
+        :param line_id: Line ID.
+        :param property_groups: Property groups dictionary.
+        :param ga_group_name: Group name.
+        :param live_link: Whether to use live link.
+        :param monitoring_directory: Monitoring directory.
+
+        :return: Live link status.
+        :return: Output save message.
+        """
+        if (
+            (monitoring_directory is None)
+            or (monitoring_directory == "")
+            or not Path(monitoring_directory).is_dir()
+        ):
+            return no_update, ["Invalid output path."]
+
+        if not live_link:
+            live_link = False  # type: ignore
+        else:
+            live_link = True  # type: ignore
+
         # Update self.params from dash component values
         param_dict = self.get_params_dict(locals())
 
         # Get output path.
-        if (
-            monitoring_directory is not None
-            and monitoring_directory != ""
-            and Path(monitoring_directory).is_dir()
-        ):
-            param_dict["monitoring_directory"] = str(
-                Path(monitoring_directory).resolve()
+        param_dict["monitoring_directory"] = str(Path(monitoring_directory).resolve())
+        temp_geoh5 = f"{ga_group_name}_{time.time():.0f}.geoh5"
+
+        # Get output workspace.
+        workspace, live_link = get_output_workspace(
+            live_link, monitoring_directory, temp_geoh5
+        )
+
+        if not live_link:
+            param_dict["monitoring_directory"] = ""
+
+        with workspace as new_workspace:
+            # Put entities in output workspace.
+            param_dict["geoh5"] = new_workspace
+            p_g_orig = {
+                p_g.uid: p_g.name for p_g in param_dict["objects"].property_groups
+            }
+            param_dict["objects"] = param_dict["objects"].copy(
+                parent=new_workspace, copy_children=True
             )
-            temp_geoh5 = f"{ga_group_name}_{time.time():.0f}.geoh5"
+            p_g_new = {p_g.name: p_g for p_g in param_dict["objects"].property_groups}
+            # Add line field
+            line_field = [
+                c for c in param_dict["objects"].children if c.name == "Line"  # type: ignore
+            ]
+            if line_field:
+                param_dict["line_field"] = line_field[0]
+            # Add property groups
+            param_dict["data"] = p_g_new[p_g_orig[uuid.UUID(data)]]
+            for key, value in property_groups.items():
+                param_dict[f"group_{value['param']}_data"] = p_g_new[key]
+                param_dict[f"group_{value['param']}_color"] = value["color"]
 
-            # Get output workspace.
-            workspace, _ = get_output_workspace(
-                False, param_dict["monitoring_directory"], temp_geoh5
+            # Write output uijson.
+            new_params = PeakFinderParams(**param_dict)
+            new_params.write_input_file(
+                name=str(new_workspace.h5file).replace(".geoh5", ".ui.json"),
+                path=param_dict["monitoring_directory"],
+                validate=False,
             )
-            with fetch_active_workspace(workspace, mode="r+") as new_workspace:
-                # Put entities in output workspace.
-                param_dict["geoh5"] = new_workspace
-                p_g_orig = {
-                    p_g.uid: p_g.name for p_g in param_dict["objects"].property_groups
-                }
-                param_dict["objects"] = param_dict["objects"].copy(
-                    parent=new_workspace, copy_children=True
-                )
-                p_g_new = {
-                    p_g.name: p_g for p_g in param_dict["objects"].property_groups
-                }
-                # Add line field
-                line_field = [
-                    c for c in param_dict["objects"].children if c.name == "Line"
-                ]
-                if line_field:
-                    param_dict["line_field"] = line_field[0]
-                # Add property groups
-                param_dict["data"] = p_g_new[p_g_orig[uuid.UUID(data)]]
-                for key, value in property_groups.items():
-                    param_dict[f"group_{value['param']}_data"] = p_g_new[key]
-                    param_dict[f"group_{value['param']}_color"] = value["color"]
+            driver = PeakFinderDriver(new_params)
+            driver.run()
 
-                # Write output uijson.
-                new_params = PeakFinderParams(**param_dict)
-                new_params.write_input_file(
-                    name=temp_geoh5.replace(".geoh5", ".ui.json"),
-                    path=param_dict["monitoring_directory"],
-                    validate=False,
-                )
-                driver = PeakFinderDriver(new_params)
-                driver.run()
-
-            return ["Saved to " + param_dict["monitoring_directory"]]
-        return ["Invalid output path."]
+        if live_link:
+            return [True], [
+                "Live link active. Check your ANALYST session for new mesh."
+            ]
+        return [], ["Saved to " + monitoring_directory]
 
 
 if __name__ == "__main__":
