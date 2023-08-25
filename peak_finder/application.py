@@ -1113,12 +1113,6 @@ class PeakFinder(BaseDashApplication):
                 parent=new_workspace, copy_children=True
             )
             p_g_new = {p_g.name: p_g for p_g in param_dict["objects"].property_groups}
-            # Add line field
-            line_field = [
-                c for c in param_dict["objects"].children if c.name == "Line"  # type: ignore
-            ]
-            if line_field:
-                param_dict["line_field"] = line_field[0]
             # Add property groups
             for key, value in property_groups.items():
                 param_dict[f"group_{value['param']}_data"] = p_g_new[key]

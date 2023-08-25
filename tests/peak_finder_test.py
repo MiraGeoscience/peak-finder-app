@@ -99,6 +99,7 @@ def test_peak_finder_app(tmp_path: Path):  # pylint: disable=too-many-locals
     min_value = -1.4
     min_width = 1.0
     line_field = "{" + str(line.uid) + "}"
+    print(line_field)
 
     app.trigger_click(
         n_clicks=0,
@@ -113,6 +114,7 @@ def test_peak_finder_app(tmp_path: Path):  # pylint: disable=too-many-locals
         min_channels=min_channels,
         line_id=1,
         property_groups=property_groups,
+        structural_markers=[],
         ga_group_name="peak_finder",
         live_link=[],
         monitoring_directory=str(tmp_path),
