@@ -7,14 +7,16 @@
 
 from __future__ import annotations
 
+import string
 from copy import deepcopy
 
 from geoapps_utils.driver.params import BaseParams
 from geoh5py.data import Data
+from geoh5py.groups import PropertyGroup
 from geoh5py.objects import ObjectBase
 from geoh5py.ui_json import InputFile
 
-from peak_finder.constants import default_ui_json, defaults, template_dict, validations
+from peak_finder.constants import default_ui_json, defaults, validations
 
 
 class PeakFinderParams(BaseParams):  # pylint: disable=R0902, R0904
@@ -29,11 +31,8 @@ class PeakFinderParams(BaseParams):  # pylint: disable=R0902, R0904
         self._free_parameter_identifier: str = "group"
         self._validations: dict | None = validations
         self._objects: ObjectBase | None = None
-        self._data: Data | None = None
         self._flip_sign: bool | None = None
         self._line_field: Data | None = None
-        self._tem_checkbox: bool | None = None
-        self._system: str | None = None
         self._smoothing: int | None = None
         self._min_amplitude: int | None = None
         self._min_value: float | None = None
@@ -43,48 +42,32 @@ class PeakFinderParams(BaseParams):  # pylint: disable=R0902, R0904
         self._ga_group_name: str | None = None
         self._structural_markers: bool | None = None
         self._line_id: int | None = None
-        self._group_auto: bool | None = None
-        self._center: float | None = None
-        self._width: float | None = None
+        self._group_a_data: PropertyGroup | None = None
+        self._group_a_color: str | None = None
+        self._group_b_data: PropertyGroup | None = None
+        self._group_b_color: str | None = None
+        self._group_c_data: PropertyGroup | None = None
+        self._group_c_color: str | None = None
+        self._group_d_data: PropertyGroup | None = None
+        self._group_d_color: str | None = None
+        self._group_e_data: PropertyGroup | None = None
+        self._group_e_color: str | None = None
+        self._group_f_data: PropertyGroup | None = None
+        self._group_f_color: str | None = None
+        self._property_groups: dict | None = None
         self._template_data: Data | None = None
         self._template_color: str | None = None
         self._plot_result: bool = True
         self._title: str | None = None
 
         if input_file is None:
-            free_param_dict = {}
-            for key in kwargs:
-                if (
-                    self._free_parameter_identifier in key.lower()
-                    and "data" in key.lower()
-                ):
-                    group = key.replace("data", "").rstrip()
-                    free_param_dict[group] = deepcopy(template_dict)
-
             ui_json = deepcopy(self._default_ui_json)
-            for group, forms in free_param_dict.items():
-                for key, form in forms.items():
-                    if form is not None:
-                        form["group"] = group
-                    if ui_json is not None:
-                        ui_json[f"{group} {key}"] = form
-                    self._defaults[f"{group} {key}"] = form["value"]
-
             input_file = InputFile(
                 ui_json=ui_json,
                 validations=self.validations,
                 validate=False,
             )
-
         super().__init__(input_file=input_file, **kwargs)
-
-    @property
-    def center(self):
-        return self._center
-
-    @center.setter
-    def center(self, val):
-        self.setter_validator("center", val)
 
     @property
     def conda_environment(self):
@@ -103,14 +86,6 @@ class PeakFinderParams(BaseParams):  # pylint: disable=R0902, R0904
         self.setter_validator("conda_environment_boolean", val)
 
     @property
-    def data(self):
-        return self._data
-
-    @data.setter
-    def data(self, val):
-        self.setter_validator("data", val, fun=self._uuid_promoter)
-
-    @property
     def flip_sign(self):
         return self._flip_sign
 
@@ -125,14 +100,6 @@ class PeakFinderParams(BaseParams):  # pylint: disable=R0902, R0904
     @ga_group_name.setter
     def ga_group_name(self, val):
         self.setter_validator("ga_group_name", val)
-
-    @property
-    def group_auto(self):
-        return self._group_auto
-
-    @group_auto.setter
-    def group_auto(self, val):
-        self.setter_validator("group_auto", val)
 
     @property
     def line_field(self):
@@ -231,22 +198,6 @@ class PeakFinderParams(BaseParams):  # pylint: disable=R0902, R0904
         self.setter_validator("structural_markers", val)
 
     @property
-    def system(self):
-        return self._system
-
-    @system.setter
-    def system(self, val):
-        self.setter_validator("system", val)
-
-    @property
-    def tem_checkbox(self):
-        return self._tem_checkbox
-
-    @tem_checkbox.setter
-    def tem_checkbox(self, val):
-        self.setter_validator("tem_checkbox", val)
-
-    @property
     def template_data(self):
         return self._template_data
 
@@ -271,30 +222,116 @@ class PeakFinderParams(BaseParams):  # pylint: disable=R0902, R0904
         self.setter_validator("title", val)
 
     @property
-    def width(self):
-        return self._width
+    def group_a_data(self):
+        return self._group_a_data
 
-    @width.setter
-    def width(self, val):
-        self.setter_validator("width", val)
+    @group_a_data.setter
+    def group_a_data(self, val):
+        self.setter_validator("group_a_data", val)
 
-    def groups_from_free_params(self):
+    @property
+    def group_a_color(self):
+        return self._group_a_color
+
+    @group_a_color.setter
+    def group_a_color(self, val):
+        self.setter_validator("group_a_color", val)
+
+    @property
+    def group_b_data(self):
+        return self._group_b_data
+
+    @group_b_data.setter
+    def group_b_data(self, val):
+        self.setter_validator("group_b_data", val)
+
+    @property
+    def group_b_color(self):
+        return self._group_b_color
+
+    @group_b_color.setter
+    def group_b_color(self, val):
+        self.setter_validator("group_b_color", val)
+
+    @property
+    def group_c_data(self):
+        return self._group_c_data
+
+    @group_c_data.setter
+    def group_c_data(self, val):
+        self.setter_validator("group_c_data", val)
+
+    @property
+    def group_c_color(self):
+        return self._group_c_color
+
+    @group_c_color.setter
+    def group_c_color(self, val):
+        self.setter_validator("group_c_color", val)
+
+    @property
+    def group_d_data(self):
+        return self._group_d_data
+
+    @group_d_data.setter
+    def group_d_data(self, val):
+        self.setter_validator("group_d_data", val)
+
+    @property
+    def group_d_color(self):
+        return self._group_d_color
+
+    @group_d_color.setter
+    def group_d_color(self, val):
+        self.setter_validator("group_d_color", val)
+
+    @property
+    def group_e_data(self):
+        return self._group_e_data
+
+    @group_e_data.setter
+    def group_e_data(self, val):
+        self.setter_validator("group_e_data", val)
+
+    @property
+    def group_e_color(self):
+        return self._group_e_color
+
+    @group_e_color.setter
+    def group_e_color(self, val):
+        self.setter_validator("group_e_color", val)
+
+    @property
+    def group_f_data(self):
+        return self._group_f_data
+
+    @group_f_data.setter
+    def group_f_data(self, val):
+        self.setter_validator("group_f_data", val)
+
+    @property
+    def group_f_color(self):
+        return self._group_f_color
+
+    @group_f_color.setter
+    def group_f_color(self, val):
+        self.setter_validator("group_f_color", val)
+
+    def get_property_groups(self):
         """
         Generate a dictionary of groups with associate properties from params.
         """
         count = 0
-        channel_groups = {}
-        for group_params in self.free_parameter_dict.values():
-            if group_params["data"] is not None:
-                prop_group = getattr(self, group_params["data"], None)
-
-                if prop_group is not None:
-                    count += 1
-                    channel_groups[prop_group.name] = {
-                        "data": prop_group.uid,
-                        "color": getattr(self, group_params["color"], None),
-                        "label": [count],
-                        "properties": prop_group.properties,
-                    }
-
-        return channel_groups
+        property_groups = {}
+        for name in string.ascii_lowercase[:6]:
+            prop_group = getattr(self, f"group_{name}_data", None)
+            if prop_group is not None:
+                count += 1
+                property_groups[prop_group.name] = {
+                    "param": name,
+                    "data": prop_group.uid,
+                    "color": getattr(self, f"group_{name}_color", None),
+                    "label": [count],
+                    "properties": prop_group.properties,
+                }
+        return property_groups

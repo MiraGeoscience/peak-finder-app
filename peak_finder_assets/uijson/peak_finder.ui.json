@@ -1,0 +1,212 @@
+{
+    "title": "Peak Finder Parameters",
+    "geoh5": "",
+    "run_command": "peak_finder.application",
+    "run_command_boolean": {
+        "value": false,
+        "label": "Run python module ",
+        "tooltip": "Warning: launches process to run python model on save",
+        "main": true
+    },
+    "monitoring_directory": "",
+    "conda_environment": "geoapps",
+    "conda_environment_boolean": false,
+    "workspace": "",
+    "version": "0.1.0",
+    "objects": {
+        "main": true,
+        "group": "Data",
+        "label": "Object",
+        "meshType": [
+            "{6a057fdc-b355-11e3-95be-fd84a7ffcb88}",
+            "{19730589-fd28-4649-9de0-ad47249d9aba}"
+        ],
+        "value": ""
+    },
+    "flip_sign": {
+        "main": false,
+        "group": "Data",
+        "label": "Flip sign",
+        "value": false
+    },
+    "line_field": {
+        "association": "Vertex",
+        "dataType": "Referenced",
+        "group": "Data",
+        "main": true,
+        "label": "Line Field",
+        "parent": "objects",
+        "value": ""
+    },
+    "smoothing": {
+        "group": "Detection Parameters",
+        "label": "Smoothing window",
+        "main": false,
+        "value": 6
+    },
+    "min_amplitude": {
+        "group": "Detection Parameters",
+        "label": "Minimum Amplitude (%)",
+        "value": 1.0,
+        "main": false
+    },
+    "min_value": {
+        "group": "Detection Parameters",
+        "label": "Minimum Value",
+        "value": 0.0,
+        "main": false
+    },
+    "min_width": {
+        "group": "Detection Parameters",
+        "label": "Minimum Width (m)",
+        "value": 100.0,
+        "main": false
+    },
+    "max_migration": {
+        "group": "Detection Parameters",
+        "label": "Maximum Peak Migration (m)",
+        "value": 25.0,
+        "main": false
+    },
+    "min_channels": {
+        "group": "Detection Parameters",
+        "label": "Minimum # Channels",
+        "value": 1,
+        "main": false
+    },
+    "ga_group_name": {
+        "enabled": true,
+        "main": false,
+        "group": "Python run preferences",
+        "label": "Save As",
+        "value": "peak_finder"
+    },
+    "structural_markers": {
+        "main": false,
+        "group": "Python run preferences",
+        "label": "Export all markers",
+        "value": false
+    },
+    "line_id": "",
+    "group_a_data": {
+        "main": true,
+        "association": "Vertex",
+        "group": "Group A",
+        "dataGroupType": "Multi-element",
+        "label": "Property Group",
+        "parent": "objects",
+        "value": ""
+    },
+    "group_a_color": {
+        "main": true,
+        "dataType": "Text",
+        "group": "Group A",
+        "label": "Color",
+        "value": "#0000FF"
+    },
+    "group_b_data": {
+        "main": false,
+        "association": "Vertex",
+        "group": "Group B",
+        "dataGroupType": "Multi-element",
+        "label": "Property Group",
+        "parent": "objects",
+        "optional": true,
+        "enabled": false,
+        "value": ""
+    },
+    "group_b_color": {
+        "main": false,
+        "dataType": "Text",
+        "group": "Group B",
+        "label": "Color",
+        "dependency": "group_b_data",
+        "dependencyType": "enabled",
+        "value": "#FFFF00"
+    },
+    "group_c_data": {
+        "main": false,
+        "association": "Vertex",
+        "group": "Group C",
+        "dataGroupType": "Multi-element",
+        "label": "Property Group",
+        "parent": "objects",
+        "optional": true,
+        "enabled": false,
+        "value": ""
+    },
+    "group_c_color": {
+        "main": false,
+        "dataType": "Text",
+        "group": "Group C",
+        "label": "Color",
+        "dependency": "group_c_data",
+        "dependencyType": "enabled",
+        "value": "#FF0000"
+    },
+    "group_d_data": {
+        "main": false,
+        "association": "Vertex",
+        "group": "Group D",
+        "dataGroupType": "Multi-element",
+        "label": "Property Group",
+        "parent": "objects",
+        "optional": true,
+        "enabled": false,
+        "value": ""
+    },
+    "group_d_color": {
+        "main": false,
+        "dataType": "Text",
+        "group": "Group D",
+        "label": "Color",
+        "dependency": "group_d_data",
+        "dependencyType": "enabled",
+        "value": "#00FFFF"
+    },
+    "group_e_data": {
+        "main": false,
+        "association": "Vertex",
+        "group": "Group E",
+        "dataGroupType": "Multi-element",
+        "label": "Property Group",
+        "parent": "objects",
+        "optional": true,
+        "enabled": false,
+        "value": ""
+    },
+    "group_e_color": {
+        "main": false,
+        "dataType": "Text",
+        "group": "Group E",
+        "label": "Color",
+        "dependency": "group_e_data",
+        "dependencyType": "enabled",
+        "value": "#008000"
+    },
+    "group_f_data": {
+        "main": false,
+        "association": "Vertex",
+        "group": "Group F",
+        "dataGroupType": "Multi-element",
+        "label": "Property Group",
+        "parent": "objects",
+        "optional": true,
+        "enabled": false,
+        "value": ""
+    },
+    "group_f_color": {
+        "main": false,
+        "dataType": "Text",
+        "group": "Group F",
+        "label": "Color",
+        "dependency": "group_f_data",
+        "dependencyType": "enabled",
+        "value": "#FFA500"
+    },
+    "launch_dash": {
+        "main": true,
+        "label": "Run interactive app",
+        "value": true
+    }
+}

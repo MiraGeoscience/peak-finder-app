@@ -31,7 +31,6 @@ class LineGroup:
         property_group: PropertyGroup,
         max_migration: float,
         min_channels: int,
-        data_normalization: list | str | tuple,
         minimal_output: bool,
     ):
         """
@@ -44,7 +43,6 @@ class LineGroup:
         self.property_group = property_group
         self._max_migration = max_migration
         self._min_channels = min_channels
-        self._data_normalization = data_normalization
         self._minimal_output = minimal_output
         self._channels: dict[uuid.UUID, LineData] | None = None
         self._groups: list[AnomalyGroup] | None = None
@@ -112,17 +110,6 @@ class LineGroup:
     @min_channels.setter
     def min_channels(self, value):
         self._min_channels = value
-
-    @property
-    def data_normalization(self) -> list | str | tuple:
-        """
-        Value(s) to normalize data by.
-        """
-        return self._data_normalization
-
-    @data_normalization.setter
-    def data_normalization(self, value):
-        self._data_normalization = value
 
     @property
     def channels(self) -> dict | None:
@@ -275,7 +262,6 @@ class LineGroup:
                 near_values,
             )
             # Normalize peak values
-            group.full_peak_values *= np.prod(self.data_normalization)
             groups += [group]
 
         return groups
