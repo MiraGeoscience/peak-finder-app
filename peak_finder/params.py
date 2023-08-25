@@ -31,7 +31,6 @@ class PeakFinderParams(BaseParams):  # pylint: disable=R0902, R0904
         self._free_parameter_identifier: str = "group"
         self._validations: dict | None = validations
         self._objects: ObjectBase | None = None
-        self._data: Data | None = None
         self._flip_sign: bool | None = None
         self._line_field: Data | None = None
         self._smoothing: int | None = None
@@ -85,14 +84,6 @@ class PeakFinderParams(BaseParams):  # pylint: disable=R0902, R0904
     @conda_environment_boolean.setter
     def conda_environment_boolean(self, val):
         self.setter_validator("conda_environment_boolean", val)
-
-    @property
-    def data(self):
-        return self._data
-
-    @data.setter
-    def data(self, val):
-        self.setter_validator("data", val, fun=self._uuid_promoter)
 
     @property
     def flip_sign(self):

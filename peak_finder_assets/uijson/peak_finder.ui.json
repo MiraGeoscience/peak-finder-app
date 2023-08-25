@@ -1,7 +1,7 @@
 {
     "title": "Peak Finder Parameters",
     "geoh5": "",
-    "run_command": "geoapps.peak_finder.driver",
+    "run_command": "peak_finder.application",
     "run_command_boolean": {
         "value": false,
         "label": "Run python module ",
@@ -101,7 +101,7 @@
         "dataType": "Text",
         "group": "Group A",
         "label": "Color",
-        "value": ""
+        "value": "#0000FF"
     },
     "group_b_data": {
         "main": false,
@@ -121,7 +121,7 @@
         "label": "Color",
         "dependency": "group_b_data",
         "dependencyType": "enabled",
-        "value": ""
+        "value": "#FFFF00"
     },
     "group_c_data": {
         "main": false,
@@ -141,7 +141,7 @@
         "label": "Color",
         "dependency": "group_c_data",
         "dependencyType": "enabled",
-        "value": ""
+        "value": "#FF0000"
     },
     "group_d_data": {
         "main": false,
@@ -161,7 +161,7 @@
         "label": "Color",
         "dependency": "group_d_data",
         "dependencyType": "enabled",
-        "value": ""
+        "value": "#00FFFF"
     },
     "group_e_data": {
         "main": false,
@@ -181,7 +181,7 @@
         "label": "Color",
         "dependency": "group_e_data",
         "dependencyType": "enabled",
-        "value": ""
+        "value": "#008000"
     },
     "group_f_data": {
         "main": false,
@@ -201,7 +201,7 @@
         "label": "Color",
         "dependency": "group_f_data",
         "dependencyType": "enabled",
-        "value": ""
+        "value": "#FFA500"
     },
     "launch_dash": {
         "main": true,

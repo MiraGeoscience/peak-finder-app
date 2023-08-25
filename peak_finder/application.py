@@ -189,7 +189,7 @@ class PeakFinder(BaseDashApplication):
         for value in property_groups.values():
             value["data"] = str(value["data"])
             value["properties"] = [str(p) for p in value["properties"]]
-        peak_finder_layout.children.append(
+        self.app.layout.children.append(
             dcc.Store(id="property_groups", data=property_groups)
         )
 
@@ -276,8 +276,10 @@ class PeakFinder(BaseDashApplication):
         """
         line_field = self.workspace.get_entity(uuid.UUID(line_field))[0]
         options = []
+
         for key, value in line_field.value_map.map.items():  # type: ignore
             options.append({"label": value, "value": key})
+
         return options
 
     def get_line_indices(self, line_field: str, line_id: int) -> np.ndarray | None:
@@ -294,7 +296,6 @@ class PeakFinder(BaseDashApplication):
 
         if len(indices) == 0:
             return None
-
         return indices
 
     def update_active_channels(
@@ -346,7 +347,6 @@ class PeakFinder(BaseDashApplication):
         if d_max > -np.inf:
             min_value = d_min
             linear_threshold = thresh_value
-
         return active_channels, min_value, linear_threshold
 
     def line_update(  # pylint: disable=too-many-arguments, too-many-locals
@@ -380,7 +380,7 @@ class PeakFinder(BaseDashApplication):
         if (
             obj is None
             or len(self.workspace.get_entity(uuid.UUID(line_field))) == 0
-            or line_id == ""
+            or line_id is None
             or len(property_groups_dict) == 0
         ):
             return
@@ -486,8 +486,9 @@ class PeakFinder(BaseDashApplication):
                 line_field,
                 line_id,
             )
+            if self.lines_position is None and self.lines_anomalies is None:
+                return no_update, no_update
             update_line = True
-
         figure_data, figure_layout, y_min, y_max, y_label, y_ticks = (
             None,
             None,
@@ -541,7 +542,6 @@ class PeakFinder(BaseDashApplication):
             min_value,
             x_label,
         )
-
         return go.Figure(data=figure_data, layout=figure_layout), thresh_max
 
     @staticmethod
@@ -1051,6 +1051,7 @@ class PeakFinder(BaseDashApplication):
         min_channels: int,
         line_id: int,
         property_groups: dict,
+        structural_markers: list[bool],
         ga_group_name: str,
         live_link: list[bool],
         monitoring_directory: str,
@@ -1070,6 +1071,7 @@ class PeakFinder(BaseDashApplication):
         :param min_channels: Minimum number of channels.
         :param line_id: Line ID.
         :param property_groups: Property groups dictionary.
+        :param structural_markers: Whether to save structural markers.
         :param ga_group_name: Group name.
         :param live_link: Whether to use live link.
         :param monitoring_directory: Monitoring directory.
