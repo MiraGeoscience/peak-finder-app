@@ -61,6 +61,7 @@ default_ui_json.update(
             "label": "Object",
             "meshType": [
                 "{6A057FDC-B355-11E3-95BE-FD84A7FFCB88}",
+                "{19730589-fd28-4649-9de0-ad47249d9aba}",
             ],
             "value": None,
         },
