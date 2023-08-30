@@ -124,13 +124,14 @@ class PeakFinder(BaseDashApplication):
         self.app.callback(
             Output(component_id="active_channels", component_property="data"),
             Output(component_id="min_value", component_property="value"),
-            Output(component_id="linear_threshold", component_property="value"),
             Input(component_id="property_groups", component_property="data"),
             Input(component_id="flip_sign", component_property="value"),
         )(self.update_active_channels)
         self.app.callback(
             Output(component_id="figure", component_property="figure"),
+            Output(component_id="linear_threshold", component_property="min"),
             Output(component_id="linear_threshold", component_property="max"),
+            Output(component_id="linear_threshold", component_property="marks"),
             *figure_inputs,
         )(self.update_figure)
         self.app.callback(
@@ -300,7 +301,7 @@ class PeakFinder(BaseDashApplication):
 
     def update_active_channels(
         self, property_groups_dict: dict, flip_sign: list[bool]
-    ) -> tuple[dict, float, float]:
+    ) -> tuple[dict, float]:
         """
         Update active channels from property groups.
 
@@ -309,7 +310,6 @@ class PeakFinder(BaseDashApplication):
 
         :return: Active channels.
         :return: Minimum value.
-        :return: Linear threshold slider max.
         """
         if flip_sign:
             flip_sign = -1  # type: ignore
@@ -325,29 +325,21 @@ class PeakFinder(BaseDashApplication):
                     active_channels[channel] = {"name": chan.name}
 
         d_min, d_max = np.inf, -np.inf
-        thresh_value = np.inf
 
         keys = list(active_channels.keys())
         for uid in keys:
             chan = self.workspace.get_entity(uuid.UUID(uid))[0]
             try:
                 active_channels[uid]["values"] = flip_sign * chan.values.copy()
-                thresh_value = np.min(
-                    [
-                        thresh_value,
-                        np.percentile(np.abs(active_channels[uid]["values"]), 95),
-                    ]
-                )
                 d_min = np.nanmin([d_min, active_channels[uid]["values"].min()])
                 d_max = np.nanmax([d_max, active_channels[uid]["values"].max()])
             except KeyError:
                 continue
 
-        min_value, linear_threshold = no_update, no_update
+        min_value = no_update
         if d_max > -np.inf:
             min_value = d_min
-            linear_threshold = thresh_value
-        return active_channels, min_value, linear_threshold
+        return active_channels, min_value
 
     def line_update(  # pylint: disable=too-many-arguments, too-many-locals
         self,
@@ -435,7 +427,7 @@ class PeakFinder(BaseDashApplication):
         y_scale: str,
         linear_threshold: float,
         x_label: str,
-    ) -> tuple[go.Figure, float | None]:
+    ) -> tuple[go.Figure, float | None, float | None, dict | None]:
         """
         Update the figure.
 
@@ -456,7 +448,9 @@ class PeakFinder(BaseDashApplication):
         :param x_label: X-axis label.
 
         :return: Updated figure.
+        :return: Linear threshold slider min.
         :return: Linear threshold slider max.
+        :return: Linear threshold slider marks.
         """
         triggers = [t["prop_id"].split(".")[0] for t in callback_context.triggered]
         update_line_triggers = [
@@ -487,7 +481,7 @@ class PeakFinder(BaseDashApplication):
                 line_id,
             )
             if self.lines_position is None and self.lines_anomalies is None:
-                return no_update, no_update
+                return no_update, no_update, no_update, no_update
             update_line = True
         figure_data, figure_layout, y_min, y_max, y_label, y_ticks = (
             None,
@@ -497,7 +491,7 @@ class PeakFinder(BaseDashApplication):
             None,
             None,
         )
-        thresh_max = no_update
+        thresh_min, thresh_max, thresh_ticks = no_update, no_update, no_update
         if figure is not None:
             figure_data = figure["data"]
             figure_layout = figure["layout"]
@@ -520,7 +514,9 @@ class PeakFinder(BaseDashApplication):
                 y_ticks,
                 y_min,
                 y_max,
+                thresh_min,
                 thresh_max,
+                thresh_ticks,
             ) = self.update_figure_data(
                 objects,
                 property_groups,
@@ -542,7 +538,12 @@ class PeakFinder(BaseDashApplication):
             min_value,
             x_label,
         )
-        return go.Figure(data=figure_data, layout=figure_layout), thresh_max
+        return (
+            go.Figure(data=figure_data, layout=figure_layout),
+            thresh_min,
+            thresh_max,
+            thresh_ticks,
+        )
 
     @staticmethod
     def update_data_colours(
@@ -605,11 +606,7 @@ class PeakFinder(BaseDashApplication):
                 }
             )
 
-        layout_dict.update(
-            {
-                "xaxis_title": x_label + " (m)",
-            }
-        )
+        layout_dict.update({"xaxis_title": x_label + " (m)", "yaxis_tickformat": ".2e"})
 
         fig_layout = go.Layout(layout_dict)
 
@@ -818,6 +815,8 @@ class PeakFinder(BaseDashApplication):
         float | None,
         float | None,
         float | None,
+        float | None,
+        dict | None,
     ]:
         """
         Update the figure data.
@@ -844,7 +843,7 @@ class PeakFinder(BaseDashApplication):
             or len(active_channels) == 0
             or self.lines_position is None
         ):
-            return fig_data, None, None, None, None, None
+            return fig_data, None, None, None, None, None, None, None
 
         y_min, y_max = np.inf, -np.inf
         locs = self.lines_position.locations_resampled
@@ -879,7 +878,7 @@ class PeakFinder(BaseDashApplication):
                 continue
             values = np.array(channel_dict["values"])[obj.line_indices]
             values, raw = self.lines_position.resample_values(values)
-            all_values.append(values)
+            all_values += list(values.flatten())
 
             if log:
                 values = symlog(values, threshold)
@@ -968,11 +967,12 @@ class PeakFinder(BaseDashApplication):
             )
 
         if np.isinf(y_min):
-            return fig_data, None, None, None, None, None
+            return fig_data, None, None, None, None, None, None, None
 
-        all_values, y_label, y_ticks, _ = format_axis(
+        all_values = np.array(all_values)
+        _, y_label, y_ticks, _ = format_axis(
             channel="Data",
-            axis=np.array(all_values),
+            axis=all_values,
             log=log,
             threshold=threshold,
         )
@@ -1032,10 +1032,24 @@ class PeakFinder(BaseDashApplication):
                 visible="legendonly",
             ),
         )
+        pos_vals = all_values[all_values > 0]  # type: ignore
 
-        thresh_max = np.log(np.max([np.percentile(all_values, 10), 1]))
+        thresh_min = np.log10(np.min(pos_vals))
+        thresh_max = np.log10(np.percentile(pos_vals, 10))
+        thresh_ticks = {
+            t: "10E" + f"{t:.2g}" for t in np.linspace(thresh_min, thresh_max, 5)
+        }
 
-        return fig_data, y_label, y_ticks, y_min, y_max, thresh_max
+        return (
+            fig_data,
+            y_label,
+            y_ticks,
+            y_min,
+            y_max,
+            thresh_min,
+            thresh_max,
+            thresh_ticks,
+        )
 
     def trigger_click(  # pylint: disable=too-many-arguments, too-many-locals
         self,
