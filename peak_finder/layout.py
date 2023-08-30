@@ -185,7 +185,7 @@ visual_params_layout = html.Div(
                         5: "10E5",
                         10: "10E10",
                     },
-                    value=-2,
+                    value=-3.8,
                 ),
             ],
             style={
