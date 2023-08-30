@@ -483,7 +483,8 @@ class PeakFinder(BaseDashApplication):
             if self.lines_position is None and self.lines_anomalies is None:
                 return no_update, no_update, no_update, no_update
             update_line = True
-        figure_data, figure_layout, y_min, y_max, y_label, y_ticks = (
+        figure_data, figure_layout, y_min, y_max, y_label, y_tickvals, y_ticktext = (
+            None,
             None,
             None,
             None,
@@ -511,7 +512,8 @@ class PeakFinder(BaseDashApplication):
             (
                 figure_data,
                 y_label,
-                y_ticks,
+                y_tickvals,
+                y_ticktext,
                 y_min,
                 y_max,
                 thresh_min,
@@ -532,7 +534,8 @@ class PeakFinder(BaseDashApplication):
         figure_layout = PeakFinder.update_figure_layout(
             figure_layout,
             y_label,
-            y_ticks,
+            y_tickvals,
+            y_ticktext,
             y_min,
             y_max,
             min_value,
@@ -567,7 +570,8 @@ class PeakFinder(BaseDashApplication):
     def update_figure_layout(  # pylint: disable=too-many-arguments
         figure_layout: dict | None,
         y_label: str | None,
-        y_ticks: np.ndarray | None,
+        y_tickvals: np.ndarray | None,
+        y_ticktext: list[str] | None,
         y_min: float | None,
         y_max: float | None,
         min_value: float,
@@ -578,7 +582,8 @@ class PeakFinder(BaseDashApplication):
 
         :param figure_layout: Figure layout dictionary.
         :param y_label: Label for y-axis.
-        :param y_ticks: Y-axis ticks.
+        :param y_tickvals: Y-axis tick values.
+        :param y_ticktext: Y-axis tick text.
         :param y_min: Minimum y-axis value.
         :param y_max: Maximum y-axis value.
         :param min_value: Minimum value.
@@ -599,10 +604,11 @@ class PeakFinder(BaseDashApplication):
                     "yaxis_title": y_label,
                 }
             )
-        if y_ticks is not None:
+        if y_tickvals is not None and y_ticktext is not None:
             layout_dict.update(
                 {
-                    "yaxis_tickvals": y_ticks,
+                    "yaxis_tickvals": y_tickvals,
+                    "yaxis_ticktext": [f"{y:.2e}" for y in y_ticktext],
                 }
             )
 
@@ -613,19 +619,24 @@ class PeakFinder(BaseDashApplication):
         return fig_layout
 
     @staticmethod
-    def add_markers(  # pylint: disable=too-many-arguments
+    def add_markers(  # pylint: disable=too-many-arguments, too-many-locals
         trace_dict: dict,
         peak_markers_x: list[float],
         peak_markers_y: list[float],
+        peak_markers_customdata: list[float],
         peak_markers_c: list[str],
         start_markers_x: list[float],
         start_markers_y: list[float],
+        start_markers_customdata: list[float],
         end_markers_x: list[float],
         end_markers_y: list[float],
+        end_markers_customdata: list[float],
         up_markers_x: list[float],
         up_markers_y: list[float],
+        up_markers_customdata: list[float],
         dwn_markers_x: list[float],
         dwn_markers_y: list[float],
+        dwn_markers_customdata: list[float],
     ) -> dict:
         """
         Add markers to the figure.
@@ -633,15 +644,20 @@ class PeakFinder(BaseDashApplication):
         :param trace_dict: Dictionary of figure traces.
         :param peak_markers_x: Peak marker x-coordinates.
         :param peak_markers_y: Peak marker y-coordinates.
+        :param peak_markers_customdata: Peak marker customdata for y values.
         :param peak_markers_c: Peak marker colors.
         :param start_markers_x: Start marker x-coordinates.
         :param start_markers_y: Start marker y-coordinates.
+        :param start_markers_customdata: Start marker customdata for y values.
         :param end_markers_x: End marker x-coordinates.
         :param end_markers_y: End marker y-coordinates.
+        :param end_markers_customdata: End marker customdata for y values.
         :param up_markers_x: Up marker x-coordinates.
         :param up_markers_y: Up marker y-coordinates.
+        :param up_markers_customdata: Up marker customdata for y values.
         :param dwn_markers_x: Down marker x-coordinates.
         :param dwn_markers_y: Down marker y-coordinates.
+        :param dwn_markers_customdata: Down marker customdata for y values.
 
         :return: Updated trace dictionary.
         """
@@ -650,6 +666,7 @@ class PeakFinder(BaseDashApplication):
             trace_dict["markers"]["peaks"] = {
                 "x": [None],
                 "y": [None],
+                "customdata": [None],
                 "mode": "markers",
                 "marker_color": ["black"],
                 "marker_symbol": "circle",
@@ -658,15 +675,20 @@ class PeakFinder(BaseDashApplication):
                 "legendgroup": "markers",
                 "showlegend": False,
                 "visible": "legendonly",
+                "hovertemplate": (
+                    "<b>x</b>: %{x:,.2f} <br>" + "<b>y</b>: %{customdata:,.2e}"
+                ),
             }
         trace_dict["markers"]["peaks"]["x"] += peak_markers_x
         trace_dict["markers"]["peaks"]["y"] += peak_markers_y
+        trace_dict["markers"]["peaks"]["customdata"] += peak_markers_customdata
         trace_dict["markers"]["peaks"]["marker_color"] += peak_markers_c
 
         if "start_markers" not in trace_dict["markers"]:
             trace_dict["markers"]["start_markers"] = {
                 "x": [None],
                 "y": [None],
+                "customdata": [None],
                 "mode": "markers",
                 "marker_color": "black",
                 "marker_symbol": "y-right-open",
@@ -675,14 +697,19 @@ class PeakFinder(BaseDashApplication):
                 "legendgroup": "markers",
                 "showlegend": False,
                 "visible": "legendonly",
+                "hovertemplate": (
+                    "<b>x</b>: %{x:,.2f} <br>" + "<b>y</b>: %{customdata:,.2e}"
+                ),
             }
         trace_dict["markers"]["start_markers"]["x"] += start_markers_x
         trace_dict["markers"]["start_markers"]["y"] += start_markers_y
+        trace_dict["markers"]["start_markers"]["customdata"] += start_markers_customdata
 
         if "end_markers" not in trace_dict["markers"]:
             trace_dict["markers"]["end_markers"] = {
                 "x": [None],
                 "y": [None],
+                "customdata": [None],
                 "mode": "markers",
                 "marker_color": "black",
                 "marker_symbol": "y-left-open",
@@ -691,14 +718,19 @@ class PeakFinder(BaseDashApplication):
                 "legendgroup": "markers",
                 "showlegend": False,
                 "visible": "legendonly",
+                "hovertemplate": (
+                    "<b>x</b>: %{x:,.2f} <br>" + "<b>y</b>: %{customdata:,.2e}"
+                ),
             }
         trace_dict["markers"]["end_markers"]["x"] += end_markers_x
         trace_dict["markers"]["end_markers"]["y"] += end_markers_y
+        trace_dict["markers"]["end_markers"]["customdata"] += end_markers_customdata
 
         if "up_markers" not in trace_dict["markers"]:
             trace_dict["markers"]["up_markers"] = {
                 "x": [None],
                 "y": [None],
+                "customdata": [None],
                 "mode": "markers",
                 "marker_color": "black",
                 "marker_symbol": "y-down-open",
@@ -707,14 +739,19 @@ class PeakFinder(BaseDashApplication):
                 "legendgroup": "markers",
                 "showlegend": False,
                 "visible": "legendonly",
+                "hovertemplate": (
+                    "<b>x</b>: %{x:,.2f} <br>" + "<b>y</b>: %{customdata:,.2e}"
+                ),
             }
         trace_dict["markers"]["up_markers"]["x"] += up_markers_x
         trace_dict["markers"]["up_markers"]["y"] += up_markers_y
+        trace_dict["markers"]["up_markers"]["customdata"] += up_markers_customdata
 
         if "down_markers" not in trace_dict["markers"]:
             trace_dict["markers"]["down_markers"] = {
                 "x": [None],
                 "y": [None],
+                "customdata": [None],
                 "mode": "markers",
                 "marker_color": "black",
                 "marker_symbol": "y-up-open",
@@ -723,9 +760,13 @@ class PeakFinder(BaseDashApplication):
                 "legendgroup": "markers",
                 "showlegend": False,
                 "visible": "legendonly",
+                "hovertemplate": (
+                    "<b>x</b>: %{x:,.2f} <br>" + "<b>y</b>: %{customdata:,.2e}"
+                ),
             }
         trace_dict["markers"]["down_markers"]["x"] += dwn_markers_x
         trace_dict["markers"]["down_markers"]["y"] += dwn_markers_y
+        trace_dict["markers"]["down_markers"]["customdata"] += dwn_markers_customdata
 
         return trace_dict
 
@@ -774,6 +815,7 @@ class PeakFinder(BaseDashApplication):
                 legendgroup="positive residuals",
                 showlegend=False,
                 visible="legendonly",
+                hoverinfo="skip",
             )
         )
 
@@ -797,6 +839,7 @@ class PeakFinder(BaseDashApplication):
                 legendgroup="negative residuals",
                 showlegend=False,
                 visible="legendonly",
+                hoverinfo="skip",
             )
         )
         return fig_data
@@ -811,6 +854,7 @@ class PeakFinder(BaseDashApplication):
     ) -> tuple[
         list[go.Scatter],
         str | None,
+        np.ndarray | None,
         np.ndarray | None,
         float | None,
         float | None,
@@ -828,10 +872,13 @@ class PeakFinder(BaseDashApplication):
 
         :return: Updated figure data.
         :return: Label for y-axis.
-        :return: Y-axis ticks.
+        :return: Y-axis tick values.
+        :return: Y-axis tick text.
         :return: Minimum y-axis value.
         :return: Maximum y-axis value.
+        :return: Linear threshold slider min.
         :return: Linear threshold slider max.
+        :return: Linear threshold slider marks.
         """
         obj = self.workspace.get_entity(uuid.UUID(objects))[0]
         fig_data: list[go.Scatter] = []
@@ -843,15 +890,20 @@ class PeakFinder(BaseDashApplication):
             or len(active_channels) == 0
             or self.lines_position is None
         ):
-            return fig_data, None, None, None, None, None, None, None
+            return fig_data, None, None, None, None, None, None, None, None
 
         y_min, y_max = np.inf, -np.inf
         locs = self.lines_position.locations_resampled
-        peak_markers_x, peak_markers_y, peak_markers_c = [], [], []
-        end_markers_x, end_markers_y = [], []
-        start_markers_x, start_markers_y = [], []
-        up_markers_x, up_markers_y = [], []
-        dwn_markers_x, dwn_markers_y = [], []
+        peak_markers_x, peak_markers_y, peak_markers_customdata, peak_markers_c = (
+            [],
+            [],
+            [],
+            [],
+        )
+        end_markers_x, end_markers_y, end_markers_customdata = [], [], []
+        start_markers_x, start_markers_y, start_markers_customdata = [], [], []
+        up_markers_x, up_markers_y, up_markers_customdata = [], [], []
+        dwn_markers_x, dwn_markers_y, dwn_markers_customdata = [], [], []
 
         trace_dict = {
             "lines": {
@@ -881,14 +933,17 @@ class PeakFinder(BaseDashApplication):
             all_values += list(values.flatten())
 
             if log:
-                values = symlog(values, threshold)
-                raw = symlog(raw, threshold)
+                sym_values = symlog(values, threshold)
+                sym_raw = symlog(raw, threshold)
+            else:
+                sym_values = values
+                sym_raw = raw
 
-            y_min = np.nanmin([values.min(), y_min])
-            y_max = np.nanmax([values.max(), y_max])
+            y_min = np.nanmin([sym_values.min(), y_min])
+            y_max = np.nanmax([sym_values.max(), y_max])
 
             trace_dict["lines"]["lines"]["x"] += list(locs) + [None]  # type: ignore
-            trace_dict["lines"]["lines"]["y"] += list(values) + [None]  # type: ignore
+            trace_dict["lines"]["lines"]["y"] += list(sym_values) + [None]  # type: ignore
 
             for anomaly_group in self.lines_anomalies:  # type: ignore
                 channels = np.array(
@@ -909,16 +964,25 @@ class PeakFinder(BaseDashApplication):
                     trace_dict["property_groups"][group_name] = {  # type: ignore
                         "x": [None],
                         "y": [None],
+                        "customdata": [None],
                         "mode": "lines",
                         "line_color": color,
                         "name": group_name,
+                        "hovertemplate": (
+                            "<b>x</b>: %{x:,.2f} <br>" + "<b>y</b>: %{customdata:,.2e}"
+                        ),
                     }
                 trace_dict["property_groups"][group_name]["x"] += list(  # type: ignore
                     locs[start:end]
                 ) + [None]
                 trace_dict["property_groups"][group_name]["y"] += list(  # type: ignore
-                    values[start:end]
+                    sym_values[start:end]
                 ) + [None]
+                trace_dict["property_groups"][group_name]["customdata"] += list(  # type: ignore
+                    values[start:end]
+                ) + [
+                    None
+                ]
 
                 if anomaly_group.azimuth < 180:  # type: ignore
                     ori = "right"
@@ -931,6 +995,7 @@ class PeakFinder(BaseDashApplication):
                         trace_dict["markers"][ori + "_azimuth"] = {  # type: ignore
                             "x": [None],
                             "y": [None],
+                            "customdata": [None],
                             "mode": "markers",
                             "marker_color": "black",
                             "marker_symbol": "arrow-" + ori,
@@ -939,38 +1004,52 @@ class PeakFinder(BaseDashApplication):
                             "legendgroup": "markers",
                             "showlegend": False,
                             "visible": "legendonly",
+                            "hovertemplate": (
+                                "<b>x</b>: %{x:,.2f} <br>"
+                                + "<b>y</b>: %{customdata:,.2e}"
+                            ),
                         }
                     trace_dict["markers"][ori + "_azimuth"]["x"] += [  # type: ignore
                         locs[peaks[i]]
                     ]
                     trace_dict["markers"][ori + "_azimuth"]["y"] += [  # type: ignore
+                        sym_values[peaks[i]]
+                    ]
+                    trace_dict["markers"][ori + "_azimuth"]["customdata"] += [  # type: ignore
                         values[peaks[i]]
                     ]
 
                 peak_markers_x += [locs[peaks[i]]]
-                peak_markers_y += [values[peaks[i]]]
+                peak_markers_y += [sym_values[peaks[i]]]
+                peak_markers_customdata += [values[peaks[i]]]
                 peak_markers_c += [color]
                 start_markers_x += [locs[anomaly_group.anomalies[i].start]]
-                start_markers_y += [values[anomaly_group.anomalies[i].start]]
+                start_markers_y += [sym_values[anomaly_group.anomalies[i].start]]
+                start_markers_customdata += [values[anomaly_group.anomalies[i].start]]
                 end_markers_x += [locs[anomaly_group.anomalies[i].end]]
-                end_markers_y += [values[anomaly_group.anomalies[i].end]]
+                end_markers_y += [sym_values[anomaly_group.anomalies[i].end]]
+                end_markers_customdata += [values[anomaly_group.anomalies[i].end]]
                 up_markers_x += [locs[anomaly_group.anomalies[i].inflect_up]]
-                up_markers_y += [values[anomaly_group.anomalies[i].inflect_up]]
+                up_markers_y += [sym_values[anomaly_group.anomalies[i].inflect_up]]
+                up_markers_customdata += [values[anomaly_group.anomalies[i].inflect_up]]
                 dwn_markers_x += [locs[anomaly_group.anomalies[i].inflect_down]]
-                dwn_markers_y += [values[anomaly_group.anomalies[i].inflect_down]]
+                dwn_markers_y += [sym_values[anomaly_group.anomalies[i].inflect_down]]
+                dwn_markers_customdata += [
+                    values[anomaly_group.anomalies[i].inflect_down]
+                ]
 
             fig_data = PeakFinder.add_residuals(
                 fig_data,
-                values,
-                raw,
+                sym_values,
+                sym_raw,
                 locs,
             )
 
         if np.isinf(y_min):
-            return fig_data, None, None, None, None, None, None, None
+            return fig_data, None, None, None, None, None, None, None, None
 
         all_values = np.array(all_values)
-        _, y_label, y_ticks, _ = format_axis(
+        _, y_label, y_tickvals, y_ticktext = format_axis(
             channel="Data",
             axis=all_values,
             log=log,
@@ -981,15 +1060,20 @@ class PeakFinder(BaseDashApplication):
             trace_dict,
             peak_markers_x,
             peak_markers_y,
+            peak_markers_customdata,
             peak_markers_c,
             start_markers_x,
             start_markers_y,
+            start_markers_customdata,
             end_markers_x,
             end_markers_y,
+            end_markers_customdata,
             up_markers_x,
             up_markers_y,
+            up_markers_customdata,
             dwn_markers_x,
             dwn_markers_y,
+            dwn_markers_customdata,
         )
 
         for trace_name in ["lines", "property_groups", "markers"]:
@@ -1035,7 +1119,7 @@ class PeakFinder(BaseDashApplication):
         pos_vals = all_values[all_values > 0]  # type: ignore
 
         thresh_min = np.log10(np.min(pos_vals))
-        thresh_max = np.log10(np.percentile(pos_vals, 10))
+        thresh_max = np.log10(np.max(pos_vals))
         thresh_ticks = {
             t: "10E" + f"{t:.2g}" for t in np.linspace(thresh_min, thresh_max, 5)
         }
@@ -1043,7 +1127,8 @@ class PeakFinder(BaseDashApplication):
         return (
             fig_data,
             y_label,
-            y_ticks,
+            y_tickvals,
+            y_ticktext,
             y_min,
             y_max,
             thresh_min,
