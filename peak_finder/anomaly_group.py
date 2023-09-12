@@ -93,13 +93,9 @@ class AnomalyGroup:
             and self.group_center_sort is not None
             and self.peaks is not None
         ):
-            self._group_center = (
-                np.mean(
-                    self.position.interpolate_array(
-                        self.peaks[self.group_center_sort[0]]
-                    ),
-                    axis=0,
-                ),
+            self._group_center = np.mean(
+                self.position.interpolate_array(self.peaks[self.group_center_sort[0]]),
+                axis=0,
             )
         return self._group_center
 

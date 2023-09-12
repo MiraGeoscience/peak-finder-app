@@ -76,8 +76,10 @@ class PeakFinder(BaseDashApplication):
         self.set_initialized_layout()
 
         # Set up callbacks
-        figure_inputs = [
-            Input(component_id="figure", component_property="figure"),
+        line_figure_inputs = [
+            Input(component_id="line_figure", component_property="figure"),
+            Input(component_id="line_figure", component_property="clickData"),
+            Input(component_id="full_lines_figure", component_property="clickData"),
             Input(component_id="objects", component_property="data"),
             Input(component_id="property_groups", component_property="data"),
             Input(component_id="smoothing", component_property="value"),
@@ -94,8 +96,8 @@ class PeakFinder(BaseDashApplication):
             Input(component_id="x_label", component_property="value"),
         ]
         self.app.callback(
-            Output(component_id="loading", component_property="children"),
-            *figure_inputs,
+            Output(component_id="line_loading", component_property="children"),
+            *line_figure_inputs,
         )(PeakFinder.loading_figure)
         self.app.callback(
             Output(component_id="linear_threshold", component_property="disabled"),
@@ -128,12 +130,30 @@ class PeakFinder(BaseDashApplication):
             Input(component_id="flip_sign", component_property="value"),
         )(self.update_active_channels)
         self.app.callback(
-            Output(component_id="figure", component_property="figure"),
+            Output(component_id="line_figure", component_property="figure"),
             Output(component_id="linear_threshold", component_property="min"),
             Output(component_id="linear_threshold", component_property="max"),
             Output(component_id="linear_threshold", component_property="marks"),
-            *figure_inputs,
-        )(self.update_figure)
+            *line_figure_inputs,
+        )(self.update_line_figure)
+        self.app.callback(
+            Output(component_id="full_lines_figure", component_property="figure"),
+            Input(component_id="full_lines_figure", component_property="figure"),
+            Input(component_id="line_figure", component_property="clickData"),
+            Input(component_id="full_lines_figure", component_property="clickData"),
+            Input(component_id="n_lines", component_property="value"),
+            Input(component_id="line_id", component_property="options"),
+            Input(component_id="objects", component_property="data"),
+            Input(component_id="property_groups", component_property="data"),
+            Input(component_id="smoothing", component_property="value"),
+            Input(component_id="max_migration", component_property="value"),
+            Input(component_id="min_channels", component_property="value"),
+            Input(component_id="min_amplitude", component_property="value"),
+            Input(component_id="min_value", component_property="value"),
+            Input(component_id="min_width", component_property="value"),
+            Input(component_id="line_field", component_property="value"),
+            Input(component_id="line_id", component_property="value"),
+        )(self.update_full_lines_figure)
         self.app.callback(
             Output(component_id="live_link", component_property="value"),
             Output(component_id="output_message", component_property="children"),
@@ -375,11 +395,11 @@ class PeakFinder(BaseDashApplication):
             or line_id is None
             or len(property_groups_dict) == 0
         ):
-            return
+            return None, None
 
         line_indices = self.get_line_indices(line_field, line_id)
         if line_indices is None:
-            return
+            return None, None
 
         obj.line_indices = line_indices
         property_groups = [
@@ -400,19 +420,21 @@ class PeakFinder(BaseDashApplication):
         )
 
         if line_anomaly is None:
-            return
-        self.lines_position = line_anomaly.position
+            return None, None
 
         line_groups = line_anomaly.anomalies
         anomalies: list[AnomalyGroup] = []
         if line_groups is not None:
             for line_group in line_groups:
                 anomalies += line_group.groups  # type: ignore
-        self.lines_anomalies = anomalies
 
-    def update_figure(  # pylint: disable=too-many-arguments, too-many-locals
+        return line_anomaly.position, anomalies
+
+    def update_line_figure(  # pylint: disable=too-many-arguments, too-many-locals
         self,
         figure: dict | None,
+        line_click_data: dict | None,
+        full_lines_click_data: dict | None,
         objects: str,
         property_groups: dict,
         smoothing: float,
@@ -432,6 +454,8 @@ class PeakFinder(BaseDashApplication):
         Update the figure.
 
         :param figure: Figure dictionary.
+        :param line_click_data: Click data for single line plot.
+        :param full_lines_click_data: Click data for full lines plot.
         :param objects: Input object.
         :param property_groups: Property groups dictionary.
         :param smoothing: Smoothing factor.
@@ -453,6 +477,34 @@ class PeakFinder(BaseDashApplication):
         :return: Linear threshold slider marks.
         """
         triggers = [t["prop_id"].split(".")[0] for t in callback_context.triggered]
+        if figure is not None:
+            if line_click_data is not None and "line_figure" in triggers:
+                figure["layout"]["shapes"][0]["x0"] = line_click_data["points"][0]["x"]
+                figure["layout"]["shapes"][0]["x1"] = line_click_data["points"][0]["x"]
+                return (
+                    go.Figure(data=figure["data"], layout=figure["layout"]),
+                    no_update,
+                    no_update,
+                    no_update,
+                )
+            if (
+                full_lines_click_data is not None
+                and "full_lines_figure" in triggers
+                and self.lines_position is not None
+            ):
+                x_val = (
+                    full_lines_click_data["points"][0]["x"]
+                    - self.lines_position.x_locations[0]  # type: ignore
+                )
+                figure["layout"]["shapes"][0]["x0"] = x_val
+                figure["layout"]["shapes"][0]["x1"] = x_val
+                return (
+                    go.Figure(data=figure["data"], layout=figure["layout"]),
+                    no_update,
+                    no_update,
+                    no_update,
+                )
+
         update_line_triggers = [
             "objects",
             "property_groups",
@@ -468,7 +520,7 @@ class PeakFinder(BaseDashApplication):
         update_line = False
         if any(t in triggers for t in update_line_triggers):
             # Update line position and anomalies
-            self.line_update(
+            self.lines_position, self.lines_anomalies = self.line_update(
                 objects,
                 property_groups,
                 smoothing,
@@ -541,8 +593,11 @@ class PeakFinder(BaseDashApplication):
             min_value,
             x_label,
         )
+        fig = go.Figure(data=figure_data, layout=figure_layout)
+        if len(figure_layout["shapes"]) == 0:
+            fig.add_vline(x=0)
         return (
-            go.Figure(data=figure_data, layout=figure_layout),
+            fig,
             thresh_min,
             thresh_max,
             thresh_ticks,
@@ -1116,6 +1171,8 @@ class PeakFinder(BaseDashApplication):
                 visible="legendonly",
             ),
         )
+
+        # Update linear threshold
         pos_vals = all_values[all_values > 0]  # type: ignore
 
         thresh_min = np.log10(np.min(pos_vals))
@@ -1135,6 +1192,150 @@ class PeakFinder(BaseDashApplication):
             thresh_max,
             thresh_ticks,
         )
+
+    def update_full_lines_figure(  # pylint: disable=too-many-arguments, too-many-locals
+        self,
+        figure,
+        line_click_data,
+        full_lines_click_data,
+        n_lines: int,
+        line_id_options,
+        objects,
+        property_groups,
+        smoothing,
+        max_migration,
+        min_channels,
+        min_amplitude,
+        min_value,
+        min_width,
+        line_field,
+        line_id,
+    ):
+        """
+        Update the full lines figure.
+
+        :param figure: Figure dictionary.
+        :param line_click_data: Line figure click data.
+        :param full_lines_click_data: Full lines figure click data.
+        :param n_lines: Number of lines to display.
+        :param line_id_options: Line id options.
+        :param objects: Input object.
+        :param property_groups: Property groups dictionary.
+        :param smoothing: Smoothing.
+        :param max_migration: Maximum migration.
+        :param min_channels: Minimum number of channels.
+        :param min_amplitude: Minimum amplitude.
+        :param min_value: Minimum value.
+        :param min_width: Minimum width.
+        :param line_field: Line field.
+        :param line_id: Line id.
+        """
+        triggers = [t["prop_id"].split(".")[0] for t in callback_context.triggered]
+        if figure is not None:
+            if (
+                line_click_data is not None
+                and "line_figure" in triggers
+                and self.lines_position is not None
+            ):
+                x_locs = self.lines_position.x_locations
+                x_val = x_locs[0] + line_click_data["points"][0]["x"]  # type: ignore
+                ind = (np.abs(x_locs - x_val)).argmin()
+                y_val = self.lines_position.y_locations[ind]  # type: ignore
+                figure["data"][-1]["x"] = [x_val]
+                figure["data"][-1]["y"] = [y_val]
+                return figure
+            if full_lines_click_data is not None and "full_lines_figure" in triggers:
+                x_val = full_lines_click_data["points"][0]["x"]
+                y_val = full_lines_click_data["points"][0]["y"]
+                figure["data"][-1]["x"] = [x_val]
+                figure["data"][-1]["y"] = [y_val]
+                return figure
+
+        figure = go.Figure()
+        if n_lines is None:
+            return figure
+
+        min_ind = max(0, line_id - n_lines)
+        max_ind = min(len(line_id_options), line_id + n_lines + 1)
+
+        anomaly_traces = {}
+        for key, value in property_groups.items():
+            anomaly_traces[key] = {
+                "x": [None],
+                "y": [None],
+                "marker_color": value["color"],
+                "mode": "markers",
+                "name": key,
+            }
+
+        for line in line_id_options[min_ind:max_ind]:
+            position, anomalies = self.line_update(
+                objects,
+                property_groups,
+                smoothing,
+                max_migration,
+                min_channels,
+                min_amplitude,
+                min_value,
+                min_width,
+                line_field,
+                line["value"],
+            )
+            if position is not None:
+                if line["value"] == line_id:
+                    figure.add_trace(
+                        go.Scatter(
+                            x=position.x_locations,
+                            y=position.y_locations,
+                            name=line["label"],
+                            line_color="black",
+                        )
+                    )
+                else:
+                    figure.add_trace(
+                        go.Scatter(
+                            x=position.x_locations,
+                            y=position.y_locations,
+                            name=line["label"],
+                        )
+                    )
+
+            if anomalies is not None:
+                for anom in anomalies:
+                    anomaly_traces[anom.property_group.name]["x"].append(
+                        anom.group_center[0]
+                    )
+                    anomaly_traces[anom.property_group.name]["y"].append(
+                        anom.group_center[1]
+                    )
+
+        for trace in list(anomaly_traces.values()):
+            figure.add_trace(
+                go.Scatter(
+                    **trace,
+                )
+            )
+
+        figure.add_trace(
+            go.Scatter(
+                x=[self.lines_position.x_locations[0]],  # type: ignore
+                y=[self.lines_position.y_locations[0]],  # type: ignore
+                marker_color="black",
+                marker_symbol="star",
+                marker_size=10,
+                mode="markers",
+                showlegend=False,
+            )
+        )
+
+        figure.update_layout(
+            xaxis_title="Easting (m)",
+            yaxis_title="Northing (m)",
+            yaxis_scaleanchor="x",
+            yaxis_scaleratio=1,
+        )
+
+        return figure
 
     def trigger_click(  # pylint: disable=too-many-arguments, too-many-locals
         self,

@@ -13,10 +13,7 @@ from geoapps_utils.application.layout import export_layout
 
 data_selection_layout = html.Div(
     [
-        dcc.Markdown(
-            children="#### Peak Finder",
-            style={"margin-bottom": "20px"},
-        ),
+        dcc.Markdown(children="**Data Selection**", style={"margin-bottom": "20px"}),
         html.Div(
             [
                 dcc.Markdown(
@@ -59,6 +56,28 @@ data_selection_layout = html.Div(
             ],
             style={"margin-bottom": "20px"},
         ),
+        html.Div(
+            [
+                dcc.Markdown(
+                    children="N outward lines",
+                    style={
+                        "width": "30%",
+                        "display": "inline-block",
+                    },
+                ),
+                dcc.Input(
+                    id="n_lines",
+                    type="number",
+                    min=0,
+                    step=1,
+                    value=1,
+                    style={
+                        "width": "49%",
+                        "display": "inline-block",
+                    },
+                ),
+            ]
+        ),
         dcc.Checklist(
             id="flip_sign",
             options=[{"label": "Flip Y (-1x)", "value": True}],
@@ -69,8 +88,10 @@ data_selection_layout = html.Div(
         ),
     ],
     style={
-        "width": "50%",
+        "width": "45%",
+        "display": "inline-block",
         "vertical-align": "top",
+        "margin-bottom": "20px",
     },
 )
 group_settings_layout = html.Div(
@@ -107,13 +128,24 @@ group_settings_layout = html.Div(
             ],
         ),
     ],
-    style={"width": "50%", "vertical-align": "top"},
+    style={
+        "width": "45%",
+        "vertical-align": "top",
+        "display": "inline-block",
+    },
 )
 
 figure_layout = html.Div(
     [
         dcc.Loading(
-            id="loading", type="default", children=html.Div(dcc.Graph(id="figure"))
+            id="line_loading",
+            type="default",
+            children=html.Div(dcc.Graph(id="line_figure")),
+        ),
+        dcc.Loading(
+            id="full_lines_loading",
+            type="default",
+            children=html.Div(dcc.Graph(id="full_lines_figure")),
         ),
     ],
 )
@@ -363,11 +395,15 @@ detection_params_layout = html.Div(
 
 peak_finder_layout = html.Div(
     [
-        data_selection_layout,
-        group_settings_layout,
+        dcc.Markdown(
+            children="#### Peak Finder",
+            style={"margin-bottom": "20px"},
+        ),
         figure_layout,
         visual_params_layout,
+        data_selection_layout,
         detection_params_layout,
+        group_settings_layout,
         html.Div(
             [
                 dcc.Checklist(
