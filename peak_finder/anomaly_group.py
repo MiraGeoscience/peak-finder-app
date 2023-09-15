@@ -36,6 +36,8 @@ class AnomalyGroup:
     _group_center_sort: np.ndarray | None = None
     _peak: np.ndarray | None = None
     _peaks: np.ndarray | None = None
+    _start: int | None = None
+    _end: int | None = None
 
     def __init__(
         self,
@@ -80,7 +82,6 @@ class AnomalyGroup:
             isinstance(item, Anomaly) for item in value
         ):
             raise TypeError("Attribute 'anomalies` must be a list of Anomaly objects.")
-
         self._anomalies = value
 
     @property
@@ -214,6 +215,20 @@ class AnomalyGroup:
         if self._peaks is None:
             self._peaks = self.get_list_attr("peak")
         return self._peaks
+
+    @property
+    def start(self) -> int:
+        """
+        Start position of the anomaly group.
+        """
+        return self._start
+
+    @property
+    def end(self) -> int:
+        """
+        End position of the anomaly group.
+        """
+        return self._end
 
     def get_list_attr(self, attr: str) -> list | np.ndarray:
         """

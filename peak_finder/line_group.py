@@ -31,6 +31,8 @@ class LineGroup:
         property_group: PropertyGroup,
         max_migration: float,
         min_channels: int,
+        n_groups: int,
+        max_separation: float,
         minimal_output: bool,
     ):
         """
@@ -43,6 +45,8 @@ class LineGroup:
         self.property_group = property_group
         self._max_migration = max_migration
         self._min_channels = min_channels
+        self._n_groups = n_groups
+        self._max_separation = max_separation
         self._minimal_output = minimal_output
         self._channels: dict[uuid.UUID, LineData] | None = None
         self._groups: list[AnomalyGroup] | None = None
@@ -110,6 +114,28 @@ class LineGroup:
     @min_channels.setter
     def min_channels(self, value):
         self._min_channels = value
+
+    @property
+    def n_groups(self) -> int:
+        """
+        Number of peaks to merge.
+        """
+        return self._n_groups
+
+    @n_groups.setter
+    def n_groups(self, value):
+        self._n_groups = value
+
+    @property
+    def max_separation(self) -> float:
+        """
+        Max separation between peaks to merge.
+        """
+        return self._max_separation
+
+    @max_separation.setter
+    def max_separation(self, value):
+        self._max_separation = value
 
     @property
     def channels(self) -> dict | None:
@@ -203,6 +229,48 @@ class LineGroup:
             full_peak_values,
         )
 
+    def group_n_groups(self, groups):
+        """
+        Look for anomalies connected by their ends.
+        """
+        merged = []
+        current_groups = groups
+        for n in range(self.n_groups - 1):
+            all_starts = np.vstack([group.start for group in groups])
+            ignore = []
+            merged = []
+            for ind, group in enumerate(current_groups):
+                if groups[ind] in ignore:
+                    continue
+                rad = np.linalg.norm(group.end - all_starts, axis=1)
+                in_range = np.where(rad < self.max_separation)[0]
+
+                new_group = None
+                for val in in_range:
+                    if val == ind:
+                        continue
+                    if groups[val] in ignore:
+                        continue
+
+                    new_group = AnomalyGroup(
+                        self.position,
+                        np.concatenate((groups[ind].anomalies, groups[val].anomalies)),
+                        self.property_group,
+                        np.concatenate((groups[ind].full_azimuth, groups[val].full_azimuth)),
+                        self.channels,
+                        np.concatenate((groups[ind].full_peak_values, groups[val].full_peak_values)),
+                    )
+                    ignore.append(groups[ind])
+                    ignore.append(groups[val])
+                    break
+                if new_group is None:
+                    new_group = groups[ind]
+                    ignore.append(groups[ind])
+                merged.append(new_group)
+            current_groups = merged
+
+        return merged
+
     def compute(  # pylint: disable=R0913, R0914
         self,
     ) -> list[AnomalyGroup] | None:
@@ -261,7 +329,9 @@ class LineGroup:
                 self.channels,
                 near_values,
             )
-            # Normalize peak values
             groups += [group]
+
+        if self.n_groups > 1:
+            groups = self.group_n_groups(groups)
 
         return groups

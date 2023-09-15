@@ -88,6 +88,8 @@ class PeakFinder(BaseDashApplication):
             Input(component_id="min_amplitude", component_property="value"),
             Input(component_id="min_value", component_property="value"),
             Input(component_id="min_width", component_property="value"),
+            Input(component_id="n_groups", component_property="value"),
+            Input(component_id="max_separation", component_property="value"),
             Input(component_id="line_field", component_property="value"),
             Input(component_id="line_id", component_property="value"),
             Input(component_id="active_channels", component_property="data"),
@@ -151,6 +153,8 @@ class PeakFinder(BaseDashApplication):
             Input(component_id="min_amplitude", component_property="value"),
             Input(component_id="min_value", component_property="value"),
             Input(component_id="min_width", component_property="value"),
+            Input(component_id="n_groups", component_property="value"),
+            Input(component_id="max_separation", component_property="value"),
             Input(component_id="line_field", component_property="value"),
             Input(component_id="line_id", component_property="value"),
         )(self.update_full_lines_figure)
@@ -371,6 +375,8 @@ class PeakFinder(BaseDashApplication):
         min_amplitude: float,
         min_value: float,
         min_width: float,
+        n_groups: int,
+        max_separation: float,
         line_field: str,
         line_id: int,
     ):
@@ -417,6 +423,8 @@ class PeakFinder(BaseDashApplication):
             min_width=min_width,
             max_migration=max_migration,
             min_channels=min_channels,
+            n_groups=n_groups,
+            max_separation=max_separation,
         )
 
         if line_anomaly is None:
@@ -443,6 +451,8 @@ class PeakFinder(BaseDashApplication):
         min_amplitude: float,
         min_value: float,
         min_width: float,
+        n_groups: int,
+        max_separation: float,
         line_field: str,
         line_id: int,
         active_channels: dict,
@@ -514,6 +524,8 @@ class PeakFinder(BaseDashApplication):
             "min_amplitude",
             "min_value",
             "min_width",
+            "n_groups",
+            "max_separation",
             "line_field",
             "line_id",
         ]
@@ -529,6 +541,8 @@ class PeakFinder(BaseDashApplication):
                 min_amplitude,
                 min_value,
                 min_width,
+                n_groups,
+                max_separation,
                 line_field,
                 line_id,
             )
@@ -1208,6 +1222,8 @@ class PeakFinder(BaseDashApplication):
         min_amplitude,
         min_value,
         min_width,
+        n_groups,
+        max_separation,
         line_field,
         line_id,
     ):
@@ -1278,6 +1294,8 @@ class PeakFinder(BaseDashApplication):
                 min_amplitude,
                 min_value,
                 min_width,
+                n_groups,
+                max_separation,
                 line_field,
                 line["value"],
             )

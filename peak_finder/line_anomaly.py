@@ -47,6 +47,8 @@ class LineAnomaly:  # pylint: disable=R0902
         min_value=-np.inf,
         min_width=200.0,
         smoothing=1,
+        n_groups=2,
+        max_separation=100.0,
         use_residual=False,
     ):
         """
@@ -77,6 +79,8 @@ class LineAnomaly:  # pylint: disable=R0902
         self.use_residual = use_residual
         self.minimal_output = minimal_output
         self.property_groups = property_groups
+        self.n_groups = n_groups
+        self.max_separation = max_separation
 
     @property
     def entity(self) -> Curve:
@@ -204,6 +208,28 @@ class LineAnomaly:  # pylint: disable=R0902
         self._min_channels = value
 
     @property
+    def n_groups(self) -> int:
+        """
+        Number of peaks to merge.
+        """
+        return self._n_groups
+
+    @n_groups.setter
+    def n_groups(self, value):
+        self._n_groups = value
+
+    @property
+    def max_separation(self) -> int:
+        """
+        Max separation between peaks to merge.
+        """
+        return self._max_separation
+
+    @max_separation.setter
+    def max_separation(self, value):
+        self._max_separation = value
+
+    @property
     def use_residual(self) -> bool:
         """
         Whether to use the residual of the smoothing data.
@@ -304,6 +330,8 @@ class LineAnomaly:  # pylint: disable=R0902
                 property_group=property_group,
                 max_migration=self.max_migration,
                 min_channels=self.min_channels,
+                n_groups=self.n_groups,
+                max_separation=self.max_separation,
                 minimal_output=self.minimal_output,
             )
             line_groups.append(line_group)
