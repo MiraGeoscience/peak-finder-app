@@ -47,7 +47,7 @@ class LineAnomaly:  # pylint: disable=R0902
         min_value=-np.inf,
         min_width=200.0,
         smoothing=1,
-        n_groups=2,
+        n_groups=1,
         max_separation=100.0,
         use_residual=False,
     ):
@@ -323,7 +323,7 @@ class LineAnomaly:  # pylint: disable=R0902
 
         # Group anomalies
         line_groups = []
-        for property_group in self.property_groups:
+        for property_group in [self.property_groups[0]]:
             line_group = LineGroup(
                 position=self.position,
                 line_dataset=line_dataset,

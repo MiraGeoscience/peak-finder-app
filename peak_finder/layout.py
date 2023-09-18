@@ -395,7 +395,7 @@ detection_params_layout = html.Div(
                     style={
                         "width": "30%",
                         "display": "inline-block",
-                    }
+                    },
                 ),
                 dcc.Input(
                     id="n_groups",
@@ -404,14 +404,14 @@ detection_params_layout = html.Div(
                     style={
                         "width": "70%",
                         "display": "inline-block",
-                    }
+                    },
                 ),
                 dcc.Markdown(
                     children="Max Group Separation",
                     style={
                         "width": "30%",
                         "display": "inline-block",
-                    }
+                    },
                 ),
                 dcc.Input(
                     id="max_separation",
@@ -420,12 +420,17 @@ detection_params_layout = html.Div(
                     style={
                         "width": "70%",
                         "display": "inline-block",
-                    }
+                    },
                 ),
             ]
         ),
     ],
-    style={"width": "45%", "display": "inline-block", "vertical-align": "top", "margin-right": "5%"},
+    style={
+        "width": "45%",
+        "display": "inline-block",
+        "vertical-align": "top",
+        "margin-right": "5%",
+    },
 )
 
 

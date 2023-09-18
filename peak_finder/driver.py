@@ -82,6 +82,8 @@ class PeakFinderDriver(BaseDriver):
                         min_width=self.params.min_width,
                         max_migration=self.params.max_migration,
                         min_channels=self.params.min_channels,
+                        n_groups=self.params.n_groups,
+                        max_separation=self.params.max_separation,
                         minimal_output=True,
                     )
                 ]

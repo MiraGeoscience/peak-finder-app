@@ -144,7 +144,7 @@ class LineGroup:
         """
         if self._channels is None:
             channels = {}
-            for uid in self.property_group.properties:
+            for uid in self.property_group.properties:  # type: ignore
                 channels[uid] = self.line_dataset[uid]
             self._channels = channels
 
@@ -256,9 +256,13 @@ class LineGroup:
                         self.position,
                         np.concatenate((groups[ind].anomalies, groups[val].anomalies)),
                         self.property_group,
-                        np.concatenate((groups[ind].full_azimuth, groups[val].full_azimuth)),
+                        np.concatenate(
+                            (groups[ind].full_azimuth, groups[val].full_azimuth)
+                        ),
                         self.channels,
-                        np.concatenate((groups[ind].full_peak_values, groups[val].full_peak_values)),
+                        np.concatenate(
+                            (groups[ind].full_peak_values, groups[val].full_peak_values)
+                        ),
                     )
                     ignore.append(groups[ind])
                     ignore.append(groups[val])

@@ -217,17 +217,23 @@ class AnomalyGroup:
         return self._peaks
 
     @property
-    def start(self) -> int:
+    def start(self) -> int | None:
         """
         Start position of the anomaly group.
         """
+        if self._start is None and self.peaks is not None:
+            locs = self.position.locations_resampled
+            self._start = np.min(locs[self.peaks])
         return self._start
 
     @property
-    def end(self) -> int:
+    def end(self) -> int | None:
         """
         End position of the anomaly group.
         """
+        if self._end is None and self.peaks is not None:
+            locs = self.position.locations_resampled
+            self._end = np.max(locs[self.peaks])
         return self._end
 
     def get_list_attr(self, attr: str) -> list | np.ndarray:
