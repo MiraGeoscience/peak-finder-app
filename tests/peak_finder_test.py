@@ -11,10 +11,10 @@ import string
 from pathlib import Path
 
 import numpy as np
-from scipy import stats
 from geoh5py.objects import Curve
 from geoh5py.shared.utils import compare_entities
 from geoh5py.workspace import Workspace
+from scipy import stats
 
 from peak_finder.application import PeakFinder, PeakFinderDriver
 from peak_finder.params import PeakFinderParams
@@ -212,7 +212,7 @@ def test_merging_peaks(tmp_path: Path):  # pylint: disable=too-many-locals
     line_field = "{" + str(line.uid) + "}"
 
     n_groups_list = [2, 2, 2, 2]
-    max_separation_list = [1, 10, 20, 30]
+    max_separation_list = [1, 10.5, 20.5, 30.5]
     expected_groups = [5, 4, 3, 3]
     expected_peaks = [
         [10, 30, 60, 70, 90],
@@ -220,7 +220,7 @@ def test_merging_peaks(tmp_path: Path):  # pylint: disable=too-many-locals
         [20, 65, 90],
         [10, 30, 60, 70, 90],
     ]
-    for ind in range(3):
+    for ind in range(4):
         app.trigger_click(
             n_clicks=0,
             objects=objects,
@@ -248,5 +248,9 @@ def test_merging_peaks(tmp_path: Path):  # pylint: disable=too-many-locals
             amplitudes = anomalies_obj.get_data("amplitude")[0].values
             assert len(amplitudes) == expected_groups[ind]
             assert np.all(
-                np.isclose(anomalies_obj.vertices[:, 0], expected_peaks[ind], rtol=0.05)
+                np.isclose(
+                    np.sort(anomalies_obj.vertices[:, 0]),
+                    expected_peaks[ind],
+                    rtol=0.05,
+                )
             )

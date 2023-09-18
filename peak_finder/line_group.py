@@ -233,45 +233,52 @@ class LineGroup:
         """
         Look for anomalies connected by their ends.
         """
+
+        # Sort anomalies by amplitude
+        all_amplitudes = np.array([group.amplitude for group in groups])
+        sorted_ind = np.argsort(-all_amplitudes)
+
+        all_starts = np.vstack([group.start for group in groups])
+
         merged = []
-        current_groups = groups
-        for n in range(self.n_groups - 1):
-            all_starts = np.vstack([group.start for group in groups])
-            ignore = []
-            merged = []
-            for ind, group in enumerate(current_groups):
-                if groups[ind] in ignore:
+        ignore = []
+        for ind in sorted_ind:
+            if groups[ind] in ignore:
+                continue
+            # Find closest groups
+            rad = np.linalg.norm(groups[ind].end - all_starts, axis=1)
+            in_range = np.where((rad < self.max_separation) & (rad != 0))[0]
+            # Sort in_range
+            sorted_in_range = np.argsort(rad[in_range])
+
+            groups_to_merge = [groups[ind]]
+            ignore.append(groups[ind])
+            i = 0
+            while len(groups_to_merge) < self.n_groups and i < len(sorted_in_range):
+                val = sorted_in_range[i]
+                i += 1
+                if groups[val] in ignore:
                     continue
-                rad = np.linalg.norm(group.end - all_starts, axis=1)
-                in_range = np.where(rad < self.max_separation)[0]
+                groups_to_merge.append(groups[val])
+                ignore.append(groups[val])
 
-                new_group = None
-                for val in in_range:
-                    if val == ind:
-                        continue
-                    if groups[val] in ignore:
-                        continue
-
-                    new_group = AnomalyGroup(
-                        self.position,
-                        np.concatenate((groups[ind].anomalies, groups[val].anomalies)),
-                        self.property_group,
-                        np.concatenate(
-                            (groups[ind].full_azimuth, groups[val].full_azimuth)
-                        ),
-                        self.channels,
-                        np.concatenate(
-                            (groups[ind].full_peak_values, groups[val].full_peak_values)
-                        ),
-                    )
-                    ignore.append(groups[ind])
-                    ignore.append(groups[val])
-                    break
-                if new_group is None:
-                    new_group = groups[ind]
-                    ignore.append(groups[ind])
-                merged.append(new_group)
-            current_groups = merged
+            # Merge groups
+            if len(groups_to_merge) == 1:
+                new_group = groups[ind]
+            else:
+                new_group = AnomalyGroup(
+                    self.position,
+                    np.concatenate(tuple(group.anomalies for group in groups_to_merge)),
+                    self.property_group,
+                    np.concatenate(
+                        tuple(group.full_azimuth for group in groups_to_merge)
+                    ),
+                    self.channels,
+                    np.concatenate(
+                        tuple(group.full_peak_values for group in groups_to_merge)
+                    ),
+                )
+            merged.append(new_group)
 
         return merged
 
