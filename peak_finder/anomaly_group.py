@@ -95,7 +95,7 @@ class AnomalyGroup:
             and self.peaks is not None
         ):
             self._group_center = np.mean(
-                self.position.interpolate_array(self.peaks[self.group_center_sort[0]]),
+                self.position.interpolate_array(self.peaks[self.group_center_sort]),
                 axis=0,
             )
         return self._group_center
@@ -222,8 +222,7 @@ class AnomalyGroup:
         Start position of the anomaly group.
         """
         if self._start is None and self.peaks is not None:
-            locs = self.position.locations_resampled
-            self._start = np.min(locs[self.peaks])
+            self._start = np.min(self.get_list_attr("start"))
         return self._start
 
     @property
@@ -232,8 +231,7 @@ class AnomalyGroup:
         End position of the anomaly group.
         """
         if self._end is None and self.peaks is not None:
-            locs = self.position.locations_resampled
-            self._end = np.max(locs[self.peaks])
+            self._end = np.max(self.get_list_attr("end"))
         return self._end
 
     def get_list_attr(self, attr: str) -> list | np.ndarray:

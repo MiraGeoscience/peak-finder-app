@@ -229,16 +229,16 @@ class LineGroup:
             full_peak_values,
         )
 
-    def group_n_groups(self, groups):
+    def group_n_groups(self, groups):  # pylint: disable=R0914
         """
         Look for anomalies connected by their ends.
         """
-
         # Sort anomalies by amplitude
         all_amplitudes = np.array([group.amplitude for group in groups])
         sorted_ind = np.argsort(-all_amplitudes)
 
-        all_starts = np.vstack([group.start for group in groups])
+        locs = self.position.locations_resampled
+        all_starts = np.vstack([locs[group.start] for group in groups])
 
         merged = []
         ignore = []
@@ -246,21 +246,29 @@ class LineGroup:
             if groups[ind] in ignore:
                 continue
             # Find closest groups
-            rad = np.linalg.norm(groups[ind].end - all_starts, axis=1)
-            in_range = np.where((rad < self.max_separation) & (rad != 0))[0]
+            rad = np.linalg.norm(locs[groups[ind].end] - all_starts, axis=1)
+            in_range = np.where(rad < self.max_separation)[0]
+            if ind in in_range:
+                # Remove the group itself
+                in_range = np.delete(in_range, np.where(in_range == ind)[0][0])
             # Sort in_range
-            sorted_in_range = np.argsort(rad[in_range])
+            sorted_in_range = in_range[np.argsort(rad[in_range])]
 
             groups_to_merge = [groups[ind]]
-            ignore.append(groups[ind])
             i = 0
             while len(groups_to_merge) < self.n_groups and i < len(sorted_in_range):
                 val = sorted_in_range[i]
                 i += 1
                 if groups[val] in ignore:
                     continue
+
                 groups_to_merge.append(groups[val])
                 ignore.append(groups[val])
+
+                if groups[val] in merged:
+                    merged.remove(groups[val])
+                if groups[ind] not in ignore:
+                    ignore.append(groups[ind])
 
             # Merge groups
             if len(groups_to_merge) == 1:

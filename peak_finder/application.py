@@ -1028,8 +1028,8 @@ class PeakFinder(BaseDashApplication):
                     continue
 
                 i = query[0]
-                start = anomaly_group.anomalies[i].start
-                end = anomaly_group.anomalies[i].end
+                start = anomaly_group.start
+                end = anomaly_group.end
 
                 if group_name not in trace_dict["property_groups"]:  # type: ignore
                     trace_dict["property_groups"][group_name] = {  # type: ignore
