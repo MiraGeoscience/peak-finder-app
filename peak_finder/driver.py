@@ -67,7 +67,9 @@ class PeakFinderDriver(BaseDriver):
 
             anomalies = []
             for line_id in tqdm(list(lines)):
-                line_indices = np.where(line_field.values == line_id)[0]
+                line_indices = np.where(
+                    (line_field.values == line_id) & self.params.masking_data.values
+                )[0]
 
                 line_computation = delayed(LineAnomaly, pure=True)
 
