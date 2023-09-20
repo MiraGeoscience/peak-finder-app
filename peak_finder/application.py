@@ -117,8 +117,10 @@ class PeakFinder(BaseDashApplication):
         )(self.init_data_dropdowns)
         self.app.callback(
             Output(component_id="line_id", component_property="options"),
+            Output(component_id="line_id", component_property="value"),
             Input(component_id="line_field", component_property="value"),
             Input(component_id="masking_data", component_property="value"),
+            State(component_id="line_id", component_property="value"),
         )(self.update_line_id_options)
         self.app.callback(
             Output(component_id="property_groups", component_property="data"),
@@ -305,7 +307,8 @@ class PeakFinder(BaseDashApplication):
         self,
         line_field: str | None,
         masking_data: str | None,
-    ) -> list[dict]:
+        line_id: int | None,
+    ) -> tuple[list[dict], int | None]:
         """
         Update line ID dropdown options from line field.
 
@@ -313,9 +316,10 @@ class PeakFinder(BaseDashApplication):
         :param masking_data: Masking data.
 
         :return: Line ID dropdown options.
+        :return: Line ID value.
         """
         if line_field is None:
-            return no_update
+            return [], None
 
         line_field = self.workspace.get_entity(uuid.UUID(line_field))[0]
         value_map = line_field.value_map.map  # type: ignore
@@ -331,7 +335,10 @@ class PeakFinder(BaseDashApplication):
         for key, value in value_map.items():  # type: ignore
             options.append({"label": value, "value": key})
 
-        return options
+        if line_id not in value_map.keys():
+            line_id = None
+
+        return options, line_id
 
     def get_line_indices(
         self, line_field: str, line_id: int, masking_data: str
@@ -988,6 +995,8 @@ class PeakFinder(BaseDashApplication):
         :param objects: Input object.
         :param property_groups: Property groups dictionary.
         :param active_channels: Active channels.
+        :param masking_data: Masking data.
+        :param y_scale: Whether y-axis ticks are linear or symlog.
         :param linear_threshold: Linear threshold.
 
         :return: Updated figure data.
@@ -1331,7 +1340,7 @@ class PeakFinder(BaseDashApplication):
                 return figure
 
         figure = go.Figure()
-        if n_lines is None:
+        if n_lines is None or line_id is None:
             return figure
 
         min_ind = max(0, line_id - n_lines)
@@ -1347,6 +1356,8 @@ class PeakFinder(BaseDashApplication):
                 "name": key,
             }
 
+        marker_x = None
+        marker_y = None
         for line in line_id_options[min_ind:max_ind]:
             position, anomalies = self.line_update(
                 objects,
@@ -1365,6 +1376,8 @@ class PeakFinder(BaseDashApplication):
             )
             if position is not None:
                 if line["value"] == line_id:
+                    marker_x = position.x_locations[0]
+                    marker_y = position.y_locations[0]
                     figure.add_trace(  # type: ignore
                         go.Scatter(
                             x=position.x_locations,
@@ -1400,8 +1413,8 @@ class PeakFinder(BaseDashApplication):
 
         figure.add_trace(  # type: ignore
             go.Scatter(
-                x=[self.lines_position.x_locations[0]],  # type: ignore
-                y=[self.lines_position.y_locations[0]],  # type: ignore
+                x=[marker_x],
+                y=[marker_y],
                 marker_color="black",
                 marker_symbol="star",
                 marker_size=10,
@@ -1425,7 +1438,7 @@ class PeakFinder(BaseDashApplication):
         objects: str,
         flip_sign: list[bool],
         line_field: str,
-        masking_data: str,
+        masking_data: str | None,
         smoothing: float,
         min_amplitude: float,
         min_value: float,
