@@ -393,8 +393,13 @@ class PeakFinder(BaseDashApplication):
         :param min_amplitude: Minimum amplitude.
         :param min_value: Minimum value.
         :param min_width: Minimum width.
+        :param n_groups: Number of consecutive peaks to merge.
+        :param max_separation: Maximum separation between peaks to merge.
         :param line_field: Line field.
         :param line_id: Line ID.
+
+        :return: Line position.
+        :return: Anomalies.
         """
         obj = self.workspace.get_entity(uuid.UUID(objects))[0]
         if (
@@ -1391,6 +1396,8 @@ class PeakFinder(BaseDashApplication):
         :param min_width: Minimum width.
         :param max_migration: Maximum migration.
         :param min_channels: Minimum number of channels.
+        :param n_groups: Number of consecutive peaks to merge.
+        :param max_separation: Maximum separation between peaks to merge.
         :param line_id: Line ID.
         :param property_groups: Property groups dictionary.
         :param structural_markers: Whether to save structural markers.

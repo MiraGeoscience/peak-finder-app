@@ -229,7 +229,7 @@ class PeakFinderParams(BaseParams):  # pylint: disable=R0902, R0904
         """
         Number of consecutive peaks to group together.
         """
-        return self._smoothing
+        return self._n_groups
 
     @n_groups.setter
     def n_groups(self, val):
