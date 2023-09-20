@@ -168,14 +168,10 @@ def test_merging_peaks(tmp_path: Path):  # pylint: disable=too-many-locals
     curve = Curve.create(temp_ws, vertices=np.c_[x, np.zeros((x.shape[0], 2))])
 
     dist1 = 10 * stats.norm.pdf(np.arange(0, 200, 0.1), 100, 1.5)
-    # dist1 = np.insert(dist1[:-1] - dist1[1:], 0, dist1[0])
     dist2 = 3 * stats.norm.pdf(np.arange(200, 450, 0.1), 300, 25)
     dist3 = 5 * stats.norm.pdf(np.arange(450, 650, 0.1), 600, 1)
     dist4 = 7 * stats.norm.pdf(np.arange(650, 725, 0.1), 700, 1.75)
-    # dist4 = np.insert(dist4[:-1] - dist4[1:], 0, dist4[0])
     dist5 = 1000 * stats.norm.pdf(np.arange(725, 875, 0.1), 800, 3)
-    # dist5 = np.insert(dist5[:-1] - dist5[1:], 0, dist5[0])
-    # dist5 = np.insert(dist5[:-1] - dist5[1:], 0, dist5[0])
     dist6 = 7 * stats.norm.pdf(np.arange(875, 1000, 0.1), 900, 3)
 
     dist = np.concatenate((dist1, dist2, dist3, dist4, dist5, dist6))
