@@ -97,6 +97,7 @@ class PeakFinder(BaseDashApplication):
             Input(component_id="y_scale", component_property="value"),
             Input(component_id="linear_threshold", component_property="value"),
             Input(component_id="x_label", component_property="value"),
+            Input(component_id="show_residuals", component_property="value"),
         ]
         self.app.callback(
             Output(component_id="line_loading", component_property="children"),
@@ -513,6 +514,7 @@ class PeakFinder(BaseDashApplication):
         y_scale: str,
         linear_threshold: float,
         x_label: str,
+        show_residuals: list[bool],
     ) -> tuple[go.Figure, float | None, float | None, dict | None]:
         """
         Update the figure.
@@ -537,6 +539,7 @@ class PeakFinder(BaseDashApplication):
         :param y_scale: Whether y-axis ticks are linear or symlog.
         :param linear_threshold: Linear threshold slider value.
         :param x_label: X-axis label.
+        :param show_residuals: Whether to plot residuals.
 
         :return: Updated figure.
         :return: Linear threshold slider min.
@@ -628,6 +631,7 @@ class PeakFinder(BaseDashApplication):
             "active_channels",
             "y_scale",
             "linear_threshold",
+            "show_residuals",
         ]
         if (
             figure_data is None
@@ -651,6 +655,7 @@ class PeakFinder(BaseDashApplication):
                 masking_data,
                 y_scale,
                 linear_threshold,
+                show_residuals,
             )
         elif "property_groups" in triggers:
             # Update trace colours if property groups are the only change
@@ -981,6 +986,7 @@ class PeakFinder(BaseDashApplication):
         masking_data: str,
         y_scale: str,
         linear_threshold: float,
+        show_residuals: list[bool],
     ) -> tuple[
         list[go.Scatter],
         str | None,
@@ -1001,6 +1007,7 @@ class PeakFinder(BaseDashApplication):
         :param masking_data: Masking data.
         :param y_scale: Whether y-axis ticks are linear or symlog.
         :param linear_threshold: Linear threshold.
+        :param show_residuals: Whether to plot residuals.
 
         :return: Updated figure data.
         :return: Label for y-axis.
@@ -1178,12 +1185,13 @@ class PeakFinder(BaseDashApplication):
                     values[anomaly_group.anomalies[i].inflect_down]
                 ]
 
-            fig_data = PeakFinder.add_residuals(
-                fig_data,
-                sym_values,
-                sym_raw,
-                locs,
-            )
+            if show_residuals:
+                fig_data = PeakFinder.add_residuals(
+                    fig_data,
+                    sym_values,
+                    sym_raw,
+                    locs,
+                )
 
         if np.isinf(y_min):
             return fig_data, None, None, None, None, None, None, None, None
@@ -1232,30 +1240,31 @@ class PeakFinder(BaseDashApplication):
                 visible="legendonly",
             ),
         )
-        fig_data.append(
-            go.Scatter(
-                x=[None],
-                y=[None],
-                mode="lines",
-                line_color="rgba(255, 0, 0, 0.5)",
-                line_width=8,
-                legendgroup="positive residuals",
-                name="positive residuals",
-                visible="legendonly",
-            ),
-        )
-        fig_data.append(
-            go.Scatter(
-                x=[None],
-                y=[None],
-                mode="lines",
-                line_color="rgba(0, 0, 255, 0.5)",
-                line_width=8,
-                legendgroup="negative residuals",
-                name="negative residuals",
-                visible="legendonly",
-            ),
-        )
+        if show_residuals:
+            fig_data.append(
+                go.Scatter(
+                    x=[None],
+                    y=[None],
+                    mode="lines",
+                    line_color="rgba(255, 0, 0, 0.5)",
+                    line_width=8,
+                    legendgroup="positive residuals",
+                    name="positive residuals",
+                    visible="legendonly",
+                ),
+            )
+            fig_data.append(
+                go.Scatter(
+                    x=[None],
+                    y=[None],
+                    mode="lines",
+                    line_color="rgba(0, 0, 255, 0.5)",
+                    line_width=8,
+                    legendgroup="negative residuals",
+                    name="negative residuals",
+                    visible="legendonly",
+                ),
+            )
 
         # Update linear threshold
         pos_vals = all_values[all_values > 0]  # type: ignore

@@ -248,6 +248,10 @@ visual_params_layout = html.Div(
                 "margin-bottom": "10px",
             },
         ),
+        dcc.Checklist(
+            id="show_residuals",
+            options=[{"label": "Plot residuals", "value": True}],
+        ),
     ],
     style={
         "width": "45%",
