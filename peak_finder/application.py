@@ -442,6 +442,9 @@ class PeakFinder(BaseDashApplication):
         :param line_field: Line field.
         :param masking_data: Masking data.
         :param line_id: Line ID.
+
+        :return: Line position.
+        :return: Anomalies.
         """
         obj = self.workspace.get_entity(uuid.UUID(objects))[0]
         if (

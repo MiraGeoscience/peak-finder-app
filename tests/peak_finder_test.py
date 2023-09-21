@@ -164,16 +164,18 @@ def test_merging_peaks(tmp_path: Path):  # pylint: disable=too-many-locals
     app = PeakFinder(params=params, ui_json_data={})
     app.workspace = temp_ws
 
-    x = np.arange(0, 100, 0.1)
+    x = np.arange(0, 1000, 0.1)
 
     curve = Curve.create(temp_ws, vertices=np.c_[x, np.zeros((x.shape[0], 2))])
 
-    dist1 = 5 * stats.norm.pdf(np.arange(0, 20, 0.1), 10, 1)
-    dist2 = 3 * stats.norm.pdf(np.arange(20, 45, 0.1), 30, 2)
-    dist3 = 10 * stats.norm.pdf(np.arange(45, 65, 0.1), 60, 1)
-    dist4 = stats.norm.pdf(np.arange(65, 80, 0.1), 70, 1.75)
-    dist5 = stats.norm.pdf(np.arange(80, 100, 0.1), 90, 1)
-    dist = np.concatenate((dist1, dist2, dist3, dist4, dist5))
+    dist1 = 10 * stats.norm.pdf(np.arange(0, 200, 0.1), 100, 1.5)
+    dist2 = 3 * stats.norm.pdf(np.arange(200, 450, 0.1), 300, 25)
+    dist3 = 5 * stats.norm.pdf(np.arange(450, 650, 0.1), 600, 1)
+    dist4 = 7 * stats.norm.pdf(np.arange(650, 725, 0.1), 700, 1.75)
+    dist5 = 1000 * stats.norm.pdf(np.arange(725, 875, 0.1), 800, 3)
+    dist6 = 7 * stats.norm.pdf(np.arange(875, 1000, 0.1), 900, 3)
+
+    dist = np.concatenate((dist1, dist2, dist3, dist4, dist5, dist6))
 
     data = curve.add_data({"data": {"values": dist}})
     curve.add_data_to_group(data, property_group="obs")
@@ -212,16 +214,17 @@ def test_merging_peaks(tmp_path: Path):  # pylint: disable=too-many-locals
     min_width = 1.0
     line_field = "{" + str(line.uid) + "}"
 
-    n_groups_list = [2, 2, 2, 2]
-    max_separation_list = [1, 10.5, 20.5, 30.5]
-    expected_groups = [5, 4, 3, 3]
+    n_groups_list = [2, 2, 2, 3, 6]
+    max_separation_list = [1, 55, 95, 300, 1000]
     expected_peaks = [
-        [10, 30, 60, 70, 90],
-        [10, 30, 65, 90],
-        [20, 65, 90],
-        [10, 30, 60, 70, 90],
+        [100, 300, 600, 700, 800, 900],
+        [100, 300, 600, 700, 850],
+        [200, 650, 850],
+        [200, 600, 800],
+        [566],
     ]
-    for ind in range(4):
+
+    for ind in range(5):
         app.trigger_click(
             n_clicks=0,
             objects=objects,
@@ -248,7 +251,7 @@ def test_merging_peaks(tmp_path: Path):  # pylint: disable=too-many-locals
         with Workspace(filename) as out_ws:
             anomalies_obj = out_ws.get_entity("PointMarkers")[0]
             amplitudes = anomalies_obj.get_data("amplitude")[0].values
-            assert len(amplitudes) == expected_groups[ind]
+            assert len(amplitudes) == len(expected_peaks[ind])
             assert np.all(
                 np.isclose(
                     np.sort(anomalies_obj.vertices[:, 0]),
@@ -256,3 +259,27 @@ def test_merging_peaks(tmp_path: Path):  # pylint: disable=too-many-locals
                     rtol=0.05,
                 )
             )
+
+        position, anomalies = app.line_update(
+            objects,
+            property_groups,
+            smoothing,
+            max_migration,
+            min_channels,
+            min_amplitude,
+            min_value,
+            min_width,
+            n_groups_list[ind],
+            max_separation_list[ind],
+            line_field,
+            line_id=1,
+        )
+
+        locs = position.locations_resampled
+        starts = [anom.start for anom in anomalies]
+        ends = [anom.end for anom in anomalies]
+        sort_inds = np.argsort(starts)
+
+        for bound_ind, anom_ind in enumerate(sort_inds):
+            assert locs[starts[anom_ind]] < expected_peaks[ind][bound_ind]
+            assert locs[ends[anom_ind]] > expected_peaks[ind][bound_ind]
