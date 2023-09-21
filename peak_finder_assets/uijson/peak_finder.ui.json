@@ -38,6 +38,17 @@
         "parent": "objects",
         "value": ""
     },
+    "masking_data": {
+        "association": "Vertex",
+        "dataType": "Boolean",
+        "group": "Detection Parameters",
+        "main": false,
+        "label": "Masking Data",
+        "optional": true,
+        "enabled": false,
+        "parent": "objects",
+        "value": ""
+    },
     "smoothing": {
         "group": "Detection Parameters",
         "label": "Smoothing window",

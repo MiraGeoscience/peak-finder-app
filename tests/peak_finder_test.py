@@ -191,6 +191,17 @@ def test_merging_peaks(tmp_path: Path):  # pylint: disable=too-many-locals
     )
     curve.add_data_to_group(line, property_group="Line")
 
+    masking_array = np.ones_like(x)
+    masking_array[(x > 650) & (x < 850)] = 0
+    masking_data = curve.add_data(
+        {
+            "masking": {
+                "values": np.array(masking_array, dtype=bool),
+                "type": "boolean",
+            }
+        }
+    )
+
     prop_group = curve.find_or_create_property_group(
         name="prop group", properties=[data.uid]
     )
@@ -214,6 +225,7 @@ def test_merging_peaks(tmp_path: Path):  # pylint: disable=too-many-locals
     min_width = 1.0
     line_field = "{" + str(line.uid) + "}"
 
+    # Test merging peaks
     n_groups_list = [2, 2, 2, 3, 6]
     max_separation_list = [1, 55, 95, 300, 1000]
     expected_peaks = [
@@ -272,6 +284,7 @@ def test_merging_peaks(tmp_path: Path):  # pylint: disable=too-many-locals
             n_groups_list[ind],
             max_separation_list[ind],
             line_field,
+            masking_data=None,
             line_id=1,
         )
 
@@ -283,3 +296,33 @@ def test_merging_peaks(tmp_path: Path):  # pylint: disable=too-many-locals
         for bound_ind, anom_ind in enumerate(sort_inds):
             assert locs[starts[anom_ind]] < expected_peaks[ind][bound_ind]
             assert locs[ends[anom_ind]] > expected_peaks[ind][bound_ind]
+
+    # Test masking
+    app.trigger_click(
+        n_clicks=0,
+        objects=objects,
+        flip_sign=[],
+        line_field=line_field,
+        masking_data=str(masking_data.uid),
+        smoothing=smoothing,
+        min_amplitude=min_amplitude,
+        min_value=min_value,
+        min_width=min_width,
+        max_migration=max_migration,
+        min_channels=min_channels,
+        n_groups=1,
+        max_separation=100,
+        line_id=1,
+        property_groups=property_groups,
+        structural_markers=[],
+        ga_group_name="peak_finder_masking",
+        live_link=[],
+        monitoring_directory=str(tmp_path),
+    )
+
+    filename = next(tmp_path.glob("peak_finder_masking*.geoh5"))
+    with Workspace(filename) as out_ws:
+        anomalies_obj = out_ws.get_entity("PointMarkers")[0]
+        vertices = anomalies_obj.vertices[:, 0]
+        assert np.all((vertices < 650) | (vertices > 850))
+        assert len(vertices) == 4

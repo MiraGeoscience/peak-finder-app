@@ -130,7 +130,7 @@ class PeakFinderParams(BaseParams):  # pylint: disable=R0902, R0904
 
     @masking_data.setter
     def masking_data(self, val):
-        self.setter_validator("masking_data", val, fun=self._uuid_promoter)
+        self.setter_validator("masking_data", val)
 
     @property
     def line_id(self) -> int | None:

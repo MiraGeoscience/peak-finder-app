@@ -341,7 +341,7 @@ class PeakFinder(BaseDashApplication):
         return options, line_id
 
     def get_line_indices(
-        self, line_field: str, line_id: int, masking_data: str
+        self, line_field: str, line_id: int, masking_data: str | None
     ) -> np.ndarray | None:
         """
         Find the vertices for a given line ID.
@@ -423,7 +423,7 @@ class PeakFinder(BaseDashApplication):
         n_groups: int,
         max_separation: float,
         line_field: str,
-        masking_data: str,
+        masking_data: str | None,
         line_id: int,
     ):
         """

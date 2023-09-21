@@ -86,9 +86,11 @@ default_ui_json.update(
         "masking_data": {
             "association": "Vertex",
             "dataType": "Boolean",
-            "group": "Data",
-            "main": True,
+            "group": "Detection Parameters",
+            "main": False,
             "label": "Masking Data",
+            "optional": True,
+            "enabled": False,
             "parent": "objects",
             "value": None,
         },
