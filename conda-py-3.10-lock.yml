@@ -15,9 +15,9 @@
 version: 1
 metadata:
   content_hash:
-    win-64: 7391542b91fbc28f434de3091f242194cc991f8e9dda0f745925fc909013c4ca
-    osx-64: 6641c406ba12834ac33bea4c080b71c9eb0ca5eab875ce540225442c68a684d6
-    linux-64: 3dd383b52906962c69e41f0e136dbe67824f1d897ba5e116fa850a6396d500ff
+    win-64: df2b8e24257929eb142ddbeb7ed96401353fd1d9c2f95e7fdd526c77102906ee
+    osx-64: 43e0da9c1a6d2232072674275b93289c90e97d7a6f3cb3f155fd4c4ea9f2479a
+    linux-64: cc8d5811f26b77fe85412f7ad6b709e4bf185e5ec4db71a9b85c5c47e7d7304c
   channels:
   - url: conda-forge
     used_env_vars: []
@@ -2533,18 +2533,18 @@ package:
   platform: linux-64
   dependencies:
     geoh5py: '>=0.8.0rc1,<0.9.0'
-    plotly: '>=5.13.1,<5.14.0'
     dash: '>=2.12,<2.13'
+    plotly: '>=5.13.1,<5.14.0'
+    pyqtwebengine: '>=5.15,<5.16'
     numpy: '>=1.23.5,<1.24.0'
     pyside2: '>=5.15,<5.16'
-    pyqtwebengine: '>=5.15,<5.16'
-  url: https://github.com/MiraGeoscience/geoapps-utils/archive/refs/heads/GEOPY-775.zip
+  url: https://github.com/MiraGeoscience/geoapps-utils/archive/refs/heads/develop.zip
   hash:
     sha256: ''
   category: main
   source:
     type: url
-    url: https://github.com/MiraGeoscience/geoapps-utils/archive/refs/heads/GEOPY-775.zip#sha256=
+    url: https://github.com/MiraGeoscience/geoapps-utils/archive/refs/heads/develop.zip#sha256=
   optional: false
 - name: bzip2
   version: 1.0.8
@@ -4890,18 +4890,18 @@ package:
   platform: osx-64
   dependencies:
     geoh5py: '>=0.8.0rc1,<0.9.0'
-    plotly: '>=5.13.1,<5.14.0'
     dash: '>=2.12,<2.13'
+    plotly: '>=5.13.1,<5.14.0'
+    pyqtwebengine: '>=5.15,<5.16'
     numpy: '>=1.23.5,<1.24.0'
     pyside2: '>=5.15,<5.16'
-    pyqtwebengine: '>=5.15,<5.16'
-  url: https://github.com/MiraGeoscience/geoapps-utils/archive/refs/heads/GEOPY-775.zip
+  url: https://github.com/MiraGeoscience/geoapps-utils/archive/refs/heads/develop.zip
   hash:
     sha256: ''
   category: main
   source:
     type: url
-    url: https://github.com/MiraGeoscience/geoapps-utils/archive/refs/heads/GEOPY-775.zip#sha256=
+    url: https://github.com/MiraGeoscience/geoapps-utils/archive/refs/heads/develop.zip#sha256=
   optional: false
 - name: ca-certificates
   version: 2023.7.22
@@ -7423,16 +7423,16 @@ package:
   platform: win-64
   dependencies:
     geoh5py: '>=0.8.0rc1,<0.9.0'
-    plotly: '>=5.13.1,<5.14.0'
     dash: '>=2.12,<2.13'
+    plotly: '>=5.13.1,<5.14.0'
+    pyqtwebengine: '>=5.15,<5.16'
     numpy: '>=1.23.5,<1.24.0'
     pyside2: '>=5.15,<5.16'
-    pyqtwebengine: '>=5.15,<5.16'
-  url: https://github.com/MiraGeoscience/geoapps-utils/archive/refs/heads/GEOPY-775.zip
+  url: https://github.com/MiraGeoscience/geoapps-utils/archive/refs/heads/develop.zip
   hash:
     sha256: ''
   category: main
   source:
     type: url
-    url: https://github.com/MiraGeoscience/geoapps-utils/archive/refs/heads/GEOPY-775.zip#sha256=
+    url: https://github.com/MiraGeoscience/geoapps-utils/archive/refs/heads/develop.zip#sha256=
   optional: false
