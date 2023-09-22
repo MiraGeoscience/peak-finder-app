@@ -16,7 +16,7 @@ from peak_finder.anomaly import Anomaly
 from peak_finder.line_position import LinePosition
 
 
-class AnomalyGroup:
+class AnomalyGroup:  # pylint: disable=too-many-public-methods
     """
     Group of anomalies. Contains list with a subset of anomalies.
     """
@@ -47,6 +47,7 @@ class AnomalyGroup:
         full_azimuth: np.ndarray,
         channels: dict,
         full_peak_values: np.ndarray,
+        n_groups: int,
     ):
         self.anomalies = anomalies
         self.channels = channels
@@ -54,6 +55,7 @@ class AnomalyGroup:
         self.full_peak_values = full_peak_values
         self.position = position
         self.property_group = property_group
+        self.n_groups = n_groups
 
     @property
     def position(self) -> LinePosition:
@@ -164,6 +166,17 @@ class AnomalyGroup:
     @property_group.setter
     def property_group(self, value):
         self._property_group = value
+
+    @property
+    def n_groups(self) -> int:
+        """
+        Number of groups merged into this group.
+        """
+        return self._n_groups
+
+    @n_groups.setter
+    def n_groups(self, value):
+        self._n_groups = value
 
     @property
     def channels(self) -> dict:

@@ -213,16 +213,15 @@ def test_merging_peaks(tmp_path: Path):  # pylint: disable=too-many-locals
     min_width = 1.0
     line_field = "{" + str(line.uid) + "}"
 
-    n_groups_list = [2, 2, 2, 3, 6]
-    max_separation_list = [1, 55, 95, 300, 1000]
+    n_groups_list = [2, 2, 2, 3, 2]
+    max_separation_list = [1, 55, 65, 65, 90]
     expected_peaks = [
-        [100, 300, 600, 700, 800, 900],
-        [100, 300, 600, 700, 850],
-        [200, 650, 850],
-        [200, 600, 800],
-        [566],
+        [],
+        [850],
+        [750, 850],
+        [800],
+        [200, 650, 750, 850],
     ]
-
     for ind in range(5):
         app.trigger_click(
             n_clicks=0,
@@ -248,8 +247,12 @@ def test_merging_peaks(tmp_path: Path):  # pylint: disable=too-many-locals
         filename = next(tmp_path.glob(f"peak_finder_{ind}*.geoh5"))
         with Workspace(filename) as out_ws:
             anomalies_obj = out_ws.get_entity("PointMarkers")[0]
+            if len(expected_peaks[ind]) == 0:  # type: ignore
+                assert anomalies_obj is None
+                continue
             amplitudes = anomalies_obj.get_data("amplitude")[0].values
-            assert len(amplitudes) == len(expected_peaks[ind])
+
+            assert len(amplitudes) == len(expected_peaks[ind])  # type: ignore
             assert np.all(
                 np.isclose(
                     np.sort(anomalies_obj.vertices[:, 0]),
@@ -279,5 +282,5 @@ def test_merging_peaks(tmp_path: Path):  # pylint: disable=too-many-locals
         sort_inds = np.argsort(starts)
 
         for bound_ind, anom_ind in enumerate(sort_inds):
-            assert locs[starts[anom_ind]] < expected_peaks[ind][bound_ind]
-            assert locs[ends[anom_ind]] > expected_peaks[ind][bound_ind]
+            assert locs[starts[anom_ind]] < expected_peaks[ind][bound_ind]  # type: ignore
+            assert locs[ends[anom_ind]] > expected_peaks[ind][bound_ind]  # type: ignore
