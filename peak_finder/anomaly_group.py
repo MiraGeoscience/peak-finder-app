@@ -47,7 +47,7 @@ class AnomalyGroup:  # pylint: disable=too-many-public-methods
         full_azimuth: np.ndarray,
         channels: dict,
         full_peak_values: np.ndarray,
-        n_groups: int,
+        subgroups: list[AnomalyGroup],
     ):
         self.anomalies = anomalies
         self.channels = channels
@@ -55,7 +55,7 @@ class AnomalyGroup:  # pylint: disable=too-many-public-methods
         self.full_peak_values = full_peak_values
         self.position = position
         self.property_group = property_group
-        self.n_groups = n_groups
+        self.subgroups = subgroups
 
     @property
     def position(self) -> LinePosition:
@@ -168,15 +168,17 @@ class AnomalyGroup:  # pylint: disable=too-many-public-methods
         self._property_group = value
 
     @property
-    def n_groups(self) -> int:
+    def subgroups(self) -> list[AnomalyGroup]:
         """
-        Number of groups merged into this group.
+        Groups merged into this group.
         """
-        return self._n_groups
+        if len(self._subgroups) == 0:
+            return [self]
+        return self._subgroups
 
-    @n_groups.setter
-    def n_groups(self, value):
-        self._n_groups = value
+    @subgroups.setter
+    def subgroups(self, value):
+        self._subgroups = value
 
     @property
     def channels(self) -> dict:
