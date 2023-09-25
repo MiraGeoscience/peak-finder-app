@@ -277,7 +277,7 @@ default_ui_json.update(
             "label": "Run interactive app",
             "value": True,
         },
-        "conda_environment": "geoapps",
+        "conda_environment": "peak_finder",
         "run_command": "peak_finder.application",
     }
 )
