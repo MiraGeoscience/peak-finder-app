@@ -47,7 +47,7 @@ class AnomalyGroup:  # pylint: disable=too-many-public-methods
         full_azimuth: np.ndarray,
         channels: dict,
         full_peak_values: np.ndarray,
-        subgroups: list[AnomalyGroup],
+        subgroups: set[AnomalyGroup],
     ):
         self.anomalies = anomalies
         self.channels = channels
@@ -168,12 +168,12 @@ class AnomalyGroup:  # pylint: disable=too-many-public-methods
         self._property_group = value
 
     @property
-    def subgroups(self) -> list[AnomalyGroup]:
+    def subgroups(self) -> set[AnomalyGroup]:
         """
         Groups merged into this group.
         """
         if len(self._subgroups) == 0:
-            return [self]
+            return {self}
         return self._subgroups
 
     @subgroups.setter

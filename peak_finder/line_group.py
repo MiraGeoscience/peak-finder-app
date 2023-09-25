@@ -269,7 +269,7 @@ class LineGroup:
 
                 # Loop over peaks in range and create groups for all possibilities
                 for i in in_range:
-                    if groups[i] in group.subgroups:
+                    if groups[i].subgroups.intersection(group.subgroups):
                         continue
                     n_groups = len(group.subgroups) + len(groups[i].subgroups)
                     if n_groups <= self.n_groups:
@@ -284,15 +284,18 @@ class LineGroup:
                             np.concatenate(
                                 (group.full_peak_values, groups[i].full_peak_values)
                             ),
-                            group.subgroups + groups[i].subgroups,
+                            group.subgroups.union(groups[i].subgroups),
                         )
                         merged.append(new_group)
             groups += merged
 
         return_groups = []
+        unique_groups = []
         for group in groups:
             if len(group.subgroups) == self.n_groups:
-                return_groups.append(group)
+                if group.subgroups not in unique_groups:
+                    unique_groups.append(group.subgroups)
+                    return_groups.append(group)
 
         return return_groups
 
@@ -353,7 +356,7 @@ class LineGroup:
                 azimuth,
                 self.channels,
                 near_values,
-                [],
+                set(),
             )
             groups += [group]
 
