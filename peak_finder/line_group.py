@@ -241,57 +241,67 @@ class LineGroup:
         """
         if self.position.sampling is None or self.channels is None:
             return groups
-        # Sort groups by their starts
-        sort_inds = np.argsort([group.start for group in groups])
-        groups = list(np.array(groups)[sort_inds])
         for _ in range(self.n_groups):
+            # Sort groups by their starts
             all_starts = [group.start for group in groups]
+            sort_inds = np.argsort([group.start for group in groups])
+            groups = list(np.array(groups)[sort_inds])
+
+            all_starts = np.array(all_starts)[sort_inds]
             all_ends = [group.end for group in groups]
+            all_bounds = list(zip(all_starts, all_ends))
 
             merged = []
             for ind, group in enumerate(groups):
                 # Get indices of consecutive peaks within max_separation
                 delta_ind = self.max_separation / self.position.sampling
+
+                # Make sure groups don't overlap
+                start_ind = np.searchsorted(all_starts, group.start, side="left")
+                end_ind = np.searchsorted(all_ends, group.end, side="right")
+
                 in_range = []
-                if ind != 0 and all_starts[ind] - all_ends[ind - 1] <= delta_ind:  # type: ignore
-                    in_range.append(ind - 1)
                 if (
-                    ind != len(groups) - 1
-                    and all_starts[ind + 1] - all_ends[ind] <= delta_ind  # type: ignore
+                    start_ind != 0
+                    and all_starts[ind] - all_ends[start_ind - 1] <= delta_ind  # type: ignore
                 ):
-                    in_range.append(ind + 1)
+                    in_range.append(start_ind - 1)
+                if (
+                    end_ind + 1 < len(groups)
+                    and all_starts[end_ind + 1] - all_ends[ind] <= delta_ind  # type: ignore
+                ):
+                    in_range.append(end_ind + 1)
 
                 # Loop over peaks in range and create groups for all possibilities
                 for i in in_range:
                     n_groups = group.n_groups + groups[i].n_groups
-                    if (i != ind) and (n_groups <= self.n_groups):
-                        new_group = AnomalyGroup(
-                            self.position,
-                            np.concatenate((group.anomalies, groups[i].anomalies)),
-                            self.property_group,
-                            np.concatenate(
-                                (group.full_azimuth, groups[i].full_azimuth)
-                            ),
-                            self.channels,
-                            np.concatenate(
-                                (group.full_peak_values, groups[i].full_peak_values)
-                            ),
-                            n_groups,
+                    if n_groups <= self.n_groups:
+                        new_bound = (
+                            np.min([group.start, groups[i].start]),
+                            np.max([group.end, groups[i].end]),
                         )
-                        merged.append(new_group)
+                        if new_bound not in all_bounds:
+                            new_group = AnomalyGroup(
+                                self.position,
+                                np.concatenate((group.anomalies, groups[i].anomalies)),
+                                self.property_group,
+                                np.concatenate(
+                                    (group.full_azimuth, groups[i].full_azimuth)
+                                ),
+                                self.channels,
+                                np.concatenate(
+                                    (group.full_peak_values, groups[i].full_peak_values)
+                                ),
+                                n_groups,
+                            )
+                            merged.append(new_group)
+                            all_bounds.append(new_bound)
             groups += merged
 
-        return_groups: list[AnomalyGroup] = []
-        starts: list[int | None] = []
-        ends: list[int | None] = []
+        return_groups = []
         for group in groups:
             if group.n_groups == self.n_groups:
-                if group.start in starts:
-                    if group.end in np.array(ends)[starts == group.start]:
-                        continue
                 return_groups.append(group)
-                starts.append(group.start)
-                ends.append(group.end)
 
         return return_groups
 

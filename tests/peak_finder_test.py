@@ -251,7 +251,6 @@ def test_merging_peaks(tmp_path: Path):  # pylint: disable=too-many-locals
                 assert anomalies_obj is None
                 continue
             amplitudes = anomalies_obj.get_data("amplitude")[0].values
-
             assert len(amplitudes) == len(expected_peaks[ind])  # type: ignore
             assert np.all(
                 np.isclose(
