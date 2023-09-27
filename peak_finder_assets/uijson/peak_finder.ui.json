@@ -9,7 +9,7 @@
         "main": true
     },
     "monitoring_directory": "",
-    "conda_environment": "geoapps",
+    "conda_environment": "peak_finder",
     "conda_environment_boolean": false,
     "workspace": "",
     "version": "0.1.0",
@@ -72,6 +72,18 @@
         "group": "Detection Parameters",
         "label": "Minimum # Channels",
         "value": 1,
+        "main": false
+    },
+    "n_groups": {
+        "group": "Detection Parameters",
+        "label": "Merge # Peaks",
+        "value": 1,
+        "main": false
+    },
+    "max_separation": {
+        "group": "Detection Parameters",
+        "label": "Max Separation",
+        "value": 1.0,
         "main": false
     },
     "ga_group_name": {

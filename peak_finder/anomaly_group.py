@@ -16,7 +16,7 @@ from peak_finder.anomaly import Anomaly
 from peak_finder.line_position import LinePosition
 
 
-class AnomalyGroup:
+class AnomalyGroup:  # pylint: disable=too-many-public-methods
     """
     Group of anomalies. Contains list with a subset of anomalies.
     """
@@ -36,6 +36,8 @@ class AnomalyGroup:
     _group_center_sort: np.ndarray | None = None
     _peak: np.ndarray | None = None
     _peaks: np.ndarray | None = None
+    _start: int | None = None
+    _end: int | None = None
 
     def __init__(
         self,
@@ -45,6 +47,7 @@ class AnomalyGroup:
         full_azimuth: np.ndarray,
         channels: dict,
         full_peak_values: np.ndarray,
+        subgroups: set[AnomalyGroup],
     ):
         self.anomalies = anomalies
         self.channels = channels
@@ -52,6 +55,7 @@ class AnomalyGroup:
         self.full_peak_values = full_peak_values
         self.position = position
         self.property_group = property_group
+        self.subgroups = subgroups
 
     @property
     def position(self) -> LinePosition:
@@ -80,7 +84,6 @@ class AnomalyGroup:
             isinstance(item, Anomaly) for item in value
         ):
             raise TypeError("Attribute 'anomalies` must be a list of Anomaly objects.")
-
         self._anomalies = value
 
     @property
@@ -94,7 +97,7 @@ class AnomalyGroup:
             and self.peaks is not None
         ):
             self._group_center = np.mean(
-                self.position.interpolate_array(self.peaks[self.group_center_sort[0]]),
+                self.position.interpolate_array(self.peaks[self.group_center_sort]),
                 axis=0,
             )
         return self._group_center
@@ -165,6 +168,19 @@ class AnomalyGroup:
         self._property_group = value
 
     @property
+    def subgroups(self) -> set[AnomalyGroup]:
+        """
+        Groups merged into this group.
+        """
+        if len(self._subgroups) == 0:
+            return {self}
+        return self._subgroups
+
+    @subgroups.setter
+    def subgroups(self, value):
+        self._subgroups = value
+
+    @property
     def channels(self) -> dict:
         """
         Dict of active channels and values.
@@ -214,6 +230,24 @@ class AnomalyGroup:
         if self._peaks is None:
             self._peaks = self.get_list_attr("peak")
         return self._peaks
+
+    @property
+    def start(self) -> int | None:
+        """
+        Start position of the anomaly group.
+        """
+        if self._start is None and self.peaks is not None:
+            self._start = np.min(self.get_list_attr("start"))
+        return self._start
+
+    @property
+    def end(self) -> int | None:
+        """
+        End position of the anomaly group.
+        """
+        if self._end is None and self.peaks is not None:
+            self._end = np.max(self.get_list_attr("end"))
+        return self._end
 
     def get_list_attr(self, attr: str) -> list | np.ndarray:
         """

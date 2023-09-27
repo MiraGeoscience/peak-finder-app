@@ -88,6 +88,8 @@ class PeakFinder(BaseDashApplication):
             Input(component_id="min_amplitude", component_property="value"),
             Input(component_id="min_value", component_property="value"),
             Input(component_id="min_width", component_property="value"),
+            Input(component_id="n_groups", component_property="value"),
+            Input(component_id="max_separation", component_property="value"),
             Input(component_id="line_field", component_property="value"),
             Input(component_id="line_id", component_property="value"),
             Input(component_id="active_channels", component_property="data"),
@@ -151,6 +153,8 @@ class PeakFinder(BaseDashApplication):
             Input(component_id="min_amplitude", component_property="value"),
             Input(component_id="min_value", component_property="value"),
             Input(component_id="min_width", component_property="value"),
+            Input(component_id="n_groups", component_property="value"),
+            Input(component_id="max_separation", component_property="value"),
             Input(component_id="line_field", component_property="value"),
             Input(component_id="line_id", component_property="value"),
         )(self.update_full_lines_figure)
@@ -167,6 +171,8 @@ class PeakFinder(BaseDashApplication):
             State(component_id="min_width", component_property="value"),
             State(component_id="max_migration", component_property="value"),
             State(component_id="min_channels", component_property="value"),
+            State(component_id="n_groups", component_property="value"),
+            State(component_id="max_separation", component_property="value"),
             State(component_id="line_id", component_property="value"),
             State(component_id="property_groups", component_property="data"),
             State(component_id="structural_markers", component_property="value"),
@@ -371,6 +377,8 @@ class PeakFinder(BaseDashApplication):
         min_amplitude: float,
         min_value: float,
         min_width: float,
+        n_groups: int,
+        max_separation: float,
         line_field: str,
         line_id: int,
     ):
@@ -385,8 +393,13 @@ class PeakFinder(BaseDashApplication):
         :param min_amplitude: Minimum amplitude.
         :param min_value: Minimum value.
         :param min_width: Minimum width.
+        :param n_groups: Number of consecutive peaks to merge.
+        :param max_separation: Maximum separation between peaks to merge.
         :param line_field: Line field.
         :param line_id: Line ID.
+
+        :return: Line position.
+        :return: Anomalies.
         """
         obj = self.workspace.get_entity(uuid.UUID(objects))[0]
         if (
@@ -417,6 +430,8 @@ class PeakFinder(BaseDashApplication):
             min_width=min_width,
             max_migration=max_migration,
             min_channels=min_channels,
+            n_groups=n_groups,
+            max_separation=max_separation,
         )
 
         if line_anomaly is None:
@@ -443,6 +458,8 @@ class PeakFinder(BaseDashApplication):
         min_amplitude: float,
         min_value: float,
         min_width: float,
+        n_groups: int,
+        max_separation: float,
         line_field: str,
         line_id: int,
         active_channels: dict,
@@ -514,6 +531,8 @@ class PeakFinder(BaseDashApplication):
             "min_amplitude",
             "min_value",
             "min_width",
+            "n_groups",
+            "max_separation",
             "line_field",
             "line_id",
         ]
@@ -529,6 +548,8 @@ class PeakFinder(BaseDashApplication):
                 min_amplitude,
                 min_value,
                 min_width,
+                n_groups,
+                max_separation,
                 line_field,
                 line_id,
             )
@@ -1012,8 +1033,8 @@ class PeakFinder(BaseDashApplication):
                     continue
 
                 i = query[0]
-                start = anomaly_group.anomalies[i].start
-                end = anomaly_group.anomalies[i].end
+                start = anomaly_group.start
+                end = anomaly_group.end
 
                 if group_name not in trace_dict["property_groups"]:  # type: ignore
                     trace_dict["property_groups"][group_name] = {  # type: ignore
@@ -1208,6 +1229,8 @@ class PeakFinder(BaseDashApplication):
         min_amplitude,
         min_value,
         min_width,
+        n_groups,
+        max_separation,
         line_field,
         line_id,
     ):
@@ -1278,6 +1301,8 @@ class PeakFinder(BaseDashApplication):
                 min_amplitude,
                 min_value,
                 min_width,
+                n_groups,
+                max_separation,
                 line_field,
                 line["value"],
             )
@@ -1349,6 +1374,8 @@ class PeakFinder(BaseDashApplication):
         min_width: float,
         max_migration: float,
         min_channels: int,
+        n_groups: int,
+        max_separation: float,
         line_id: int,
         property_groups: dict,
         structural_markers: list[bool],
@@ -1369,6 +1396,8 @@ class PeakFinder(BaseDashApplication):
         :param min_width: Minimum width.
         :param max_migration: Maximum migration.
         :param min_channels: Minimum number of channels.
+        :param n_groups: Number of consecutive peaks to merge.
+        :param max_separation: Maximum separation between peaks to merge.
         :param line_id: Line ID.
         :param property_groups: Property groups dictionary.
         :param structural_markers: Whether to save structural markers.

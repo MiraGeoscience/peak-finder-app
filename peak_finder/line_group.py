@@ -31,6 +31,8 @@ class LineGroup:
         property_group: PropertyGroup,
         max_migration: float,
         min_channels: int,
+        n_groups: int,
+        max_separation: float,
         minimal_output: bool,
     ):
         """
@@ -43,6 +45,8 @@ class LineGroup:
         self.property_group = property_group
         self._max_migration = max_migration
         self._min_channels = min_channels
+        self._n_groups = n_groups
+        self._max_separation = max_separation
         self._minimal_output = minimal_output
         self._channels: dict[uuid.UUID, LineData] | None = None
         self._groups: list[AnomalyGroup] | None = None
@@ -112,13 +116,35 @@ class LineGroup:
         self._min_channels = value
 
     @property
+    def n_groups(self) -> int:
+        """
+        Number of peaks to merge.
+        """
+        return self._n_groups
+
+    @n_groups.setter
+    def n_groups(self, value):
+        self._n_groups = value
+
+    @property
+    def max_separation(self) -> float:
+        """
+        Max separation between peaks to merge.
+        """
+        return self._max_separation
+
+    @max_separation.setter
+    def max_separation(self, value):
+        self._max_separation = value
+
+    @property
     def channels(self) -> dict | None:
         """
         Dict of active channels and values.
         """
         if self._channels is None:
             channels = {}
-            for uid in self.property_group.properties:
+            for uid in self.property_group.properties:  # type: ignore
                 channels[uid] = self.line_dataset[uid]
             self._channels = channels
 
@@ -203,6 +229,78 @@ class LineGroup:
             full_peak_values,
         )
 
+    def group_n_groups(  # pylint: disable=R0914
+        self, groups: list[AnomalyGroup]
+    ) -> list[AnomalyGroup]:
+        """
+        Merge consecutive peaks into groups of n_groups.
+
+        :param groups: List of anomaly groups.
+
+        :return: List of merged anomaly groups.
+        """
+        if self.position.sampling is None or self.channels is None:
+            return groups
+
+        for _ in range(self.n_groups):
+            # Sort groups by their starts
+            all_starts = [group.start for group in groups]
+            sort_inds = np.argsort([group.start for group in groups])
+            groups = list(np.array(groups)[sort_inds])
+
+            all_starts = np.array(all_starts)[sort_inds]
+            all_ends = [group.end for group in groups]
+
+            merged = []
+            for group in groups:
+                # Get indices of consecutive peaks within max_separation
+                delta_ind = self.max_separation / self.position.sampling
+
+                start_ind = np.searchsorted(
+                    all_ends, group.start - delta_ind, side="left"  # type: ignore
+                )
+                end_ind = (
+                    np.searchsorted(
+                        all_starts, group.end + delta_ind, side="right"  # type: ignore
+                    )
+                    - 1
+                )
+                in_range = np.arange(start_ind, end_ind + 1)
+
+                # Loop over peaks in range and create groups for all possibilities
+                for i in in_range:
+                    if groups[i].subgroups.intersection(group.subgroups):
+                        continue
+                    n_groups = len(group.subgroups) + len(groups[i].subgroups)
+                    if n_groups <= self.n_groups:
+                        new_group = AnomalyGroup(
+                            self.position,
+                            np.concatenate((group.anomalies, groups[i].anomalies)),
+                            self.property_group,
+                            np.concatenate(
+                                (group.full_azimuth, groups[i].full_azimuth)
+                            ),
+                            self.channels,
+                            np.concatenate(
+                                (group.full_peak_values, groups[i].full_peak_values)
+                            ),
+                            group.subgroups.union(groups[i].subgroups),
+                        )
+                        merged.append(new_group)
+            groups += merged
+
+        return_groups = []
+        unique_groups = []
+        for group in groups:
+            if (
+                len(group.subgroups) == self.n_groups
+                and group.subgroups not in unique_groups
+            ):
+                unique_groups.append(group.subgroups)
+                return_groups.append(group)
+
+        return return_groups
+
     def compute(  # pylint: disable=R0913, R0914
         self,
     ) -> list[AnomalyGroup] | None:
@@ -260,8 +358,11 @@ class LineGroup:
                 azimuth,
                 self.channels,
                 near_values,
+                set(),
             )
-            # Normalize peak values
             groups += [group]
+
+        if self.n_groups > 1:
+            groups = self.group_n_groups(groups)
 
         return groups

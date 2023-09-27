@@ -26,6 +26,8 @@ defaults = {
     "min_width": 100.0,
     "max_migration": 25.0,
     "min_channels": 1,
+    "n_groups": 1,
+    "max_separation": 100.0,
     "ga_group_name": "peak_finder",
     "structural_markers": False,
     "line_id": None,
@@ -114,6 +116,18 @@ default_ui_json.update(
             "group": "Detection Parameters",
             "label": "Minimum # Channels",
             "value": 1,
+            "main": False,
+        },
+        "n_groups": {
+            "group": "Detection Parameters",
+            "label": "Merge # Peaks",
+            "value": 1,
+            "main": False,
+        },
+        "max_separation": {
+            "group": "Detection Parameters",
+            "label": "Max Separation",
+            "value": 1.0,
             "main": False,
         },
         "ga_group_name": {
@@ -251,7 +265,7 @@ default_ui_json.update(
             "label": "Run interactive app",
             "value": True,
         },
-        "conda_environment": "geoapps",
+        "conda_environment": "peak_finder",
         "run_command": "peak_finder.application",
     }
 )

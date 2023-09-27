@@ -388,8 +388,49 @@ detection_params_layout = html.Div(
                 "margin-bottom": "10px",
             },
         ),
+        html.Div(
+            [
+                dcc.Markdown(
+                    children="Merge N Peaks",
+                    style={
+                        "width": "30%",
+                        "display": "inline-block",
+                    },
+                ),
+                dcc.Input(
+                    id="n_groups",
+                    value=1,
+                    type="number",
+                    style={
+                        "width": "70%",
+                        "display": "inline-block",
+                    },
+                ),
+                dcc.Markdown(
+                    children="Max Group Separation",
+                    style={
+                        "width": "30%",
+                        "display": "inline-block",
+                    },
+                ),
+                dcc.Input(
+                    id="max_separation",
+                    value=100,
+                    type="number",
+                    style={
+                        "width": "70%",
+                        "display": "inline-block",
+                    },
+                ),
+            ]
+        ),
     ],
-    style={"width": "45%", "display": "inline-block", "vertical-align": "top"},
+    style={
+        "width": "45%",
+        "display": "inline-block",
+        "vertical-align": "top",
+        "margin-right": "5%",
+    },
 )
 
 
