@@ -16,8 +16,9 @@ from dask.diagnostics import ProgressBar
 from geoapps_utils.conversions import hex_to_rgb
 from geoapps_utils.driver.driver import BaseDriver
 from geoapps_utils.formatters import string_name
-from geoh5py.groups import ContainerGroup
-from geoh5py.objects import Points
+from geoh5py.data import BooleanData, ReferencedData
+from geoh5py.groups import ContainerGroup, PropertyGroup
+from geoh5py.objects import Curve, Points
 from geoh5py.shared.utils import fetch_active_workspace
 from tqdm import tqdm
 
@@ -33,6 +34,96 @@ class PeakFinderDriver(BaseDriver):
     def __init__(self, params: PeakFinderParams):
         super().__init__(params)
         self.params: PeakFinderParams = params
+
+    @staticmethod
+    def compute_lines(  # pylint: disable=R0913, R0914
+        survey: Curve,
+        line_field: ReferencedData,
+        line_ids: list[int] | np.ndarray,
+        property_groups: list[PropertyGroup],
+        masking_data: BooleanData | None,
+        smoothing: float,
+        min_amplitude: float,
+        min_value: float,
+        min_width: float,
+        max_migration: float,
+        min_channels: int,
+        n_groups: int,
+        max_separation: float,
+    ) -> list[LineAnomaly]:
+        """
+        Compute anomalies for a list of line ids.
+
+        :param survey: Survey object.
+        :param line_field: Line field.
+        :param line_ids: List of line ids.
+        :param property_groups: Property groups to use for grouping anomalies.
+        :param masking_data: Masking data.
+        :param smoothing: Smoothing factor.
+        :param min_amplitude: Minimum amplitude of anomaly as percent.
+        :param min_value: Minimum data value of anomaly.
+        :param min_width: Minimum width of anomaly in meters.
+        :param max_migration: Maximum peak migration.
+        :param min_channels: Minimum number of channels in anomaly.
+        :param n_groups: Number of groups to use for grouping anomalies.
+        :param max_separation: Maximum separation between anomalies in meters.
+        """
+        anomalies = []
+        for line_id in tqdm(list(line_ids)):
+            full_line_indices = np.where(line_field.values == line_id)[0]
+            if (
+                masking_data is not None
+                and masking_data.values is not None
+                and np.sum(masking_data.values[full_line_indices]) > 0
+            ):
+                masking_array = masking_data.values
+                masked_survey = survey.copy()
+                masked_survey.remove_vertices(
+                    np.logical_and(full_line_indices, ~masking_array)
+                )
+
+                nan_inds = np.cumsum(~masking_array)
+                inds = (full_line_indices - nan_inds)[masking_array]
+
+                parts = np.unique(masked_survey.parts[inds])
+                parts_mask = np.full(full_line_indices.shape, False)
+                masking = True
+            else:
+                parts = np.unique(survey.parts[full_line_indices])
+                masking = False
+
+            line_computation = delayed(LineAnomaly, pure=True)
+
+            for part in parts:
+                if masking:
+                    parts_mask[masking_array] = masked_survey.parts == part
+                else:
+                    parts_mask = survey.parts == part
+
+                line_indices = np.logical_and(full_line_indices, parts_mask)
+                masking_offset = np.argmax(
+                    parts_mask  # noqa: E712  pylint: disable=singleton-comparison
+                    == True  # noqa: E712  pylint: disable=singleton-comparison
+                )
+
+                anomalies += [
+                    line_computation(
+                        entity=survey,
+                        line_indices=line_indices,
+                        property_groups=property_groups,
+                        smoothing=smoothing,
+                        min_amplitude=min_amplitude,
+                        min_value=min_value,
+                        min_width=min_width,
+                        max_migration=max_migration,
+                        min_channels=min_channels,
+                        n_groups=n_groups,
+                        max_separation=max_separation,
+                        minimal_output=True,
+                        masking_offset=masking_offset,
+                    )
+                ]
+        return anomalies
 
     def run(self):  # pylint: disable=R0912, R0914, R0915 # noqa: C901
         with fetch_active_workspace(self.params.geoh5, mode="r+"):
@@ -65,33 +156,22 @@ class PeakFinderDriver(BaseDriver):
                 for name in channel_groups
             ]
 
-            anomalies = []
-            for line_id in tqdm(list(lines)):
-                if not self.params.masking_data:
-                    line_indices = np.where(line_field.values == line_id)[0]
-                else:
-                    line_indices = np.where(
-                        (line_field.values == line_id) & self.params.masking_data.values
-                    )[0]
+            anomalies = PeakFinderDriver.compute_lines(
+                survey=survey,
+                line_field=line_field,
+                line_ids=lines,
+                property_groups=property_groups,
+                masking_data=self.params.masking_data,
+                smoothing=self.params.smoothing,
+                min_amplitude=self.params.min_amplitude,
+                min_value=self.params.min_value,
+                min_width=self.params.min_width,
+                max_migration=self.params.max_migration,
+                min_channels=self.params.min_channels,
+                n_groups=self.params.n_groups,
+                max_separation=self.params.max_separation,
+            )
 
-                line_computation = delayed(LineAnomaly, pure=True)
-
-                anomalies += [
-                    line_computation(
-                        entity=survey,
-                        line_indices=line_indices,
-                        property_groups=property_groups,
-                        smoothing=self.params.smoothing,
-                        min_amplitude=self.params.min_amplitude,
-                        min_value=self.params.min_value,
-                        min_width=self.params.min_width,
-                        max_migration=self.params.max_migration,
-                        min_channels=self.params.min_channels,
-                        n_groups=self.params.n_groups,
-                        max_separation=self.params.max_separation,
-                        minimal_output=True,
-                    )
-                ]
             (
                 channel_group,
                 tau,
@@ -113,6 +193,8 @@ class PeakFinderDriver(BaseDriver):
 
             for line in tqdm(results):
                 for line_anomaly in line:
+                    if line_anomaly.anomalies is None:
+                        continue
                     for line_group in line_anomaly.anomalies:
                         for group in line_group.groups:
                             if group.linear_fit is None:

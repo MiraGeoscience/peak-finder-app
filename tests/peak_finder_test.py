@@ -191,17 +191,6 @@ def test_merging_peaks(tmp_path: Path):  # pylint: disable=too-many-locals
     )
     curve.add_data_to_group(line, property_group="Line")
 
-    masking_array = np.ones_like(x)
-    masking_array[(x > 650) & (x < 850)] = 0
-    masking_data = curve.add_data(
-        {
-            "masking": {
-                "values": np.array(masking_array, dtype=bool),
-                "type": "boolean",
-            }
-        }
-    )
-
     prop_group = curve.find_or_create_property_group(
         name="prop group", properties=[data.uid]
     )
@@ -275,7 +264,7 @@ def test_merging_peaks(tmp_path: Path):  # pylint: disable=too-many-locals
                 )
             )
 
-        position, anomalies = app.line_update(
+        position_list, anomalies_list = app.line_update(
             objects,
             property_groups,
             smoothing,
@@ -288,8 +277,12 @@ def test_merging_peaks(tmp_path: Path):  # pylint: disable=too-many-locals
             max_separation_list[ind],
             line_field,
             masking_data=None,
-            line_id=1,
+            line_ids=[1],
         )
+
+        assert len(position_list) == 1  # type: ignore
+        position = position_list[0]  # type: ignore
+        anomalies = anomalies_list[0]  # type: ignore
 
         locs = position.locations_resampled
         starts = [anom.start for anom in anomalies]
@@ -299,6 +292,75 @@ def test_merging_peaks(tmp_path: Path):  # pylint: disable=too-many-locals
         for bound_ind, anom_ind in enumerate(sort_inds):
             assert locs[starts[anom_ind]] < expected_peaks[ind][bound_ind]  # type: ignore
             assert locs[ends[anom_ind]] > expected_peaks[ind][bound_ind]  # type: ignore
+
+
+def test_masking_peaks(tmp_path: Path):  # pylint: disable=too-many-locals
+    h5file_path = tmp_path / r"testPeakFinder.geoh5"
+    # Create temp workspace
+    temp_ws = Workspace(h5file_path)
+
+    params = PeakFinderParams(geoh5=str(h5file_path))
+    app = PeakFinder(params=params, ui_json_data={})
+    app.workspace = temp_ws
+
+    x = np.arange(0, 1000, 0.1)
+
+    curve = Curve.create(temp_ws, vertices=np.c_[x, np.zeros((x.shape[0], 2))])
+
+    peak1 = 5 * stats.norm.pdf(np.arange(0, 650, 0.1), 600, 1)
+    peak2 = 7 * stats.norm.pdf(np.arange(650, 725, 0.1), 700, 1.75)
+    peak3 = 1000 * stats.norm.pdf(np.arange(725, 875, 0.1), 800, 3)
+    peak4 = 7 * stats.norm.pdf(np.arange(875, 1000, 0.1), 900, 3)
+
+    dist = np.concatenate((peak1, peak2, peak3, peak4))
+
+    data = curve.add_data({"data": {"values": dist}})
+    curve.add_data_to_group(data, property_group="obs")
+
+    line = curve.add_data(
+        {
+            "line_id": {
+                "values": np.ones_like(x),
+                "value_map": {1: "1", 2: "2", 3: "3"},
+                "type": "referenced",
+            }
+        }
+    )
+    curve.add_data_to_group(line, property_group="Line")
+
+    masking_array = np.ones_like(x)
+    masking_array[(x > 650) & (x < 850)] = 0
+    masking_data = curve.add_data(
+        {
+            "masking": {
+                "values": np.array(masking_array, dtype=bool),
+                "type": "boolean",
+            }
+        }
+    )
+
+    prop_group = curve.find_or_create_property_group(
+        name="prop group", properties=[data.uid]
+    )
+
+    property_groups = {
+        "obs": {
+            "param": "a",
+            "data": str(prop_group.uid),
+            "color": "#000000",
+            "label": [0],
+            "properties": [str(p) for p in prop_group.properties],
+        }
+    }
+
+    objects = "{" + str(curve.uid) + "}"
+    smoothing = 6
+    max_migration = 1.0
+    min_channels = 1
+    min_amplitude = 0
+    min_value = -1.4
+    min_width = 1.0
+    line_field = "{" + str(line.uid) + "}"
 
     # Test masking
     app.trigger_click(
@@ -313,8 +375,8 @@ def test_merging_peaks(tmp_path: Path):  # pylint: disable=too-many-locals
         min_width=min_width,
         max_migration=max_migration,
         min_channels=min_channels,
-        n_groups=1,
-        max_separation=100,
+        n_groups=1,  # 2,
+        max_separation=350,
         line_id=1,
         property_groups=property_groups,
         structural_markers=[],
@@ -328,4 +390,4 @@ def test_merging_peaks(tmp_path: Path):  # pylint: disable=too-many-locals
         anomalies_obj = out_ws.get_entity("PointMarkers")[0]
         vertices = anomalies_obj.vertices[:, 0]
         assert np.all((vertices < 650) | (vertices > 850))
-        assert len(vertices) == 4
+        assert len(vertices) == 2
