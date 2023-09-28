@@ -50,7 +50,7 @@ class PeakFinderDriver(BaseDriver):
         min_channels: int,
         n_groups: int,
         max_separation: float,
-    ) -> list[LineAnomaly]:
+    ) -> list[list[LineAnomaly]]:
         """
         Compute anomalies for a list of line ids.
 
@@ -68,9 +68,10 @@ class PeakFinderDriver(BaseDriver):
         :param n_groups: Number of groups to use for grouping anomalies.
         :param max_separation: Maximum separation between anomalies in meters.
         """
-        anomalies = []
+        full_anomalies = []
         for line_id in tqdm(list(line_ids)):
-            full_line_indices = np.where(line_field.values == line_id)[0]
+            line_bool = line_field.values == line_id
+            full_line_indices = np.where(line_bool)[0]
             if (
                 masking_data is not None
                 and masking_data.values is not None
@@ -86,7 +87,6 @@ class PeakFinderDriver(BaseDriver):
                 inds = (full_line_indices - nan_inds)[masking_array]
 
                 parts = np.unique(masked_survey.parts[inds])
-                parts_mask = np.full(full_line_indices.shape, False)
                 masking = True
             else:
                 parts = np.unique(survey.parts[full_line_indices])
@@ -94,18 +94,20 @@ class PeakFinderDriver(BaseDriver):
 
             line_computation = delayed(LineAnomaly, pure=True)
 
+            anomalies = []
             for part in parts:
                 if masking:
+                    parts_mask = np.full(len(survey.vertices), False)
                     parts_mask[masking_array] = masked_survey.parts == part
+                    line_indices = np.where(
+                        (line_field.values == line_id) & parts_mask
+                    )[0]
                 else:
-                    parts_mask = survey.parts == part
+                    line_indices = np.where(
+                        (line_field.values == line_id) & (survey.parts == part)
+                    )[0]
 
-                line_indices = np.logical_and(full_line_indices, parts_mask)
-                masking_offset = np.argmax(
-                    parts_mask  # noqa: E712  pylint: disable=singleton-comparison
-                    == True  # noqa: E712  pylint: disable=singleton-comparison
-                )
-
+                masking_offset = np.argmin(line_indices)
                 anomalies += [
                     line_computation(
                         entity=survey,
@@ -123,7 +125,8 @@ class PeakFinderDriver(BaseDriver):
                         masking_offset=masking_offset,
                     )
                 ]
-        return anomalies
+            full_anomalies.append(anomalies)
+        return full_anomalies
 
     def run(self):  # pylint: disable=R0912, R0914, R0915 # noqa: C901
         with fetch_active_workspace(self.params.geoh5, mode="r+"):
