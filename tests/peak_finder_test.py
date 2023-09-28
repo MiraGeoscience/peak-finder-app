@@ -281,8 +281,8 @@ def test_merging_peaks(tmp_path: Path):  # pylint: disable=too-many-locals
         )
 
         assert len(position_list) == 1  # type: ignore
-        position = position_list[0]  # type: ignore
-        anomalies = anomalies_list[0]  # type: ignore
+        position = position_list[0][0]  # type: ignore
+        anomalies = anomalies_list[0][0]  # type: ignore
 
         locs = position.locations_resampled
         starts = [anom.start for anom in anomalies]

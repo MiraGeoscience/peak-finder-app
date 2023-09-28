@@ -79,12 +79,10 @@ class PeakFinderDriver(BaseDriver):
             ):
                 masking_array = masking_data.values
                 masked_survey = survey.copy()
-                masked_survey.remove_vertices(
-                    np.logical_and(full_line_indices, ~masking_array)
-                )
+                masked_survey.remove_vertices(np.logical_and(line_bool, ~masking_array))
 
-                nan_inds = np.cumsum(~masking_array)
-                inds = (full_line_indices - nan_inds)[masking_array]
+                nan_inds = np.cumsum(~masking_array[line_bool])
+                inds = (full_line_indices - nan_inds)[masking_array[line_bool]]
 
                 parts = np.unique(masked_survey.parts[inds])
                 masking = True
@@ -96,18 +94,18 @@ class PeakFinderDriver(BaseDriver):
 
             anomalies = []
             for part in parts:
-                if masking:
+                if masking and survey.vertices is not None:
                     parts_mask = np.full(len(survey.vertices), False)
-                    parts_mask[masking_array] = masked_survey.parts == part
-                    line_indices = np.where(
-                        (line_field.values == line_id) & parts_mask
-                    )[0]
+                    parts_mask[masking_array & line_bool] = (
+                        masked_survey.parts[inds] == part
+                    )
+                    line_indices = np.where(parts_mask)[0]
                 else:
                     line_indices = np.where(
                         (line_field.values == line_id) & (survey.parts == part)
                     )[0]
 
-                masking_offset = np.argmin(line_indices)
+                masking_offset = np.min(line_indices)
                 anomalies += [
                     line_computation(
                         entity=survey,
@@ -194,30 +192,31 @@ class PeakFinderDriver(BaseDriver):
             with ProgressBar():
                 results = compute(anomalies)
 
-            for line in tqdm(results):
-                for line_anomaly in line:
-                    if line_anomaly.anomalies is None:
-                        continue
-                    for line_group in line_anomaly.anomalies:
-                        for group in line_group.groups:
-                            if group.linear_fit is None:
-                                tau += [0]
-                            else:
-                                tau += [np.abs(group.linear_fit[0] ** -1.0)]
-                            channel_group.append(
-                                property_groups.index(group.property_group) + 1
-                            )
-                            migration.append(group.migration)
-                            amplitude.append(group.amplitude)
-                            azimuth.append(group.azimuth)
-                            skew.append(group.skew)
-                            group_center.append(group.group_center)
-                            for anom in group.anomalies:
-                                inflect_down.append(anom.inflect_down)
-                                inflect_up.append(anom.inflect_up)
-                                start.append(anom.start)
-                                end.append(anom.end)
-                                peaks.append(anom.peak)
+            for result in tqdm(results):  # pylint: disable=R1702
+                for line in result:
+                    for line_anomaly in line:
+                        if line_anomaly.anomalies is None:
+                            continue
+                        for line_group in line_anomaly.anomalies:
+                            for group in line_group.groups:
+                                if group.linear_fit is None:
+                                    tau += [0]
+                                else:
+                                    tau += [np.abs(group.linear_fit[0] ** -1.0)]
+                                channel_group.append(
+                                    property_groups.index(group.property_group) + 1
+                                )
+                                migration.append(group.migration)
+                                amplitude.append(group.amplitude)
+                                azimuth.append(group.azimuth)
+                                skew.append(group.skew)
+                                group_center.append(group.group_center)
+                                for anom in group.anomalies:
+                                    inflect_down.append(anom.inflect_down)
+                                    inflect_up.append(anom.inflect_up)
+                                    start.append(anom.start)
+                                    end.append(anom.end)
+                                    peaks.append(anom.peak)
 
             print("Exporting . . .")
             if group_center:

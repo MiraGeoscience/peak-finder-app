@@ -192,7 +192,7 @@ class PeakFinder(BaseDashApplication):
         )(self.trigger_click)
 
     @property
-    def lines_position(self) -> LinePosition | None:
+    def lines_position(self) -> list[LinePosition] | None:
         """
         Line position for the current plot.
         """
@@ -203,7 +203,7 @@ class PeakFinder(BaseDashApplication):
         self._lines_position = value
 
     @property
-    def lines_anomalies(self) -> list[AnomalyGroup] | None:
+    def lines_anomalies(self) -> list[list[AnomalyGroup]] | None:
         """
         Anomalies for the current plot.
         """
@@ -1016,9 +1016,9 @@ class PeakFinder(BaseDashApplication):
         ):
             return fig_data, None, None, None, None, None, None, None, None
 
-        for ind in range(len(self.lines_position)):
+        for ind, lines_position in enumerate(self.lines_position):
             y_min, y_max = np.inf, -np.inf
-            locs = self.lines_position[ind].locations_resampled
+            locs = lines_position.locations_resampled
             peak_markers_x, peak_markers_y, peak_markers_customdata, peak_markers_c = (
                 [],
                 [],
@@ -1062,7 +1062,7 @@ class PeakFinder(BaseDashApplication):
                 else:
                     values = np.array(channel_dict["values"])[obj.line_indices]
 
-                values, raw = self.lines_position[ind].resample_values(values)
+                values, raw = lines_position.resample_values(values)
                 all_values += list(values.flatten())
 
                 if log:
@@ -1282,7 +1282,7 @@ class PeakFinder(BaseDashApplication):
             thresh_ticks,
         )
 
-    def update_full_lines_figure(  # pylint: disable=too-many-arguments, too-many-locals
+    def update_full_lines_figure(  # pylint: disable=too-many-arguments, too-many-locals, too-many-branches
         self,
         figure: dict | None,
         line_click_data: dict | None,
@@ -1559,7 +1559,7 @@ if __name__ == "__main__":
     FILE = sys.argv[1]
     ifile = InputFile.read_ui_json(FILE)
     if ifile.data["launch_dash"]:
-        ifile.workspace.open("r")
+        ifile.workspace.open("r+")
         print("Loaded. Launching peak finder app . . .")
         ObjectSelection.run("Peak Finder", PeakFinder, ifile)
     else:
