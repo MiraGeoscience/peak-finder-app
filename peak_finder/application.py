@@ -19,6 +19,8 @@ import numpy as np
 import plotly.graph_objects as go
 from dash import Dash, callback_context, ctx, dcc, no_update
 from dash.dependencies import Input, Output, State
+from dask import compute
+from dask.diagnostics import ProgressBar
 from flask import Flask
 from geoapps_utils.application.application import get_output_workspace
 from geoapps_utils.application.dash_application import (
@@ -28,11 +30,11 @@ from geoapps_utils.application.dash_application import (
 from geoapps_utils.plotting import format_axis, symlog
 from geoh5py.data import BooleanData, ReferencedData
 from geoh5py.ui_json import InputFile
+from tqdm import tqdm
 
 from peak_finder.anomaly_group import AnomalyGroup
 from peak_finder.driver import PeakFinderDriver
 from peak_finder.layout import peak_finder_layout
-from peak_finder.line_anomaly import LineAnomaly
 from peak_finder.line_position import LinePosition
 from peak_finder.params import PeakFinderParams
 
@@ -47,6 +49,7 @@ class PeakFinder(BaseDashApplication):
 
     _lines_position = None
     _lines_anomalies = None
+    _lines_indices = None
 
     def __init__(
         self,
@@ -192,7 +195,7 @@ class PeakFinder(BaseDashApplication):
         )(self.trigger_click)
 
     @property
-    def lines_position(self) -> LinePosition | None:
+    def lines_position(self) -> list[LinePosition] | None:
         """
         Line position for the current plot.
         """
@@ -203,7 +206,7 @@ class PeakFinder(BaseDashApplication):
         self._lines_position = value
 
     @property
-    def lines_anomalies(self) -> list[AnomalyGroup] | None:
+    def lines_anomalies(self) -> list[list[AnomalyGroup]] | None:
         """
         Anomalies for the current plot.
         """
@@ -212,6 +215,17 @@ class PeakFinder(BaseDashApplication):
     @lines_anomalies.setter
     def lines_anomalies(self, value):
         self._lines_anomalies = value
+
+    @property
+    def lines_indices(self) -> list[np.ndarray] | None:
+        """
+        Line indices for the current plot.
+        """
+        return self._lines_indices
+
+    @lines_indices.setter
+    def lines_indices(self, value):
+        self._lines_indices = value
 
     def set_initialized_layout(self):
         """
@@ -342,32 +356,6 @@ class PeakFinder(BaseDashApplication):
 
         return options, line_id
 
-    def get_line_indices(
-        self, line_field: str, line_id: int, masking_data: str | None
-    ) -> np.ndarray | None:
-        """
-        Find the vertices for a given line ID.
-
-        :param line_field: Line field.
-        :param line_id: Line ID.
-        :param masking_data: Masking data.
-
-        :return: Line indices.
-        """
-        line_data = self.workspace.get_entity(uuid.UUID(line_field))[0]
-
-        if masking_data is not None:
-            masking_array = self.workspace.get_entity(uuid.UUID(masking_data))[0].values
-            indices = np.where(
-                (np.asarray(line_data.values) == line_id) & masking_array
-            )[0]
-        else:
-            indices = np.where(np.asarray(line_data.values) == line_id)[0]
-
-        if len(indices) == 0:
-            return None
-        return indices
-
     def update_active_channels(
         self,
         property_groups_dict: dict,
@@ -426,8 +414,12 @@ class PeakFinder(BaseDashApplication):
         max_separation: float,
         line_field: str,
         masking_data: str | None,
-        line_id: int,
-    ):
+        line_ids: list[int],
+    ) -> tuple[
+        list[LinePosition] | None,
+        list[list[AnomalyGroup]] | None,
+        list[np.ndarray] | None,
+    ]:
         """
         Update the line position and anomalies.
 
@@ -442,36 +434,39 @@ class PeakFinder(BaseDashApplication):
         :param n_groups: Number of consecutive peaks to merge.
         :param max_separation: Maximum separation between peaks to merge.
         :param line_field: Line field.
-        :param masking_data: Masking data.
-        :param line_id: Line ID.
+        :param masking_data: Masking data uid.
+        :param line_ids: List of line IDs.
 
-        :return: Line position.
-        :return: Anomalies.
+        :return: List of line positions.
+        :return: List of lists of anomalies.
+        :return: List of indices for each LineAnomaly.
         """
+
         obj = self.workspace.get_entity(uuid.UUID(objects))[0]
         if (
             obj is None
             or len(self.workspace.get_entity(uuid.UUID(line_field))) == 0
-            or line_id is None
+            or line_ids is None
             or len(property_groups_dict) == 0
         ):
-            return None, None
+            return None, None, None
 
-        line_indices = self.get_line_indices(line_field, line_id, masking_data)
+        line_field = self.workspace.get_entity(uuid.UUID(line_field))[0]
 
-        if line_indices is None:
-            return None, None
+        if masking_data is not None:
+            masking_data = self.workspace.get_entity(uuid.UUID(masking_data))[0]
 
-        obj.line_indices = line_indices
         property_groups = [
             obj.find_or_create_property_group(name=name)
             for name in property_groups_dict
         ]
 
-        line_anomaly = LineAnomaly(
-            entity=obj,
-            line_indices=line_indices,
+        line_computation = PeakFinderDriver.compute_lines(
+            survey=obj,
+            line_field=line_field,  # type: ignore
+            line_ids=line_ids,
             property_groups=property_groups,
+            masking_data=masking_data,  # type: ignore
             smoothing=smoothing,
             min_amplitude=min_amplitude,
             min_value=min_value,
@@ -482,16 +477,32 @@ class PeakFinder(BaseDashApplication):
             max_separation=max_separation,
         )
 
-        if line_anomaly is None:
-            return None, None
+        with ProgressBar():
+            results = compute(line_computation)
 
-        line_groups = line_anomaly.anomalies
-        anomalies: list[AnomalyGroup] = []
-        if line_groups is not None:
-            for line_group in line_groups:
-                anomalies += line_group.groups  # type: ignore
+        positions_list = []
+        anomalies_list = []
+        indices_list = []
+        for result in tqdm(results):
+            for line in result:
+                positions = []
+                anomalies = []
+                indices = []
+                for line_anomaly in line:
+                    positions.append(line_anomaly.position)
+                    indices.append(line_anomaly.line_indices)
+                    line_groups = line_anomaly.anomalies
 
-        return line_anomaly.position, anomalies
+                    line_anomalies: list[AnomalyGroup] = []
+                    if line_groups is not None:
+                        for line_group in line_groups:
+                            line_anomalies += line_group.groups  # type: ignore
+                    anomalies.append(line_anomalies)
+                positions_list.append(positions)
+                anomalies_list.append(anomalies)
+                indices_list.append(indices)
+
+        return positions_list, anomalies_list, indices_list  # type: ignore
 
     def update_line_figure(  # pylint: disable=too-many-arguments, too-many-locals
         self,
@@ -596,7 +607,7 @@ class PeakFinder(BaseDashApplication):
         update_line = False
         if any(t in triggers for t in update_line_triggers):
             # Update line position and anomalies
-            self.lines_position, self.lines_anomalies = self.line_update(
+            position, anomalies, indices = self.line_update(
                 objects,
                 property_groups,
                 smoothing,
@@ -609,10 +620,25 @@ class PeakFinder(BaseDashApplication):
                 max_separation,
                 line_field,
                 masking_data,
-                line_id,
+                [line_id],
             )
-            if self.lines_position is None and self.lines_anomalies is None:
+            if (
+                position is None
+                or anomalies is None
+                or len(position) == 0
+                or len(anomalies) == 0
+            ):
                 return no_update, no_update, no_update, no_update
+
+            (
+                self.lines_position,
+                self.lines_anomalies,
+                self.line_indices,  # pylint: disable=W0201
+            ) = (
+                position[0],  # type: ignore
+                anomalies[0],  # type: ignore
+                indices[0],  # type: ignore
+            )  # type: ignore
             update_line = True
         figure_data, figure_layout, y_min, y_max, y_label, y_tickvals, y_ticktext = (
             None,
@@ -660,7 +686,7 @@ class PeakFinder(BaseDashApplication):
                 y_scale,
                 linear_threshold,
                 show_residuals,
-                show_markers
+                show_markers,
             )
         elif "property_groups" in triggers:
             # Update trace colours if property groups are the only change
@@ -983,7 +1009,7 @@ class PeakFinder(BaseDashApplication):
         )
         return fig_data
 
-    def update_figure_data(  # pylint: disable=too-many-locals, too-many-branches, too-many-statements, too-many-arguments
+    def update_figure_data(  # noqa: C901  pylint: disable=too-many-locals, too-many-branches, too-many-statements, too-many-arguments
         self,
         objects: str,
         property_groups: dict,
@@ -1029,17 +1055,13 @@ class PeakFinder(BaseDashApplication):
         obj = self.workspace.get_entity(uuid.UUID(objects))[0]
         fig_data: list[go.Scatter] = []
 
-        if (
-            obj is None
-            or getattr(obj, "line_indices", None) is None
-            or len(obj.line_indices) < 2
-            or len(active_channels) == 0
-            or self.lines_position is None
-        ):
+        if obj is None or len(active_channels) == 0 or self.lines_position is None:
             return fig_data, None, None, None, None, None, None, None, None
 
         y_min, y_max = np.inf, -np.inf
-        locs = self.lines_position.locations_resampled
+        log = y_scale == "symlog"
+        threshold = np.float_power(10, linear_threshold)
+        all_values = []
         peak_markers_x, peak_markers_y, peak_markers_customdata, peak_markers_c = (
             [],
             [],
@@ -1066,140 +1088,159 @@ class PeakFinder(BaseDashApplication):
             "property_groups": {},
             "markers": {},
         }
-
-        log = y_scale == "symlog"
-        threshold = np.float_power(10, linear_threshold)
-
-        all_values = []
-        for channel_dict in list(active_channels.values()):
-            if "values" not in channel_dict:
+        for ind, lines_position in enumerate(  # pylint: disable=R1702
+            self.lines_position
+        ):
+            if len(self.line_indices[ind]) < 2:
                 continue
-            if masking_data is not None:
-                mask = self.workspace.get_entity(uuid.UUID(masking_data))[0].values
-                values = np.array(channel_dict["values"])
-                values[mask is False] = np.nan
-                values = values[obj.line_indices]
-                values = values[~np.isnan(values)]
-            else:
-                values = np.array(channel_dict["values"])[obj.line_indices]
+            locs = lines_position.locations_resampled
 
-            values, raw = self.lines_position.resample_values(values)
-            all_values += list(values.flatten())
-
-            if log:
-                sym_values = symlog(values, threshold)
-                sym_raw = symlog(raw, threshold)
-            else:
-                sym_values = values
-                sym_raw = raw
-
-            y_min = np.nanmin([sym_values.min(), y_min])
-            y_max = np.nanmax([sym_values.max(), y_max])
-
-            trace_dict["lines"]["lines"]["x"] += list(locs) + [None]  # type: ignore
-            trace_dict["lines"]["lines"]["y"] += list(sym_values) + [None]  # type: ignore
-
-            for anomaly_group in self.lines_anomalies:  # type: ignore
-                channels = np.array(
-                    [a.parent.data_entity.name for a in anomaly_group.anomalies]
-                )
-                group_name = anomaly_group.property_group.name
-                color = property_groups[group_name]["color"]
-                peaks = anomaly_group.get_list_attr("peak")
-                query = np.where(np.array(channels) == channel_dict["name"])[0]
-                if len(query) == 0:
+            for channel_dict in list(active_channels.values()):
+                if "values" not in channel_dict:
                     continue
 
-                i = query[0]
-                start = anomaly_group.start
-                end = anomaly_group.end
+                if masking_data is not None:
+                    mask = self.workspace.get_entity(uuid.UUID(masking_data))[0].values
+                    values = np.array(channel_dict["values"])
+                    values[mask is False] = np.nan
+                    values = values[self.line_indices[ind]]
+                    values = values[~np.isnan(values)]
+                else:
+                    values = np.array(channel_dict["values"])[self.line_indices[ind]]
 
-                if group_name not in trace_dict["property_groups"]:  # type: ignore
-                    trace_dict["property_groups"][group_name] = {  # type: ignore
-                        "x": [None],
-                        "y": [None],
-                        "customdata": [None],
-                        "mode": "lines",
-                        "line_color": color,
-                        "name": group_name,
-                        "hovertemplate": (
-                            "<b>x</b>: %{x:,.2f} <br>" + "<b>y</b>: %{customdata:,.2e}"
-                        ),
-                    }
-                trace_dict["property_groups"][group_name]["x"] += list(  # type: ignore
-                    locs[start:end]
-                ) + [None]
-                trace_dict["property_groups"][group_name]["y"] += list(  # type: ignore
-                    sym_values[start:end]
-                ) + [None]
-                trace_dict["property_groups"][group_name]["customdata"] += list(  # type: ignore
-                    values[start:end]
-                ) + [
-                    None
-                ]
+                values, raw = lines_position.resample_values(values)
+                all_values += list(values.flatten())
 
-                if show_markers:
-                    if anomaly_group.azimuth < 180:  # type: ignore
-                        ori = "right"
-                    else:
-                        ori = "left"
+                if log:
+                    sym_values = symlog(values, threshold)
+                    sym_raw = symlog(raw, threshold)
+                else:
+                    sym_values = values
+                    sym_raw = raw
 
-                    # Add markers
-                    if i == 0:
-                        if ori + "_azimuth" not in trace_dict["markers"]:  # type: ignore
-                            trace_dict["markers"][ori + "_azimuth"] = {  # type: ignore
-                                "x": [None],
-                                "y": [None],
-                                "customdata": [None],
-                                "mode": "markers",
-                                "marker_color": "black",
-                                "marker_symbol": "arrow-" + ori,
-                                "marker_size": 8,
-                                "name": "peaks start",
-                                "legendgroup": "markers",
-                                "showlegend": False,
-                                "visible": "legendonly",
-                                "hovertemplate": (
-                                    "<b>x</b>: %{x:,.2f} <br>"
-                                    + "<b>y</b>: %{customdata:,.2e}"
-                                ),
-                            }
-                        trace_dict["markers"][ori + "_azimuth"]["x"] += [  # type: ignore
-                            locs[peaks[i]]
-                        ]
-                        trace_dict["markers"][ori + "_azimuth"]["y"] += [  # type: ignore
-                            sym_values[peaks[i]]
-                        ]
-                        trace_dict["markers"][ori + "_azimuth"]["customdata"] += [  # type: ignore
-                            values[peaks[i]]
-                        ]
+                y_min = np.nanmin([sym_values.min(), y_min])
+                y_max = np.nanmax([sym_values.max(), y_max])
 
-                    peak_markers_x += [locs[peaks[i]]]
-                    peak_markers_y += [sym_values[peaks[i]]]
-                    peak_markers_customdata += [values[peaks[i]]]
-                    peak_markers_c += [color]
-                    start_markers_x += [locs[anomaly_group.anomalies[i].start]]
-                    start_markers_y += [sym_values[anomaly_group.anomalies[i].start]]
-                    start_markers_customdata += [values[anomaly_group.anomalies[i].start]]
-                    end_markers_x += [locs[anomaly_group.anomalies[i].end]]
-                    end_markers_y += [sym_values[anomaly_group.anomalies[i].end]]
-                    end_markers_customdata += [values[anomaly_group.anomalies[i].end]]
-                    up_markers_x += [locs[anomaly_group.anomalies[i].inflect_up]]
-                    up_markers_y += [sym_values[anomaly_group.anomalies[i].inflect_up]]
-                    up_markers_customdata += [values[anomaly_group.anomalies[i].inflect_up]]
-                    dwn_markers_x += [locs[anomaly_group.anomalies[i].inflect_down]]
-                    dwn_markers_y += [sym_values[anomaly_group.anomalies[i].inflect_down]]
-                    dwn_markers_customdata += [
-                        values[anomaly_group.anomalies[i].inflect_down]
+                trace_dict["lines"]["lines"]["x"] += list(locs) + [None]  # type: ignore
+                trace_dict["lines"]["lines"]["y"] += list(sym_values) + [None]  # type: ignore
+
+                for anomaly_group in self.lines_anomalies[ind]:  # type: ignore
+                    channels = np.array(
+                        [a.parent.data_entity.name for a in anomaly_group.anomalies]
+                    )
+                    group_name = anomaly_group.property_group.name
+                    color = property_groups[group_name]["color"]
+                    peaks = anomaly_group.get_list_attr("peak")
+                    query = np.where(np.array(channels) == channel_dict["name"])[0]
+                    if len(query) == 0:
+                        continue
+
+                    i = query[0]
+                    start = anomaly_group.start
+                    end = anomaly_group.end
+
+                    if group_name not in trace_dict["property_groups"]:  # type: ignore
+                        trace_dict["property_groups"][group_name] = {  # type: ignore
+                            "x": [None],
+                            "y": [None],
+                            "customdata": [None],
+                            "mode": "lines",
+                            "line_color": color,
+                            "name": group_name,
+                            "hovertemplate": (
+                                "<b>x</b>: %{x:,.2f} <br>"
+                                + "<b>y</b>: %{customdata:,.2e}"
+                            ),
+                        }
+                    trace_dict["property_groups"][group_name]["x"] += list(  # type: ignore
+                        locs[start:end]
+                    ) + [
+                        None
+                    ]
+                    trace_dict["property_groups"][group_name]["y"] += list(  # type: ignore
+                        sym_values[start:end]
+                    ) + [
+                        None
+                    ]
+                    trace_dict["property_groups"][group_name]["customdata"] += list(  # type: ignore
+                        values[start:end]
+                    ) + [
+                        None
                     ]
 
-            if show_residuals:
-                fig_data = PeakFinder.add_residuals(
-                    fig_data,
-                    sym_values,
-                    sym_raw,
-                    locs,
-                )
+                    if show_markers:
+                        if anomaly_group.azimuth < 180:  # type: ignore
+                            ori = "right"
+                        else:
+                            ori = "left"
+
+                        # Add markers
+                        if i == 0:
+                            if ori + "_azimuth" not in trace_dict["markers"]:  # type: ignore
+                                trace_dict["markers"][ori + "_azimuth"] = {  # type: ignore
+                                    "x": [None],
+                                    "y": [None],
+                                    "customdata": [None],
+                                    "mode": "markers",
+                                    "marker_color": "black",
+                                    "marker_symbol": "arrow-" + ori,
+                                    "marker_size": 8,
+                                    "name": "peaks start",
+                                    "legendgroup": "markers",
+                                    "showlegend": False,
+                                    "visible": "legendonly",
+                                    "hovertemplate": (
+                                        "<b>x</b>: %{x:,.2f} <br>"
+                                        + "<b>y</b>: %{customdata:,.2e}"
+                                    ),
+                                }
+                            trace_dict["markers"][ori + "_azimuth"]["x"] += [  # type: ignore
+                                locs[peaks[i]]
+                            ]
+                            trace_dict["markers"][ori + "_azimuth"]["y"] += [  # type: ignore
+                                sym_values[peaks[i]]
+                            ]
+                            trace_dict["markers"][ori + "_azimuth"][  # type: ignore
+                                "customdata"
+                            ] += [values[peaks[i]]]
+
+                        peak_markers_x += [locs[peaks[i]]]
+                        peak_markers_y += [sym_values[peaks[i]]]
+                        peak_markers_customdata += [values[peaks[i]]]
+                        peak_markers_c += [color]
+                        start_markers_x += [locs[anomaly_group.anomalies[i].start]]
+                        start_markers_y += [
+                            sym_values[anomaly_group.anomalies[i].start]
+                        ]
+                        start_markers_customdata += [
+                            values[anomaly_group.anomalies[i].start]
+                        ]
+                        end_markers_x += [locs[anomaly_group.anomalies[i].end]]
+                        end_markers_y += [sym_values[anomaly_group.anomalies[i].end]]
+                        end_markers_customdata += [
+                            values[anomaly_group.anomalies[i].end]
+                        ]
+                        up_markers_x += [locs[anomaly_group.anomalies[i].inflect_up]]
+                        up_markers_y += [
+                            sym_values[anomaly_group.anomalies[i].inflect_up]
+                        ]
+                        up_markers_customdata += [
+                            values[anomaly_group.anomalies[i].inflect_up]
+                        ]
+                        dwn_markers_x += [locs[anomaly_group.anomalies[i].inflect_down]]
+                        dwn_markers_y += [
+                            sym_values[anomaly_group.anomalies[i].inflect_down]
+                        ]
+                        dwn_markers_customdata += [
+                            values[anomaly_group.anomalies[i].inflect_down]
+                        ]
+                if show_residuals:
+                    fig_data = PeakFinder.add_residuals(
+                        fig_data,
+                        sym_values,
+                        sym_raw,
+                        locs,
+                    )
 
         if np.isinf(y_min):
             return fig_data, None, None, None, None, None, None, None, None
@@ -1298,7 +1339,7 @@ class PeakFinder(BaseDashApplication):
             thresh_ticks,
         )
 
-    def update_full_lines_figure(  # pylint: disable=too-many-arguments, too-many-locals
+    def update_full_lines_figure(  # pylint: disable=too-many-arguments, too-many-locals, too-many-branches
         self,
         figure: dict | None,
         line_click_data: dict | None,
@@ -1348,10 +1389,10 @@ class PeakFinder(BaseDashApplication):
                 and "line_figure" in triggers
                 and self.lines_position is not None
             ):
-                x_locs = self.lines_position.x_locations
+                x_locs = self.lines_position[0].x_locations
                 x_val = x_locs[0] + line_click_data["points"][0]["x"]  # type: ignore
                 ind = (np.abs(x_locs - x_val)).argmin()
-                y_val = self.lines_position.y_locations[ind]  # type: ignore
+                y_val = self.lines_position[0].y_locations[ind]  # type: ignore
                 figure["data"][-1]["x"] = [x_val]
                 figure["data"][-1]["y"] = [y_val]
                 return figure
@@ -1366,8 +1407,15 @@ class PeakFinder(BaseDashApplication):
         if n_lines is None or line_id is None:
             return figure
 
-        min_ind = max(0, line_id - n_lines)
-        max_ind = min(len(line_id_options), line_id + n_lines + 1)
+        # Find index of line_id
+        full_line_ids = [int(line["value"]) for line in line_id_options]
+        line_id_ind = np.where(np.array(full_line_ids) == line_id)[0][0]
+
+        min_ind = max(0, line_id_ind - n_lines)
+        max_ind = min(len(line_id_options), line_id_ind + n_lines + 1)
+
+        line_ids = full_line_ids[min_ind:max_ind]
+        line_ids_labels = [line["label"] for line in line_id_options[min_ind:max_ind]]
 
         anomaly_traces = {}
         for key, value in property_groups.items():
@@ -1381,51 +1429,60 @@ class PeakFinder(BaseDashApplication):
 
         marker_x = None
         marker_y = None
-        for line in line_id_options[min_ind:max_ind]:
-            position, anomalies = self.line_update(
-                objects,
-                property_groups,
-                smoothing,
-                max_migration,
-                min_channels,
-                min_amplitude,
-                min_value,
-                min_width,
-                n_groups,
-                max_separation,
-                line_field,
-                masking_data,
-                int(line["value"]),
-            )
-            if position is not None:
-                if line["value"] == line_id:
-                    marker_x = position.x_locations[0]
-                    marker_y = position.y_locations[0]
-                    figure.add_trace(  # type: ignore
-                        go.Scatter(
-                            x=position.x_locations,
-                            y=position.y_locations,
-                            name=line["label"],
-                            line_color="black",
-                        )
-                    )
-                else:
-                    figure.add_trace(  # type: ignore
-                        go.Scatter(
-                            x=position.x_locations,
-                            y=position.y_locations,
-                            name=line["label"],
-                        )
-                    )
+        position_list, anomalies_list, _ = self.line_update(
+            objects,
+            property_groups,
+            smoothing,
+            max_migration,
+            min_channels,
+            min_amplitude,
+            min_value,
+            min_width,
+            n_groups,
+            max_separation,
+            line_field,
+            masking_data,
+            line_ids,
+        )
+        line_dict = {}
+        for line_ind, line_position in enumerate(position_list):  # type: ignore
+            line_anomalies = anomalies_list[line_ind]  # type: ignore
+            line = line_ids[line_ind]
+            label = line_ids_labels[line_ind]
 
-            if anomalies is not None:
-                for anom in anomalies:
-                    anomaly_traces[anom.property_group.name]["x"].append(
-                        anom.group_center[0]
-                    )
-                    anomaly_traces[anom.property_group.name]["y"].append(
-                        anom.group_center[1]
-                    )
+            line_dict[line] = {
+                "x": [None],
+                "y": [None],
+                "name": label,
+            }
+            if line == line_id:
+                line_dict[line]["line_color"] = "black"
+
+            for ind, position in enumerate(line_position):  # type: ignore
+                anomalies = line_anomalies[ind]
+
+                if position is not None:
+                    if line == line_id:
+                        marker_x = position.x_locations[0]
+                        marker_y = position.y_locations[0]
+                    line_dict[line]["x"] += list(position.x_locations)  # type: ignore
+                    line_dict[line]["y"] += list(position.y_locations)  # type: ignore
+
+                if anomalies is not None:
+                    for anom in anomalies:
+                        anomaly_traces[anom.property_group.name]["x"].append(
+                            anom.group_center[0]
+                        )
+                        anomaly_traces[anom.property_group.name]["y"].append(
+                            anom.group_center[1]
+                        )
+
+        for trace in list(line_dict.values()):
+            figure.add_trace(  # type: ignore
+                go.Scatter(
+                    **trace,
+                )
+            )
 
         for trace in list(anomaly_traces.values()):
             figure.add_trace(  # type: ignore
@@ -1564,7 +1621,7 @@ if __name__ == "__main__":
     FILE = sys.argv[1]
     ifile = InputFile.read_ui_json(FILE)
     if ifile.data["launch_dash"]:
-        ifile.workspace.open("r")
+        ifile.workspace.open("r+")
         print("Loaded. Launching peak finder app . . .")
         ObjectSelection.run("Peak Finder", PeakFinder, ifile)
     else:

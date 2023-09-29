@@ -98,10 +98,9 @@ class LinePosition:  # pylint: disable=R0902
         self.y_locations = None
         self.z_locations = None
         self.sorting = None
-        # self.values_resampled = None
         self._locations_resampled = None
 
-        if locations is not None:
+        if locations is not None and len(locations) > 0:
             self.sorting = traveling_salesman(locations)
             if np.all(np.diff(self.sorting) < 0):
                 self.sorting = np.flip(self.sorting)
