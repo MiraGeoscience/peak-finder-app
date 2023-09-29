@@ -213,6 +213,17 @@ class PeakFinder(BaseDashApplication):
     def lines_anomalies(self, value):
         self._lines_anomalies = value
 
+    @property
+    def lines_indices(self) -> list[np.ndarray] | None:
+        """
+        Line indices for the current plot.
+        """
+        return self._lines_indices
+
+    @lines_indices.setter
+    def lines_indices(self, value):
+        self._lines_indices = value
+
     def set_initialized_layout(self):
         """
         Initialize the app layout from ui.json data.
@@ -401,7 +412,11 @@ class PeakFinder(BaseDashApplication):
         line_field: str,
         masking_data: str | None,
         line_ids: list[int],
-    ) -> tuple[list[LinePosition] | None, list[list[AnomalyGroup]] | None]:
+    ) -> tuple[
+        list[LinePosition] | None,
+        list[list[AnomalyGroup]] | None,
+        list[np.ndarray] | None,
+    ]:
         """
         Update the line position and anomalies.
 
@@ -421,6 +436,7 @@ class PeakFinder(BaseDashApplication):
 
         :return: List of line positions.
         :return: List of lists of anomalies.
+        :return: List of indices for each LineAnomaly.
         """
 
         obj = self.workspace.get_entity(uuid.UUID(objects))[0]
@@ -430,7 +446,7 @@ class PeakFinder(BaseDashApplication):
             or line_ids is None
             or len(property_groups_dict) == 0
         ):
-            return None, None
+            return None, None, None
 
         line_field = self.workspace.get_entity(uuid.UUID(line_field))[0]
 
@@ -463,12 +479,15 @@ class PeakFinder(BaseDashApplication):
 
         positions_list = []
         anomalies_list = []
+        indices_list = []
         for result in tqdm(results):
             for line in result:
                 positions = []
                 anomalies = []
+                indices = []
                 for line_anomaly in line:
                     positions.append(line_anomaly.position)
+                    indices.append(line_anomaly.line_indices)
                     line_groups = line_anomaly.anomalies
 
                     line_anomalies: list[AnomalyGroup] = []
@@ -478,8 +497,9 @@ class PeakFinder(BaseDashApplication):
                     anomalies.append(line_anomalies)
                 positions_list.append(positions)
                 anomalies_list.append(anomalies)
+                indices_list.append(indices)
 
-        return positions_list, anomalies_list
+        return positions_list, anomalies_list, indices_list
 
     def update_line_figure(  # pylint: disable=too-many-arguments, too-many-locals
         self,
@@ -580,7 +600,7 @@ class PeakFinder(BaseDashApplication):
         update_line = False
         if any(t in triggers for t in update_line_triggers):
             # Update line position and anomalies
-            position, anomalies = self.line_update(
+            position, anomalies, indices = self.line_update(
                 objects,
                 property_groups,
                 smoothing,
@@ -598,7 +618,7 @@ class PeakFinder(BaseDashApplication):
             if position is None and anomalies is None:
                 return no_update, no_update, no_update, no_update
 
-            self.lines_position, self.lines_anomalies = position[0], anomalies[0]  # type: ignore
+            self.lines_position, self.lines_anomalies, self.line_indices = position[0], anomalies[0], indices[0]  # type: ignore
             update_line = True
         figure_data, figure_layout, y_min, y_max, y_label, y_tickvals, y_ticktext = (
             None,
@@ -1007,16 +1027,12 @@ class PeakFinder(BaseDashApplication):
         obj = self.workspace.get_entity(uuid.UUID(objects))[0]
         fig_data: list[go.Scatter] = []
 
-        if (
-            obj is None
-            or getattr(obj, "line_indices", None) is None
-            or len(obj.line_indices) < 2
-            or len(active_channels) == 0
-            or self.lines_position is None
-        ):
+        if obj is None or len(active_channels) == 0 or self.lines_position is None:
             return fig_data, None, None, None, None, None, None, None, None
 
         for ind, lines_position in enumerate(self.lines_position):
+            if len(self.line_indices[ind]) < 2:
+                continue
             y_min, y_max = np.inf, -np.inf
             locs = lines_position.locations_resampled
             peak_markers_x, peak_markers_y, peak_markers_customdata, peak_markers_c = (
@@ -1057,10 +1073,10 @@ class PeakFinder(BaseDashApplication):
                     mask = self.workspace.get_entity(uuid.UUID(masking_data))[0].values
                     values = np.array(channel_dict["values"])
                     values[mask is False] = np.nan
-                    values = values[obj.line_indices]
+                    values = values[self.line_indices[ind]]
                     values = values[~np.isnan(values)]
                 else:
-                    values = np.array(channel_dict["values"])[obj.line_indices]
+                    values = np.array(channel_dict["values"])[self.line_indices[ind]]
 
                 values, raw = lines_position.resample_values(values)
                 all_values += list(values.flatten())
@@ -1350,8 +1366,15 @@ class PeakFinder(BaseDashApplication):
         if n_lines is None or line_id is None:
             return figure
 
-        min_ind = max(0, line_id - n_lines)
-        max_ind = min(len(line_id_options), line_id + n_lines + 1)
+        # Find index of line_id
+        full_line_ids = [int(line["value"]) for line in line_id_options]
+        line_id_ind = np.where(np.array(full_line_ids) == line_id)[0][0]
+
+        min_ind = max(0, line_id_ind - n_lines)
+        max_ind = min(len(line_id_options), line_id_ind + n_lines + 1)
+
+        line_ids = full_line_ids[min_ind:max_ind]
+        line_ids_labels = [line["label"] for line in line_id_options[min_ind:max_ind]]
 
         anomaly_traces = {}
         for key, value in property_groups.items():
@@ -1365,9 +1388,7 @@ class PeakFinder(BaseDashApplication):
 
         marker_x = None
         marker_y = None
-        line_ids = [int(line["value"]) for line in line_id_options[min_ind:max_ind]]
-        line_ids_labels = [line["label"] for line in line_id_options[min_ind:max_ind]]
-        position_list, anomalies_list = self.line_update(
+        position_list, anomalies_list, indices_list = self.line_update(
             objects,
             property_groups,
             smoothing,
