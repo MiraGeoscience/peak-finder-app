@@ -264,7 +264,7 @@ def test_merging_peaks(tmp_path: Path):  # pylint: disable=too-many-locals
                 )
             )
 
-        position_list, anomalies_list, _ = app.line_update(
+        anomalies_dict = app.line_update(
             objects,
             property_groups,
             smoothing,
@@ -280,9 +280,9 @@ def test_merging_peaks(tmp_path: Path):  # pylint: disable=too-many-locals
             line_ids=[1],
         )
 
-        assert len(position_list) == 1  # type: ignore
-        position = position_list[0][0]  # type: ignore
-        anomalies = anomalies_list[0][0]  # type: ignore
+        assert len(anomalies_dict.keys()) == 1
+        position = anomalies_dict[1]["position"][0]
+        anomalies = anomalies_dict[1]["anomalies"][0]
 
         locs = position.locations_resampled
         starts = [anom.start for anom in anomalies]  # type: ignore
