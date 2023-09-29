@@ -68,27 +68,27 @@ class PeakFinderDriver(BaseDriver):
         :param n_groups: Number of groups to use for grouping anomalies.
         :param max_separation: Maximum separation between anomalies in meters.
         """
+        if masking_data is not None and masking_data.values is not None:
+            masking_array = masking_data.values
+            masked_survey = survey.copy()
+            masked_survey.remove_vertices(~masking_array)
+            masking = True
+        else:
+            masking = False
+
         full_anomalies = []
         for line_id in tqdm(list(line_ids)):
             line_bool = line_field.values == line_id
             full_line_indices = np.where(line_bool)[0]
-            if (
-                masking_data is not None
-                and masking_data.values is not None
-                and np.sum(masking_data.values[full_line_indices]) > 0
-            ):
-                masking_array = masking_data.values
-                masked_survey = survey.copy()
-                masked_survey.remove_vertices(np.logical_and(line_bool, ~masking_array))
-
-                nan_inds = np.cumsum(~masking_array[line_bool])
+            if len(full_line_indices) < 2:
+                continue
+            if masking:
+                nan_inds = np.cumsum(~masking_array)[line_bool]
                 inds = (full_line_indices - nan_inds)[masking_array[line_bool]]
 
                 parts = np.unique(masked_survey.parts[inds])
-                masking = True
             else:
                 parts = np.unique(survey.parts[full_line_indices])
-                masking = False
 
             line_computation = delayed(LineAnomaly, pure=True)
 

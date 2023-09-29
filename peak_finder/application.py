@@ -49,6 +49,7 @@ class PeakFinder(BaseDashApplication):
 
     _lines_position = None
     _lines_anomalies = None
+    _lines_indices = None
 
     def __init__(
         self,
@@ -499,7 +500,7 @@ class PeakFinder(BaseDashApplication):
                 anomalies_list.append(anomalies)
                 indices_list.append(indices)
 
-        return positions_list, anomalies_list, indices_list
+        return positions_list, anomalies_list, indices_list  # type: ignore
 
     def update_line_figure(  # pylint: disable=too-many-arguments, too-many-locals
         self,
@@ -615,10 +616,23 @@ class PeakFinder(BaseDashApplication):
                 masking_data,
                 [line_id],
             )
-            if position is None and anomalies is None:
+            if (
+                position is None
+                or anomalies is None
+                or len(position) == 0
+                or len(anomalies) == 0
+            ):
                 return no_update, no_update, no_update, no_update
 
-            self.lines_position, self.lines_anomalies, self.line_indices = position[0], anomalies[0], indices[0]  # type: ignore
+            (
+                self.lines_position,
+                self.lines_anomalies,
+                self.line_indices,  # pylint: disable=W0201
+            ) = (
+                position[0],  # type: ignore
+                anomalies[0],  # type: ignore
+                indices[0],  # type: ignore
+            )  # type: ignore
             update_line = True
         figure_data, figure_layout, y_min, y_max, y_label, y_tickvals, y_ticktext = (
             None,
@@ -985,7 +999,7 @@ class PeakFinder(BaseDashApplication):
         )
         return fig_data
 
-    def update_figure_data(  # pylint: disable=too-many-locals, too-many-branches, too-many-statements, too-many-arguments
+    def update_figure_data(  # noqa: C901  pylint: disable=too-many-locals, too-many-branches, too-many-statements, too-many-arguments
         self,
         objects: str,
         property_groups: dict,
@@ -1030,42 +1044,41 @@ class PeakFinder(BaseDashApplication):
         if obj is None or len(active_channels) == 0 or self.lines_position is None:
             return fig_data, None, None, None, None, None, None, None, None
 
+        y_min, y_max = np.inf, -np.inf
+        log = y_scale == "symlog"
+        threshold = np.float_power(10, linear_threshold)
+        all_values = []
+        peak_markers_x, peak_markers_y, peak_markers_customdata, peak_markers_c = (
+            [],
+            [],
+            [],
+            [],
+        )
+        end_markers_x, end_markers_y, end_markers_customdata = [], [], []
+        start_markers_x, start_markers_y, start_markers_customdata = [], [], []
+        up_markers_x, up_markers_y, up_markers_customdata = [], [], []
+        dwn_markers_x, dwn_markers_y, dwn_markers_customdata = [], [], []
+
+        trace_dict = {
+            "lines": {
+                "lines": {
+                    "x": [None],
+                    "y": [None],
+                    "mode": "lines",
+                    "name": "full lines",
+                    "line_color": "lightgrey",
+                    "showlegend": False,
+                    "hoverinfo": "skip",
+                }
+            },
+            "property_groups": {},
+            "markers": {},
+        }
         for ind, lines_position in enumerate(self.lines_position):
             if len(self.line_indices[ind]) < 2:
                 continue
-            y_min, y_max = np.inf, -np.inf
             locs = lines_position.locations_resampled
-            peak_markers_x, peak_markers_y, peak_markers_customdata, peak_markers_c = (
-                [],
-                [],
-                [],
-                [],
-            )
-            end_markers_x, end_markers_y, end_markers_customdata = [], [], []
-            start_markers_x, start_markers_y, start_markers_customdata = [], [], []
-            up_markers_x, up_markers_y, up_markers_customdata = [], [], []
-            dwn_markers_x, dwn_markers_y, dwn_markers_customdata = [], [], []
 
-            trace_dict = {
-                "lines": {
-                    "lines": {
-                        "x": [None],
-                        "y": [None],
-                        "mode": "lines",
-                        "name": "full lines",
-                        "line_color": "lightgrey",
-                        "showlegend": False,
-                        "hoverinfo": "skip",
-                    }
-                },
-                "property_groups": {},
-                "markers": {},
-            }
-
-            log = y_scale == "symlog"
-            threshold = np.float_power(10, linear_threshold)
-
-            all_values = []
             for channel_dict in list(active_channels.values()):
                 if "values" not in channel_dict:
                     continue
@@ -1205,86 +1218,86 @@ class PeakFinder(BaseDashApplication):
                     locs,
                 )
 
-            if np.isinf(y_min):
-                return fig_data, None, None, None, None, None, None, None, None
+        if np.isinf(y_min):
+            return fig_data, None, None, None, None, None, None, None, None
 
-            all_values = np.array(all_values)
-            _, y_label, y_tickvals, y_ticktext = format_axis(
-                channel="Data",
-                axis=all_values,
-                log=log,
-                threshold=threshold,
-            )
+        all_values = np.array(all_values)
+        _, y_label, y_tickvals, y_ticktext = format_axis(
+            channel="Data",
+            axis=all_values,
+            log=log,
+            threshold=threshold,
+        )
 
-            trace_dict = PeakFinder.add_markers(
-                trace_dict,
-                peak_markers_x,
-                peak_markers_y,
-                peak_markers_customdata,
-                peak_markers_c,
-                start_markers_x,
-                start_markers_y,
-                start_markers_customdata,
-                end_markers_x,
-                end_markers_y,
-                end_markers_customdata,
-                up_markers_x,
-                up_markers_y,
-                up_markers_customdata,
-                dwn_markers_x,
-                dwn_markers_y,
-                dwn_markers_customdata,
-            )
+        trace_dict = PeakFinder.add_markers(
+            trace_dict,
+            peak_markers_x,
+            peak_markers_y,
+            peak_markers_customdata,
+            peak_markers_c,
+            start_markers_x,
+            start_markers_y,
+            start_markers_customdata,
+            end_markers_x,
+            end_markers_y,
+            end_markers_customdata,
+            up_markers_x,
+            up_markers_y,
+            up_markers_customdata,
+            dwn_markers_x,
+            dwn_markers_y,
+            dwn_markers_customdata,
+        )
 
-            for trace_name in ["lines", "property_groups", "markers"]:
-                for trace in list(trace_dict[trace_name].values()):  # type: ignore
-                    fig_data.append(go.Scatter(**trace))
+        for trace_name in ["lines", "property_groups", "markers"]:
+            for trace in list(trace_dict[trace_name].values()):  # type: ignore
+                fig_data.append(go.Scatter(**trace))
 
-            fig_data.append(
-                go.Scatter(
-                    x=[None],
-                    y=[None],
-                    mode="markers",
-                    marker_color="black",
-                    marker_symbol="circle",
-                    legendgroup="markers",
-                    name="markers",
-                    visible="legendonly",
-                ),
-            )
-            fig_data.append(
-                go.Scatter(
-                    x=[None],
-                    y=[None],
-                    mode="lines",
-                    line_color="rgba(255, 0, 0, 0.5)",
-                    line_width=8,
-                    legendgroup="positive residuals",
-                    name="positive residuals",
-                    visible="legendonly",
-                ),
-            )
-            fig_data.append(
-                go.Scatter(
-                    x=[None],
-                    y=[None],
-                    mode="lines",
-                    line_color="rgba(0, 0, 255, 0.5)",
-                    line_width=8,
-                    legendgroup="negative residuals",
-                    name="negative residuals",
-                    visible="legendonly",
-                ),
-            )
+        fig_data.append(
+            go.Scatter(
+                x=[None],
+                y=[None],
+                mode="markers",
+                marker_color="black",
+                marker_symbol="circle",
+                legendgroup="markers",
+                name="markers",
+                visible="legendonly",
+            ),
+        )
+        fig_data.append(
+            go.Scatter(
+                x=[None],
+                y=[None],
+                mode="lines",
+                line_color="rgba(255, 0, 0, 0.5)",
+                line_width=8,
+                legendgroup="positive residuals",
+                name="positive residuals",
+                visible="legendonly",
+            ),
+        )
+        fig_data.append(
+            go.Scatter(
+                x=[None],
+                y=[None],
+                mode="lines",
+                line_color="rgba(0, 0, 255, 0.5)",
+                line_width=8,
+                legendgroup="negative residuals",
+                name="negative residuals",
+                visible="legendonly",
+            ),
+        )
 
-            # Update linear threshold
-            pos_vals = all_values[all_values > 0]  # type: ignore
+        # Update linear threshold
+        pos_vals = all_values[all_values > 0]  # type: ignore
 
-            thresh_min = np.log10(np.min(pos_vals))
-            thresh_max = np.log10(np.max(pos_vals))
-            thresh_ticks = {
-                t: "10E" + f"{t:.2g}" for t in np.linspace(thresh_min, thresh_max, 5)
-            }
+        thresh_min = np.log10(np.min(pos_vals))
+        thresh_max = np.log10(np.max(pos_vals))
+        thresh_ticks = {
+            t: "10E" + f"{t:.2g}" for t in np.linspace(thresh_min, thresh_max, 5)
+        }
 
         return (
             fig_data,
@@ -1348,10 +1361,10 @@ class PeakFinder(BaseDashApplication):
                 and "line_figure" in triggers
                 and self.lines_position is not None
             ):
-                x_locs = self.lines_position.x_locations
+                x_locs = self.lines_position[0].x_locations
                 x_val = x_locs[0] + line_click_data["points"][0]["x"]  # type: ignore
                 ind = (np.abs(x_locs - x_val)).argmin()
-                y_val = self.lines_position.y_locations[ind]  # type: ignore
+                y_val = self.lines_position[0].y_locations[ind]  # type: ignore
                 figure["data"][-1]["x"] = [x_val]
                 figure["data"][-1]["y"] = [y_val]
                 return figure
@@ -1388,7 +1401,7 @@ class PeakFinder(BaseDashApplication):
 
         marker_x = None
         marker_y = None
-        position_list, anomalies_list, indices_list = self.line_update(
+        position_list, anomalies_list, _ = self.line_update(
             objects,
             property_groups,
             smoothing,
@@ -1417,15 +1430,15 @@ class PeakFinder(BaseDashApplication):
             if line == line_id:
                 line_dict[line]["line_color"] = "black"
 
-            for ind, position in enumerate(line_position):
+            for ind, position in enumerate(line_position):  # type: ignore
                 anomalies = line_anomalies[ind]
 
                 if position is not None:
                     if line == line_id:
                         marker_x = position.x_locations[0]
                         marker_y = position.y_locations[0]
-                    line_dict[line]["x"] += list(position.x_locations)
-                    line_dict[line]["y"] += list(position.y_locations)
+                    line_dict[line]["x"] += list(position.x_locations)  # type: ignore
+                    line_dict[line]["y"] += list(position.y_locations)  # type: ignore
 
                 if anomalies is not None:
                     for anom in anomalies:

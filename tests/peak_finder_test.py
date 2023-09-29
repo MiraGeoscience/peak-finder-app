@@ -264,7 +264,7 @@ def test_merging_peaks(tmp_path: Path):  # pylint: disable=too-many-locals
                 )
             )
 
-        position_list, anomalies_list = app.line_update(
+        position_list, anomalies_list, _ = app.line_update(
             objects,
             property_groups,
             smoothing,
@@ -285,8 +285,8 @@ def test_merging_peaks(tmp_path: Path):  # pylint: disable=too-many-locals
         anomalies = anomalies_list[0][0]  # type: ignore
 
         locs = position.locations_resampled
-        starts = [anom.start for anom in anomalies]
-        ends = [anom.end for anom in anomalies]
+        starts = [anom.start for anom in anomalies]  # type: ignore
+        ends = [anom.end for anom in anomalies]  # type: ignore
         sort_inds = np.argsort(starts)
 
         for bound_ind, anom_ind in enumerate(sort_inds):
@@ -375,7 +375,7 @@ def test_masking_peaks(tmp_path: Path):  # pylint: disable=too-many-locals
         min_width=min_width,
         max_migration=max_migration,
         min_channels=min_channels,
-        n_groups=2,
+        n_groups=1,
         max_separation=350,
         line_id=1,
         property_groups=property_groups,
