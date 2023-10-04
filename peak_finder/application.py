@@ -1052,7 +1052,7 @@ class PeakFinder(BaseDashApplication):
         }
         position = self.lines[str(line_id)]["position"]
         anomalies = self.lines[str(line_id)]["anomalies"]
-        line_indices = line_indices_dict[str(line_id)]["indices"]
+        line_indices = line_indices_dict[str(line_id)]
         for ind, lines_position in enumerate(position):
             if len(line_indices[ind]) < 2:
                 continue
@@ -1357,7 +1357,7 @@ class PeakFinder(BaseDashApplication):
                 "y": [None],
                 "name": label,
             }
-            if line == line_id:
+            if int(line) == line_id:
                 line_dict[line]["line_color"] = "black"
 
             for ind, position in enumerate(line_position):  # type: ignore
