@@ -51,6 +51,8 @@ include_trailing_comma = true
 force_grid_wrap = 0
 use_parentheses = true
 line_length = 88
+profile = "black"
+known_third_party = ["add_url_tag_sha256", "dash", "dash_daq", "dask", "flask", "geoapps_utils", "geoh5py", "numpy", "plotly", "run_conda_lock", "scipy", "tqdm"]
 
 [tool.black]
 # defaults are just fine
