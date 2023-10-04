@@ -23,8 +23,10 @@ from dask import compute
 from dask.diagnostics import ProgressBar
 from flask import Flask
 from geoapps_utils.application.application import get_output_workspace
-from geoapps_utils.application.dash_application import (BaseDashApplication,
-                                                        ObjectSelection)
+from geoapps_utils.application.dash_application import (
+    BaseDashApplication,
+    ObjectSelection,
+)
 from geoapps_utils.plotting import format_axis, symlog
 from geoh5py.data import BooleanData, ReferencedData
 from geoh5py.ui_json import InputFile
