@@ -47,9 +47,7 @@ class PeakFinder(BaseDashApplication):
     _param_class = PeakFinderParams
     _driver_class = PeakFinderDriver
 
-    _lines_position = None
-    _lines_anomalies = None
-    _lines_indices = None
+    _lines = None
 
     def __init__(
         self,
@@ -85,17 +83,10 @@ class PeakFinder(BaseDashApplication):
             Input(component_id="full_lines_figure", component_property="clickData"),
             Input(component_id="objects", component_property="data"),
             Input(component_id="property_groups", component_property="data"),
-            Input(component_id="smoothing", component_property="value"),
-            Input(component_id="max_migration", component_property="value"),
-            Input(component_id="min_channels", component_property="value"),
-            Input(component_id="min_amplitude", component_property="value"),
+            Input(component_id="update_line", component_property="data"),
             Input(component_id="min_value", component_property="value"),
-            Input(component_id="min_width", component_property="value"),
-            Input(component_id="n_groups", component_property="value"),
-            Input(component_id="max_separation", component_property="value"),
-            Input(component_id="line_field", component_property="value"),
-            Input(component_id="masking_data", component_property="value"),
             Input(component_id="line_id", component_property="value"),
+            Input(component_id="line_indices", component_property="data"),
             Input(component_id="active_channels", component_property="data"),
             Input(component_id="y_scale", component_property="value"),
             Input(component_id="linear_threshold", component_property="value"),
@@ -140,6 +131,35 @@ class PeakFinder(BaseDashApplication):
             Input(component_id="flip_sign", component_property="value"),
         )(self.update_active_channels)
         self.app.callback(
+            Output(component_id="line_ids", component_property="data"),
+            Input(component_id="line_field", component_property="value"),
+            Input(component_id="line_id", component_property="value"),
+            Input(component_id="n_lines", component_property="value"),
+        )(self.get_line_ids)
+        self.app.callback(
+            Output(component_id="line_indices", component_property="data"),
+            Input(component_id="objects", component_property="data"),
+            Input(component_id="line_field", component_property="value"),
+            Input(component_id="masking_data", component_property="value"),
+            Input(component_id="line_ids", component_property="data"),
+        )(self.get_line_indices)
+        self.app.callback(
+            Output(component_id="update_line", component_property="data"),
+            Input(component_id="line_indices", component_property="data"),
+            Input(component_id="line_ids", component_property="data"),
+            Input(component_id="objects", component_property="data"),
+            Input(component_id="property_groups", component_property="data"),
+            Input(component_id="smoothing", component_property="value"),
+            Input(component_id="max_migration", component_property="value"),
+            Input(component_id="min_channels", component_property="value"),
+            Input(component_id="min_amplitude", component_property="value"),
+            Input(component_id="min_value", component_property="value"),
+            Input(component_id="min_width", component_property="value"),
+            Input(component_id="n_groups", component_property="value"),
+            Input(component_id="max_separation", component_property="value"),
+            State(component_id="update_line", component_property="data"),
+        )(self.compute_line)
+        self.app.callback(
             Output(component_id="line_figure", component_property="figure"),
             Output(component_id="linear_threshold", component_property="min"),
             Output(component_id="linear_threshold", component_property="max"),
@@ -151,21 +171,11 @@ class PeakFinder(BaseDashApplication):
             Input(component_id="full_lines_figure", component_property="figure"),
             Input(component_id="line_figure", component_property="clickData"),
             Input(component_id="full_lines_figure", component_property="clickData"),
-            Input(component_id="n_lines", component_property="value"),
             Input(component_id="line_id", component_property="options"),
-            Input(component_id="objects", component_property="data"),
             Input(component_id="property_groups", component_property="data"),
-            Input(component_id="smoothing", component_property="value"),
-            Input(component_id="max_migration", component_property="value"),
-            Input(component_id="min_channels", component_property="value"),
-            Input(component_id="min_amplitude", component_property="value"),
-            Input(component_id="min_value", component_property="value"),
-            Input(component_id="min_width", component_property="value"),
-            Input(component_id="n_groups", component_property="value"),
-            Input(component_id="max_separation", component_property="value"),
-            Input(component_id="line_field", component_property="value"),
-            Input(component_id="masking_data", component_property="value"),
             Input(component_id="line_id", component_property="value"),
+            Input(component_id="line_ids", component_property="data"),
+            Input(component_id="update_line", component_property="data"),
         )(self.update_full_lines_figure)
         self.app.callback(
             Output(component_id="live_link", component_property="value"),
@@ -193,37 +203,15 @@ class PeakFinder(BaseDashApplication):
         )(self.trigger_click)
 
     @property
-    def lines_position(self) -> list[LinePosition] | None:
+    def lines(self) -> dict | None:
         """
-        Line position for the current plot.
+        Line anomalies for the current plot.
         """
-        return self._lines_position
+        return self._lines
 
-    @lines_position.setter
-    def lines_position(self, value):
-        self._lines_position = value
-
-    @property
-    def lines_anomalies(self) -> list[list[AnomalyGroup]] | None:
-        """
-        Anomalies for the current plot.
-        """
-        return self._lines_anomalies
-
-    @lines_anomalies.setter
-    def lines_anomalies(self, value):
-        self._lines_anomalies = value
-
-    @property
-    def lines_indices(self) -> list[np.ndarray] | None:
-        """
-        Line indices for the current plot.
-        """
-        return self._lines_indices
-
-    @lines_indices.setter
-    def lines_indices(self, value):
-        self._lines_indices = value
+    @lines.setter
+    def lines(self, value):
+        self._lines = value
 
     def set_initialized_layout(self):
         """
@@ -328,6 +316,7 @@ class PeakFinder(BaseDashApplication):
 
         :param line_field: Line field.
         :param masking_data: Masking data.
+        :param line_id: Line ID.
 
         :return: Line ID dropdown options.
         :return: Line ID value.
@@ -398,8 +387,54 @@ class PeakFinder(BaseDashApplication):
             min_value = d_min
         return active_channels, min_value
 
-    def line_update(  # pylint: disable=too-many-arguments, too-many-locals
+    def get_line_ids(
         self,
+        line_field,
+        line_id,
+        n_lines,
+    ):
+        if line_field is None or line_id is None or n_lines is None:
+            return no_update
+
+        line_field = self.workspace.get_entity(uuid.UUID(line_field))[0]
+        # Find line_ids to get indices for
+        value_map = line_field.value_map.map
+        full_line_ids = np.sort(list(value_map.keys()))
+        line_id_ind = np.where(np.array(full_line_ids) == line_id)[0][0]
+
+        min_ind = max(0, line_id_ind - n_lines)
+        max_ind = min(len(full_line_ids), line_id_ind + n_lines + 1)
+
+        line_ids = full_line_ids[min_ind:max_ind]
+        return line_ids
+
+    def get_line_indices(
+        self,
+        survey: str,
+        line_field: str,
+        masking_data: str,
+        line_ids,
+    ):
+        if survey is None or line_field is None or line_ids is None:
+            return no_update
+        survey = self.workspace.get_entity(uuid.UUID(survey))[0]
+        line_field = self.workspace.get_entity(uuid.UUID(line_field))[0]
+        if masking_data is not None:
+            masking_data = self.workspace.get_entity(uuid.UUID(masking_data))[0]
+
+        line_indices = PeakFinderDriver.get_line_indices(
+            survey,
+            line_field,
+            masking_data,
+            line_ids,
+        )
+
+        return line_indices
+
+    def compute_line(
+        self,
+        line_indices: dict,
+        line_ids: dict,
         objects: str,
         property_groups_dict: dict,
         smoothing: float,
@@ -410,49 +445,11 @@ class PeakFinder(BaseDashApplication):
         min_width: float,
         n_groups: int,
         max_separation: float,
-        line_field: str,
-        masking_data: str | None,
-        line_ids: list[int],
-    ) -> tuple[
-        list[LinePosition] | None,
-        list[list[AnomalyGroup]] | None,
-        list[np.ndarray] | None,
-    ]:
-        """
-        Update the line position and anomalies.
-
-        :param objects: Input object.
-        :param property_groups_dict: Property groups dictionary.
-        :param smoothing: Smoothing factor.
-        :param max_migration: Maximum migration.
-        :param min_channels: Minimum number of channels.
-        :param min_amplitude: Minimum amplitude.
-        :param min_value: Minimum value.
-        :param min_width: Minimum width.
-        :param n_groups: Number of consecutive peaks to merge.
-        :param max_separation: Maximum separation between peaks to merge.
-        :param line_field: Line field.
-        :param masking_data: Masking data uid.
-        :param line_ids: List of line IDs.
-
-        :return: List of line positions.
-        :return: List of lists of anomalies.
-        :return: List of indices for each LineAnomaly.
-        """
-
+        update_line: int,
+    ):
+        if objects is None or line_ids is None or line_indices is None:
+            return no_update
         obj = self.workspace.get_entity(uuid.UUID(objects))[0]
-        if (
-            obj is None
-            or len(self.workspace.get_entity(uuid.UUID(line_field))) == 0
-            or line_ids is None
-            or len(property_groups_dict) == 0
-        ):
-            return None, None, None
-
-        line_field = self.workspace.get_entity(uuid.UUID(line_field))[0]
-
-        if masking_data is not None:
-            masking_data = self.workspace.get_entity(uuid.UUID(masking_data))[0]
 
         property_groups = [
             obj.find_or_create_property_group(name=name)
@@ -461,10 +458,9 @@ class PeakFinder(BaseDashApplication):
 
         line_computation = PeakFinderDriver.compute_lines(
             survey=obj,
-            line_field=line_field,  # type: ignore
+            line_indices=line_indices,
             line_ids=line_ids,
             property_groups=property_groups,
-            masking_data=masking_data,  # type: ignore
             smoothing=smoothing,
             min_amplitude=min_amplitude,
             min_value=min_value,
@@ -478,9 +474,7 @@ class PeakFinder(BaseDashApplication):
         with ProgressBar():
             results = compute(line_computation)
 
-        positions_list = []
-        anomalies_list = []
-        indices_list = []
+        self.lines = {}
         for result in tqdm(results):
             for line in result:
                 positions = []
@@ -496,30 +490,27 @@ class PeakFinder(BaseDashApplication):
                         for line_group in line_groups:
                             line_anomalies += line_group.groups  # type: ignore
                     anomalies.append(line_anomalies)
-                positions_list.append(positions)
-                anomalies_list.append(anomalies)
-                indices_list.append(indices)
+                if len(line) > 0:
+                    line_id = str(line[0].line_id)
+                    self.lines[line_id] = {
+                        "position": positions,
+                        "anomalies": anomalies,
+                        "indices": indices,
+                    }
 
-        return positions_list, anomalies_list, indices_list  # type: ignore
+        return update_line + 1
 
-    def update_line_figure(  # pylint: disable=too-many-arguments, too-many-locals
+    def update_line_figure(
         self,
         figure: dict | None,
         line_click_data: dict | None,
         full_lines_click_data: dict | None,
         objects: str,
         property_groups: dict,
-        smoothing: float,
-        max_migration: float,
-        min_channels: int,
-        min_amplitude: float,
+        update_line: dict | None,
         min_value: float,
-        min_width: float,
-        n_groups: int,
-        max_separation: float,
-        line_field: str,
-        masking_data: str,
-        line_id: int,
+        line_id,
+        line_indices,
         active_channels: dict,
         y_scale: str,
         linear_threshold: float,
@@ -533,17 +524,8 @@ class PeakFinder(BaseDashApplication):
         :param full_lines_click_data: Click data for full lines plot.
         :param objects: Input object.
         :param property_groups: Property groups dictionary.
-        :param smoothing: Smoothing factor.
-        :param max_migration: Maximum migration.
-        :param min_channels: Minimum number of channels.
-        :param min_amplitude: Minimum amplitude.
         :param min_value: Minimum value.
-        :param min_width: Minimum width.
-        :param n_groups: Number of consecutive peaks to merge.
-        :param max_separation: Maximum separation between peaks to merge.
-        :param line_field: Line field.
         :param masking_data: Masking data.
-        :param line_id: Line ID.
         :param active_channels: Active channels.
         :param y_scale: Whether y-axis ticks are linear or symlog.
         :param linear_threshold: Linear threshold slider value.
@@ -568,11 +550,11 @@ class PeakFinder(BaseDashApplication):
             if (
                 full_lines_click_data is not None
                 and "full_lines_figure" in triggers
-                and self.lines_position is not None
+                and self.lines is not None
             ):
                 x_val = (
                     full_lines_click_data["points"][0]["x"]
-                    - self.lines_position.x_locations[0]  # type: ignore
+                    - self.lines[line_id]["position"].x_locations[0]  # type: ignore
                 )
                 figure["layout"]["shapes"][0]["x0"] = x_val
                 figure["layout"]["shapes"][0]["x1"] = x_val
@@ -583,57 +565,6 @@ class PeakFinder(BaseDashApplication):
                     no_update,
                 )
 
-        update_line_triggers = [
-            "objects",
-            "property_groups",
-            "smoothing",
-            "max_migration",
-            "min_channels",
-            "min_amplitude",
-            "min_value",
-            "min_width",
-            "n_groups",
-            "max_separation",
-            "line_field",
-            "masking_data",
-            "line_id",
-        ]
-        update_line = False
-        if any(t in triggers for t in update_line_triggers):
-            # Update line position and anomalies
-            position, anomalies, indices = self.line_update(
-                objects,
-                property_groups,
-                smoothing,
-                max_migration,
-                min_channels,
-                min_amplitude,
-                min_value,
-                min_width,
-                n_groups,
-                max_separation,
-                line_field,
-                masking_data,
-                [line_id],
-            )
-            if (
-                position is None
-                or anomalies is None
-                or len(position) == 0
-                or len(anomalies) == 0
-            ):
-                return no_update, no_update, no_update, no_update
-
-            (
-                self.lines_position,
-                self.lines_anomalies,
-                self.line_indices,  # pylint: disable=W0201
-            ) = (
-                position[0],  # type: ignore
-                anomalies[0],  # type: ignore
-                indices[0],  # type: ignore
-            )  # type: ignore
-            update_line = True
         figure_data, figure_layout, y_min, y_max, y_label, y_tickvals, y_ticktext = (
             None,
             None,
@@ -654,6 +585,8 @@ class PeakFinder(BaseDashApplication):
             "active_channels",
             "y_scale",
             "linear_threshold",
+            "line_id",
+            "update_line",
         ]
         if (
             figure_data is None
@@ -674,7 +607,8 @@ class PeakFinder(BaseDashApplication):
                 objects,
                 property_groups,
                 active_channels,
-                masking_data,
+                line_id,
+                line_indices,
                 y_scale,
                 linear_threshold,
             )
@@ -1004,7 +938,8 @@ class PeakFinder(BaseDashApplication):
         objects: str,
         property_groups: dict,
         active_channels: dict,
-        masking_data: str,
+        line_id,
+        line_indices: dict,
         y_scale: str,
         linear_threshold: float,
     ) -> tuple[
@@ -1024,7 +959,6 @@ class PeakFinder(BaseDashApplication):
         :param objects: Input object.
         :param property_groups: Property groups dictionary.
         :param active_channels: Active channels.
-        :param masking_data: Masking data.
         :param y_scale: Whether y-axis ticks are linear or symlog.
         :param linear_threshold: Linear threshold.
 
@@ -1041,7 +975,7 @@ class PeakFinder(BaseDashApplication):
         obj = self.workspace.get_entity(uuid.UUID(objects))[0]
         fig_data: list[go.Scatter] = []
 
-        if obj is None or len(active_channels) == 0 or self.lines_position is None:
+        if obj is None or len(active_channels) == 0 or self.lines is None:
             return fig_data, None, None, None, None, None, None, None, None
 
         y_min, y_max = np.inf, -np.inf
@@ -1074,23 +1008,19 @@ class PeakFinder(BaseDashApplication):
             "property_groups": {},
             "markers": {},
         }
-        for ind, lines_position in enumerate(self.lines_position):
-            if len(self.line_indices[ind]) < 2:
+        position = self.lines[str(line_id)]["position"]
+        anomalies = self.lines[str(line_id)]["anomalies"]
+        line_indices = self.lines[str(line_id)]["indices"]
+        for ind, lines_position in enumerate(position):
+            if len(line_indices[ind]) < 2:
                 continue
             locs = lines_position.locations_resampled
 
             for channel_dict in list(active_channels.values()):
                 if "values" not in channel_dict:
                     continue
-                if masking_data is not None:
-                    mask = self.workspace.get_entity(uuid.UUID(masking_data))[0].values
-                    values = np.array(channel_dict["values"])
-                    values[mask is False] = np.nan
-                    values = values[self.line_indices[ind]]
-                    values = values[~np.isnan(values)]
-                else:
-                    values = np.array(channel_dict["values"])[self.line_indices[ind]]
 
+                values = np.array(channel_dict["values"])[line_indices[ind]]
                 values, raw = lines_position.resample_values(values)
                 all_values += list(values.flatten())
 
@@ -1107,7 +1037,7 @@ class PeakFinder(BaseDashApplication):
                 trace_dict["lines"]["lines"]["x"] += list(locs) + [None]  # type: ignore
                 trace_dict["lines"]["lines"]["y"] += list(sym_values) + [None]  # type: ignore
 
-                for anomaly_group in self.lines_anomalies[ind]:  # type: ignore
+                for anomaly_group in anomalies[ind]:  # type: ignore
                     channels = np.array(
                         [a.parent.data_entity.name for a in anomaly_group.anomalies]
                     )
@@ -1316,21 +1246,11 @@ class PeakFinder(BaseDashApplication):
         figure: dict | None,
         line_click_data: dict | None,
         full_lines_click_data: dict | None,
-        n_lines: int,
         line_id_options: list[dict[str, str]],
-        objects: str,
         property_groups: dict,
-        smoothing: float,
-        max_migration: float,
-        min_channels: int,
-        min_amplitude: int,
-        min_value: float,
-        min_width: float,
-        n_groups: int,
-        max_separation: float,
-        line_field: str,
-        masking_data: str,
         line_id: int,
+        line_ids: list[int],
+        update_line,
     ):
         """
         Update the full lines figure.
@@ -1376,18 +1296,10 @@ class PeakFinder(BaseDashApplication):
                 return figure
 
         figure = go.Figure()
-        if n_lines is None or line_id is None:
+        if line_ids is None or self.lines is None:
             return figure
 
-        # Find index of line_id
-        full_line_ids = [int(line["value"]) for line in line_id_options]
-        line_id_ind = np.where(np.array(full_line_ids) == line_id)[0][0]
-
-        min_ind = max(0, line_id_ind - n_lines)
-        max_ind = min(len(line_id_options), line_id_ind + n_lines + 1)
-
-        line_ids = full_line_ids[min_ind:max_ind]
-        line_ids_labels = [line["label"] for line in line_id_options[min_ind:max_ind]]
+        line_ids_labels = {line["value"]: line["label"] for line in line_id_options}
 
         anomaly_traces = {}
         for key, value in property_groups.items():
@@ -1401,26 +1313,12 @@ class PeakFinder(BaseDashApplication):
 
         marker_x = None
         marker_y = None
-        position_list, anomalies_list, _ = self.line_update(
-            objects,
-            property_groups,
-            smoothing,
-            max_migration,
-            min_channels,
-            min_amplitude,
-            min_value,
-            min_width,
-            n_groups,
-            max_separation,
-            line_field,
-            masking_data,
-            line_ids,
-        )
+
         line_dict = {}
-        for line_ind, line_position in enumerate(position_list):  # type: ignore
-            line_anomalies = anomalies_list[line_ind]  # type: ignore
-            line = line_ids[line_ind]
-            label = line_ids_labels[line_ind]
+        for line in self.lines.keys():  # type: ignore
+            line_position = self.lines[line]["position"]
+            line_anomalies = self.lines[line]["anomalies"]
+            label = line_ids_labels[int(line)]
 
             line_dict[line] = {
                 "x": [None],
@@ -1593,7 +1491,7 @@ if __name__ == "__main__":
     FILE = sys.argv[1]
     ifile = InputFile.read_ui_json(FILE)
     if ifile.data["launch_dash"]:
-        ifile.workspace.open("r+")
+        ifile.workspace.open("r")
         print("Loaded. Launching peak finder app . . .")
         ObjectSelection.run("Peak Finder", PeakFinder, ifile)
     else:

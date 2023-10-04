@@ -24,6 +24,7 @@ class LineAnomaly:  # pylint: disable=R0902
     """
 
     _entity: Curve
+    _line_id: int
     _line_indices: list[int] | np.ndarray
     _max_migration: float
     _minimal_output: bool
@@ -38,6 +39,7 @@ class LineAnomaly:  # pylint: disable=R0902
     def __init__(  # pylint: disable=R0913
         self,
         entity,
+        line_id,
         line_indices,
         property_groups,
         max_migration=50.0,
@@ -70,6 +72,7 @@ class LineAnomaly:  # pylint: disable=R0902
         self._locations: np.ndarray | None = None  # type: ignore
 
         self.entity = entity
+        self.line_id = line_id
         self.line_indices = line_indices
         self.smoothing = smoothing
         self.min_amplitude = min_amplitude
@@ -97,6 +100,17 @@ class LineAnomaly:  # pylint: disable=R0902
             raise TypeError("Entity must be a Curve.")
 
         self._entity = value
+
+    @property
+    def line_id(self) -> int | None:
+        """
+        Line ID.
+        """
+        return self._line_id
+
+    @line_id.setter
+    def line_id(self, value):
+        self._line_id = value
 
     @property
     def line_indices(self) -> list[int] | None:
