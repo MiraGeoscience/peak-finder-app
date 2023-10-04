@@ -45,8 +45,8 @@ class PeakFinderDriver(BaseDriver):
     ) -> dict:
         if masking_data is not None and masking_data.values is not None:
             masking_array = masking_data.values
-            ws = Workspace()
-            masked_survey = survey.copy(parent=ws)
+            workspace = Workspace()
+            masked_survey = survey.copy(parent=workspace)
             masked_survey.remove_vertices(~masking_array)
             masking = True
         else:
@@ -54,7 +54,7 @@ class PeakFinderDriver(BaseDriver):
 
         indices_dict = {}
         for line_id in line_ids:
-            indices_dict[line_id] = []
+            indices_dict[str(line_id)] = []
 
             line_bool = line_field.values == line_id
             full_line_indices = np.where(line_bool)[0]
@@ -79,7 +79,7 @@ class PeakFinderDriver(BaseDriver):
                     line_indices = np.where(
                         (line_field.values == line_id) & (survey.parts == part)
                     )[0]
-                indices_dict[line_id] += [line_indices]
+                indices_dict[str(line_id)] += [line_indices]
 
         return indices_dict
 
@@ -151,9 +151,6 @@ class PeakFinderDriver(BaseDriver):
                 self.params.geoh5, name=string_name(self.params.ga_group_name)
             )
 
-            line_field = self.params.line_field
-            lines = np.unique(line_field.values)
-
             channel_groups = self.params.get_property_groups()
 
             active_channels = {}
@@ -183,7 +180,7 @@ class PeakFinderDriver(BaseDriver):
             anomalies = PeakFinderDriver.compute_lines(
                 survey=survey,
                 line_indices=line_indices,
-                line_ids=lines,
+                line_ids=[self.params.line_id],
                 property_groups=property_groups,
                 smoothing=self.params.smoothing,
                 min_amplitude=self.params.min_amplitude,

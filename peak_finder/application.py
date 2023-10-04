@@ -35,7 +35,6 @@ from tqdm import tqdm
 from peak_finder.anomaly_group import AnomalyGroup
 from peak_finder.driver import PeakFinderDriver
 from peak_finder.layout import peak_finder_layout
-from peak_finder.line_position import LinePosition
 from peak_finder.params import PeakFinderParams
 
 
@@ -1279,12 +1278,12 @@ class PeakFinder(BaseDashApplication):
             if (
                 line_click_data is not None
                 and "line_figure" in triggers
-                and self.lines_position is not None
+                and self.lines is not None
             ):
-                x_locs = self.lines_position[0].x_locations
+                x_locs = self.lines[line_id]["position"][0].x_locations
                 x_val = x_locs[0] + line_click_data["points"][0]["x"]  # type: ignore
                 ind = (np.abs(x_locs - x_val)).argmin()
-                y_val = self.lines_position[0].y_locations[ind]  # type: ignore
+                y_val = self.lines[line_id]["position"][0].y_locations[ind]  # type: ignore
                 figure["data"][-1]["x"] = [x_val]
                 figure["data"][-1]["y"] = [y_val]
                 return figure
