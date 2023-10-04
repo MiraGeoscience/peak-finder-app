@@ -37,12 +37,22 @@ class PeakFinderDriver(BaseDriver):
         self.params: PeakFinderParams = params
 
     @staticmethod
-    def get_line_indices(
+    def get_line_indices(  # pylint: disable=R0914
         survey: Curve,
         line_field: ReferencedData,
         masking_data: BooleanData | None,
         line_ids: list[int],
     ) -> dict:
+        """
+        Get line indices for a list of line ids.
+
+        :param survey: Survey object.
+        :param line_field: Line field.
+        :param masking_data: Masking data.
+        :param line_ids: List of line ids.
+
+        :return: Dictionary of line indices with line IDs as keys.
+        """
         if masking_data is not None and masking_data.values is not None:
             masking_array = masking_data.values
             workspace = Workspace()
@@ -52,7 +62,7 @@ class PeakFinderDriver(BaseDriver):
         else:
             masking = False
 
-        indices_dict = {}
+        indices_dict: dict[str, np.ndarray] = {}
         for line_id in line_ids:
             indices_dict[str(line_id)] = []
 
@@ -102,10 +112,9 @@ class PeakFinderDriver(BaseDriver):
         Compute anomalies for a list of line ids.
 
         :param survey: Survey object.
-        :param line_field: Line field.
+        :param line_indices: List of line indices.
         :param line_ids: List of line ids.
         :param property_groups: Property groups to use for grouping anomalies.
-        :param masking_data: Masking data.
         :param smoothing: Smoothing factor.
         :param min_amplitude: Minimum amplitude of anomaly as percent.
         :param min_value: Minimum data value of anomaly.
@@ -120,7 +129,7 @@ class PeakFinderDriver(BaseDriver):
         full_anomalies = []
         for line_id in tqdm(list(line_ids)):
             anomalies = []
-            for indices in line_indices[str(line_id)]:
+            for indices in line_indices[str(line_id)]:  # type: ignore
                 masking_offset = np.min(indices)
                 anomalies += [
                     line_computation(
