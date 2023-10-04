@@ -36,7 +36,7 @@ class LineAnomaly:  # pylint: disable=R0902
     _smoothing: int
     _use_residual: bool
 
-    def __init__(  # pylint: disable=R0913
+    def __init__(  # pylint: disable=R0913, R0914
         self,
         entity,
         line_id,
