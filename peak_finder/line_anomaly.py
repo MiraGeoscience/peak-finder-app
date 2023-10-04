@@ -24,6 +24,7 @@ class LineAnomaly:  # pylint: disable=R0902
     """
 
     _entity: Curve
+    _line_id: int
     _line_indices: list[int] | np.ndarray
     _max_migration: float
     _minimal_output: bool
@@ -102,7 +103,7 @@ class LineAnomaly:  # pylint: disable=R0902
         self._entity = value
 
     @property
-    def line_id(self) -> int:
+    def line_id(self) -> int | None:
         """
         Line ID.
         """

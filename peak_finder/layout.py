@@ -482,5 +482,8 @@ peak_finder_layout = html.Div(
         ),
         dcc.Store(id="objects"),
         dcc.Store(id="active_channels"),
+        dcc.Store(id="line_indices"),
+        dcc.Store(id="line_ids"),
+        dcc.Store(id="update_line", data=0),
     ],
 )

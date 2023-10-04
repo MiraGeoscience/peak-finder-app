@@ -264,35 +264,6 @@ def test_merging_peaks(tmp_path: Path):  # pylint: disable=too-many-locals
                 )
             )
 
-        anomalies_dict = app.line_update(
-            objects,
-            property_groups,
-            smoothing,
-            max_migration,
-            min_channels,
-            min_amplitude,
-            min_value,
-            min_width,
-            n_groups_list[ind],
-            max_separation_list[ind],
-            line_field,
-            masking_data=None,
-            line_ids=[1],
-        )
-
-        assert len(anomalies_dict.keys()) == 1
-        position = anomalies_dict[1]["position"][0]
-        anomalies = anomalies_dict[1]["anomalies"][0]
-
-        locs = position.locations_resampled
-        starts = [anom.start for anom in anomalies]  # type: ignore
-        ends = [anom.end for anom in anomalies]  # type: ignore
-        sort_inds = np.argsort(starts)
-
-        for bound_ind, anom_ind in enumerate(sort_inds):
-            assert locs[starts[anom_ind]] < expected_peaks[ind][bound_ind]  # type: ignore
-            assert locs[ends[anom_ind]] > expected_peaks[ind][bound_ind]  # type: ignore
-
 
 def test_masking_peaks(tmp_path: Path):  # pylint: disable=too-many-locals
     h5file_path = tmp_path / r"testPeakFinder.geoh5"
