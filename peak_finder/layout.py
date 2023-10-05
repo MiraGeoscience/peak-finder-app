@@ -252,6 +252,10 @@ visual_params_layout = html.Div(
             id="show_residuals",
             options=[{"label": "Plot residuals", "value": True}],
         ),
+        dcc.Checklist(
+            id="structural_markers",
+            options=[{"label": "Plot markers", "value": True}],
+        ),
     ],
     style={
         "width": "45%",
@@ -470,16 +474,7 @@ peak_finder_layout = html.Div(
         data_selection_layout,
         detection_params_layout,
         group_settings_layout,
-        html.Div(
-            [
-                dcc.Checklist(
-                    id="structural_markers",
-                    options=[{"label": "Export all markers", "value": True}],
-                ),
-                export_layout,
-            ],
-            style={"width": "70%", "display": "inline-block", "vertical-align": "top"},
-        ),
+        export_layout,
         dcc.Store(id="objects"),
         dcc.Store(id="active_channels"),
         dcc.Store(id="line_indices"),

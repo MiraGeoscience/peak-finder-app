@@ -670,7 +670,7 @@ class PeakFinder(BaseDashApplication):
             "y_scale",
             "linear_threshold",
             "show_residuals",
-            "show_markers",
+            "structural_markers",
             "line_id",
             "update_line",
         ]
@@ -825,17 +825,7 @@ class PeakFinder(BaseDashApplication):
                 "x": [None],
                 "y": [None],
                 "customdata": [None],
-                "mode": "markers",
                 "marker_color": ["black"],
-                "marker_symbol": "circle",
-                "marker_size": 8,
-                "name": "peaks",
-                "legendgroup": "markers",
-                "showlegend": False,
-                "visible": "legendonly",
-                "hovertemplate": (
-                    "<b>x</b>: %{x:,.2f} <br>" + "<b>y</b>: %{customdata:,.2e}"
-                ),
             }
         trace_dict["markers"]["peaks"]["x"] += peak_markers_x
         trace_dict["markers"]["peaks"]["y"] += peak_markers_y
@@ -847,17 +837,6 @@ class PeakFinder(BaseDashApplication):
                 "x": [None],
                 "y": [None],
                 "customdata": [None],
-                "mode": "markers",
-                "marker_color": "black",
-                "marker_symbol": "y-right-open",
-                "marker_size": 6,
-                "name": "start markers",
-                "legendgroup": "markers",
-                "showlegend": False,
-                "visible": "legendonly",
-                "hovertemplate": (
-                    "<b>x</b>: %{x:,.2f} <br>" + "<b>y</b>: %{customdata:,.2e}"
-                ),
             }
         trace_dict["markers"]["start_markers"]["x"] += start_markers_x
         trace_dict["markers"]["start_markers"]["y"] += start_markers_y
@@ -868,17 +847,6 @@ class PeakFinder(BaseDashApplication):
                 "x": [None],
                 "y": [None],
                 "customdata": [None],
-                "mode": "markers",
-                "marker_color": "black",
-                "marker_symbol": "y-left-open",
-                "marker_size": 6,
-                "name": "end markers",
-                "legendgroup": "markers",
-                "showlegend": False,
-                "visible": "legendonly",
-                "hovertemplate": (
-                    "<b>x</b>: %{x:,.2f} <br>" + "<b>y</b>: %{customdata:,.2e}"
-                ),
             }
         trace_dict["markers"]["end_markers"]["x"] += end_markers_x
         trace_dict["markers"]["end_markers"]["y"] += end_markers_y
@@ -889,17 +857,6 @@ class PeakFinder(BaseDashApplication):
                 "x": [None],
                 "y": [None],
                 "customdata": [None],
-                "mode": "markers",
-                "marker_color": "black",
-                "marker_symbol": "y-down-open",
-                "marker_size": 6,
-                "name": "up markers",
-                "legendgroup": "markers",
-                "showlegend": False,
-                "visible": "legendonly",
-                "hovertemplate": (
-                    "<b>x</b>: %{x:,.2f} <br>" + "<b>y</b>: %{customdata:,.2e}"
-                ),
             }
         trace_dict["markers"]["up_markers"]["x"] += up_markers_x
         trace_dict["markers"]["up_markers"]["y"] += up_markers_y
@@ -910,17 +867,6 @@ class PeakFinder(BaseDashApplication):
                 "x": [None],
                 "y": [None],
                 "customdata": [None],
-                "mode": "markers",
-                "marker_color": "black",
-                "marker_symbol": "y-up-open",
-                "marker_size": 6,
-                "name": "down markers",
-                "legendgroup": "markers",
-                "showlegend": False,
-                "visible": "legendonly",
-                "hovertemplate": (
-                    "<b>x</b>: %{x:,.2f} <br>" + "<b>y</b>: %{customdata:,.2e}"
-                ),
             }
         trace_dict["markers"]["down_markers"]["x"] += dwn_markers_x
         trace_dict["markers"]["down_markers"]["y"] += dwn_markers_y
@@ -928,22 +874,18 @@ class PeakFinder(BaseDashApplication):
 
         return trace_dict
 
-    @staticmethod
     def add_residuals(
-        fig_data: list[go.Scatter],
+        self,
         values: np.ndarray,
         raw: np.ndarray,
         locs: np.ndarray,
-    ) -> list[go.Scatter]:
+    ):
         """
         Add residuals to the figure.
 
-        :param fig_data: Figure data.
         :param values: Resampled values.
         :param raw: Raw values.
         :param locs: Locations.
-
-        :return: Updated figure data.
         """
         pos_inds = np.where(raw > values)[0]
         neg_inds = np.where(raw < values)[0]
@@ -953,7 +895,7 @@ class PeakFinder(BaseDashApplication):
         neg_residuals = raw.copy()
         neg_residuals[neg_inds] = values[neg_inds]
 
-        fig_data.append(
+        self.figure.add_trace(
             go.Scatter(
                 x=locs,
                 y=values,
@@ -962,7 +904,7 @@ class PeakFinder(BaseDashApplication):
                 hoverinfo="skip",
             ),
         )
-        fig_data.append(
+        self.figure.add_trace(
             go.Scatter(
                 x=locs,
                 y=pos_residuals,
@@ -977,7 +919,7 @@ class PeakFinder(BaseDashApplication):
             )
         )
 
-        fig_data.append(
+        self.figure.add_trace(
             go.Scatter(
                 x=locs,
                 y=values,
@@ -986,7 +928,7 @@ class PeakFinder(BaseDashApplication):
                 hoverinfo="skip",
             ),
         )
-        fig_data.append(
+        self.figure.add_trace(
             go.Scatter(
                 x=locs,
                 y=neg_residuals,
@@ -1000,39 +942,185 @@ class PeakFinder(BaseDashApplication):
                 hoverinfo="skip",
             )
         )
-        return fig_data
 
     def initialize_figure(
         self,
         property_groups: dict,
     ):
         self.figure = go.Figure()
-        self.figure.add_trace(
-            go.Scatter(
-                x=[None],
-                y=[None],
-                mode="lines",
-                name="full lines",
-                line_color="lightgrey",
-                showlegend=False,
-                hoverinfo="skip",
-            )
-        )
-        trace_map = {"lines": 0}
+
+        # Add full lines
+        all_traces = {
+            "lines": {
+                "x": [None],
+                "y": [None],
+                "mode": "lines",
+                "name": "full lines",
+                "line_color": "lightgrey",
+                "showlegend": False,
+                "hoverinfo": "skip",
+            },
+        }
+
+        # Add property groups
         for ind, (key, val) in enumerate(property_groups.items()):
-            self.figure.add_trace(
-                go.Scatter(
-                    x=[None],
-                    y=[None],
-                    mode="lines",
-                    name=key,
-                    line_color=val["color"],
-                    hovertemplate=(
+            all_traces[key] = {
+                "x": [None],
+                "y": [None],
+                "mode": "lines",
+                "name": key,
+                "line_color": val["color"],
+                "hovertemplate": (
+                    "<b>x</b>: %{x:,.2f} <br>" + "<b>y</b>: %{customdata:,.2e}"
+                ),
+            }
+
+        # Add markers
+        all_traces.update(
+            {
+                "markers_legend": {
+                    "x": [None],
+                    "y": [None],
+                    "mode": "markers",
+                    "marker_color": "black",
+                    "marker_symbol": "circle",
+                    "legendgroup": "markers",
+                    "name": "markers",
+                    "visible": "legendonly",
+                    "showlegend": True,
+                },
+                "pos_residuals_legend": {
+                    "x": [None],
+                    "y": [None],
+                    "mode": "lines",
+                    "line_color": "rgba(255, 0, 0, 0.5)",
+                    "line_width": 8,
+                    "legendgroup": "positive residuals",
+                    "name": "positive residuals",
+                    "visible": "legendonly",
+                    "showlegend": True,
+                },
+                "neg_residuals_legend": {
+                    "x": [None],
+                    "y": [None],
+                    "mode": "lines",
+                    "line_color": "rgba(0, 0, 255, 0.5)",
+                    "line_width": 8,
+                    "legendgroup": "negative residuals",
+                    "name": "negative residuals",
+                    "visible": "legendonly",
+                    "showlegend": True,
+                },
+            }
+        )
+        for ori in ["left", "right"]:
+            all_traces[ori + "_azimuth"] = {
+                "x": [None],
+                "y": [None],
+                "customdata": [None],
+                "mode": "markers",
+                "marker_color": "black",
+                "marker_symbol": "arrow-" + ori,
+                "marker_size": 8,
+                "name": "peaks start",
+                "legendgroup": "markers",
+                "showlegend": False,
+                "visible": "legendonly",
+                "hovertemplate": (
+                    "<b>x</b>: %{x:,.2f} <br>" + "<b>y</b>: %{customdata:,.2e}"
+                ),
+            }
+
+        all_traces.update(
+            {
+                "peaks": {
+                    "x": [None],
+                    "y": [None],
+                    "customdata": [None],
+                    "mode": "markers",
+                    "marker_color": ["black"],
+                    "marker_symbol": "circle",
+                    "marker_size": 8,
+                    "name": "peaks",
+                    "legendgroup": "markers",
+                    "showlegend": False,
+                    "visible": "legendonly",
+                    "hovertemplate": (
                         "<b>x</b>: %{x:,.2f} <br>" + "<b>y</b>: %{customdata:,.2e}"
                     ),
-                )
-            )
-            trace_map[key] = ind + 1
+                },
+                "start_markers": {
+                    "x": [None],
+                    "y": [None],
+                    "customdata": [None],
+                    "mode": "markers",
+                    "marker_color": "black",
+                    "marker_symbol": "y-right-open",
+                    "marker_size": 6,
+                    "name": "start markers",
+                    "legendgroup": "markers",
+                    "showlegend": False,
+                    "visible": "legendonly",
+                    "hovertemplate": (
+                        "<b>x</b>: %{x:,.2f} <br>" + "<b>y</b>: %{customdata:,.2e}"
+                    ),
+                },
+                "end_markers": {
+                    "x": [None],
+                    "y": [None],
+                    "customdata": [None],
+                    "mode": "markers",
+                    "marker_color": "black",
+                    "marker_symbol": "y-left-open",
+                    "marker_size": 6,
+                    "name": "end markers",
+                    "legendgroup": "markers",
+                    "showlegend": False,
+                    "visible": "legendonly",
+                    "hovertemplate": (
+                        "<b>x</b>: %{x:,.2f} <br>" + "<b>y</b>: %{customdata:,.2e}"
+                    ),
+                },
+                "up_markers": {
+                    "x": [None],
+                    "y": [None],
+                    "customdata": [None],
+                    "mode": "markers",
+                    "marker_color": "black",
+                    "marker_symbol": "y-down-open",
+                    "marker_size": 6,
+                    "name": "up markers",
+                    "legendgroup": "markers",
+                    "showlegend": False,
+                    "visible": "legendonly",
+                    "hovertemplate": (
+                        "<b>x</b>: %{x:,.2f} <br>" + "<b>y</b>: %{customdata:,.2e}"
+                    ),
+                },
+                "down_markers": {
+                    "x": [None],
+                    "y": [None],
+                    "customdata": [None],
+                    "mode": "markers",
+                    "marker_color": "black",
+                    "marker_symbol": "y-up-open",
+                    "marker_size": 6,
+                    "name": "down markers",
+                    "legendgroup": "markers",
+                    "showlegend": False,
+                    "visible": "legendonly",
+                    "hovertemplate": (
+                        "<b>x</b>: %{x:,.2f} <br>" + "<b>y</b>: %{customdata:,.2e}"
+                    ),
+                },
+            }
+        )
+
+        trace_map = {}
+        for ind, (key, trace) in enumerate(all_traces.items()):
+            self.figure.add_trace(go.Scatter(**trace))
+            trace_map[key] = ind
+
         return trace_map
 
     def update_figure_data(  # noqa: C901  # pylint: disable=too-many-arguments, too-many-locals, too-many-branches, too-many-statements
@@ -1089,6 +1177,7 @@ class PeakFinder(BaseDashApplication):
             or len(active_channels) == 0
             or self.lines is None
             or not self.lines
+            or line_id is None
         ):
             return None, None, None, None, None, None, None, None, trace_map
 
@@ -1199,18 +1288,6 @@ class PeakFinder(BaseDashApplication):
                                     "x": [None],
                                     "y": [None],
                                     "customdata": [None],
-                                    "mode": "markers",
-                                    "marker_color": "black",
-                                    "marker_symbol": "arrow-" + ori,
-                                    "marker_size": 8,
-                                    "name": "peaks start",
-                                    "legendgroup": "markers",
-                                    "showlegend": False,
-                                    "visible": "legendonly",
-                                    "hovertemplate": (
-                                        "<b>x</b>: %{x:,.2f} <br>"
-                                        + "<b>y</b>: %{customdata:,.2e}"
-                                    ),
                                 }
                             trace_dict["markers"][ori + "_azimuth"]["x"] += [  # type: ignore
                                 locs[peaks[i]]
@@ -1253,7 +1330,7 @@ class PeakFinder(BaseDashApplication):
                             values[anomaly_group.anomalies[i].inflect_down]
                         ]
                 if show_residuals:
-                    PeakFinder.add_residuals(
+                    self.add_residuals(
                         sym_values,
                         sym_raw,
                         locs,
@@ -1291,50 +1368,34 @@ class PeakFinder(BaseDashApplication):
                 dwn_markers_customdata,
             )
 
+        # Update data on traces
         for trace_name in ["lines", "property_groups", "markers"]:
             if trace_name in trace_dict:
                 for key, value in trace_dict[trace_name].items():
                     self.figure.data[trace_map[key]]["x"] = value["x"]
                     self.figure.data[trace_map[key]]["y"] = value["y"]
+                    if "customdata" in value:
+                        self.figure.data[trace_map[key]]["customdata"] = value[
+                            "customdata"
+                        ]
+                    if "marker_color" in value:
+                        self.figure.data[trace_map[key]]["marker_color"] = value[
+                            "marker_color"
+                        ]
 
+        # Update legend with markers and residuals
         if show_markers:
-            fig_data.append(
-                go.Scatter(
-                    x=[None],
-                    y=[None],
-                    mode="markers",
-                    marker_color="black",
-                    marker_symbol="circle",
-                    legendgroup="markers",
-                    name="markers",
-                    visible="legendonly",
-                ),
-            )
+            self.figure.data[trace_map["markers_legend"]]["showlegend"] = True
+        else:
+            self.figure.data[trace_map["markers_legend"]]["showlegend"] = False
         if show_residuals:
-            fig_data.append(
-                go.Scatter(
-                    x=[None],
-                    y=[None],
-                    mode="lines",
-                    line_color="rgba(255, 0, 0, 0.5)",
-                    line_width=8,
-                    legendgroup="positive residuals",
-                    name="positive residuals",
-                    visible="legendonly",
-                ),
-            )
-            fig_data.append(
-                go.Scatter(
-                    x=[None],
-                    y=[None],
-                    mode="lines",
-                    line_color="rgba(0, 0, 255, 0.5)",
-                    line_width=8,
-                    legendgroup="negative residuals",
-                    name="negative residuals",
-                    visible="legendonly",
-                ),
-            )
+            self.figure.data[trace_map["pos_residuals_legend"]]["showlegend"] = True
+            self.figure.data[trace_map["neg_residuals_legend"]]["showlegend"] = True
+        else:
+            self.figure.data[trace_map["pos_residuals_legend"]]["showlegend"] = False
+            self.figure.data[trace_map["neg_residuals_legend"]]["showlegend"] = False
+            for ind in range(len(trace_map), len(self.figure.data)):
+                self.figure.data[ind] = []
 
         # Update linear threshold
         pos_vals = all_values[all_values > 0]  # type: ignore
