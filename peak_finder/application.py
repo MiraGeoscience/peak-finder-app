@@ -38,7 +38,7 @@ from peak_finder.layout import peak_finder_layout
 from peak_finder.params import PeakFinderParams
 
 
-class PeakFinder(BaseDashApplication):
+class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-methods
     """
     Dash app to make a scatter plot.
     """
@@ -468,7 +468,7 @@ class PeakFinder(BaseDashApplication):
     def compute_line(  # pylint: disable=too-many-arguments, too-many-locals
         self,
         line_indices: dict,
-        line_ids: dict,
+        line_ids: list,
         objects: str,
         property_groups_dict: dict,
         smoothing: float,
@@ -512,9 +512,7 @@ class PeakFinder(BaseDashApplication):
         triggers = [t["prop_id"].split(".")[0] for t in callback_context.triggered]
         line_ids_subset = line_ids
         if "line_ids" in triggers and self.lines is not None:
-            line_ids_subset = [
-                line for line in line_ids if line not in self.lines.keys()
-            ]
+            line_ids_subset = [line for line in line_ids if line not in self.lines]
 
         line_computation = PeakFinderDriver.compute_lines(
             survey=obj,
@@ -538,9 +536,7 @@ class PeakFinder(BaseDashApplication):
         if self.lines is None:
             self.lines = {}
         else:
-            entries_to_remove = [
-                line for line in self.lines.keys() if line not in line_ids
-            ]
+            entries_to_remove = [line for line in self.lines if line not in line_ids]
             for key in entries_to_remove:
                 self.lines.pop(key, None)
 
@@ -584,7 +580,7 @@ class PeakFinder(BaseDashApplication):
         show_residuals: list[bool],
         show_markers: list[bool],
         trace_map: dict,
-    ) -> tuple[go.Figure, float | None, float | None, dict | None]:
+    ) -> tuple[go.Figure, float | None, float | None, dict | None, dict | None]:
         """
         Update the figure.
 
@@ -607,6 +603,7 @@ class PeakFinder(BaseDashApplication):
         :return: Linear threshold slider min.
         :return: Linear threshold slider max.
         :return: Linear threshold slider marks.
+        :return: Trace map for plotting.
         """
         triggers = [t["prop_id"].split(".")[0] for t in callback_context.triggered]
         if self.figure is not None:
@@ -614,11 +611,11 @@ class PeakFinder(BaseDashApplication):
             if line_click_data is not None and "line_figure" in triggers:
                 self.figure.update_layout(
                     shapes=[
-                        dict(
-                            type="line",
-                            x0=line_click_data["points"][0]["x"],
-                            x1=line_click_data["points"][0]["x"],
-                        )
+                        {
+                            "type": "line",
+                            "x0": line_click_data["points"][0]["x"],
+                            "x1": line_click_data["points"][0]["x"],
+                        }
                     ]
                 )
                 return (
@@ -639,11 +636,11 @@ class PeakFinder(BaseDashApplication):
                 )
                 self.figure.update_layout(
                     shapes=[
-                        dict(
-                            type="line",
-                            x0=x_val,
-                            x1=x_val,
-                        )
+                        {
+                            "type": "line",
+                            "x0": x_val,
+                            "x1": x_val,
+                        }
                     ]
                 )
                 return (
@@ -699,7 +696,7 @@ class PeakFinder(BaseDashApplication):
             )
         elif "property_groups" in triggers:
             # Update trace colours if property groups are the only change
-            self.update_data_colours(property_groups, trace_map)
+            self.update_data_colours(property_groups)
 
         # Update figure layout
         self.update_figure_layout(
@@ -727,9 +724,10 @@ class PeakFinder(BaseDashApplication):
 
         :return: Updated figure data.
         """
-        for trace in self.figure.data:
-            if trace["name"] in property_groups:
-                trace["line_color"] = property_groups[trace["name"]]["color"]
+        if self.figure is not None:
+            for trace in self.figure.data:
+                if trace["name"] in property_groups:
+                    trace["line_color"] = property_groups[trace["name"]]["color"]
 
     def update_figure_layout(  # pylint: disable=too-many-arguments
         self,
@@ -751,30 +749,31 @@ class PeakFinder(BaseDashApplication):
         :param y_max: Maximum y-axis value.
         :param min_value: Minimum value.
         :param x_label: X-axis label.
-
-        :return: Updated figure layout.
         """
-        layout_dict = {}
+        if self.figure is None:
+            return
 
         if y_min is not None and y_max is not None:
-            layout_dict.update({"yaxis_range": [np.nanmax([y_min, min_value]), y_max]})
+            self.figure.update_layout(
+                {"yaxis_range": [np.nanmax([y_min, min_value]), y_max]}
+            )
         if y_label is not None:
-            layout_dict.update(
+            self.figure.update_layout(
                 {
                     "yaxis_title": y_label,
                 }
             )
         if y_tickvals is not None and y_ticktext is not None:
-            layout_dict.update(
+            self.figure.update_layout(
                 {
                     "yaxis_tickvals": y_tickvals,
                     "yaxis_ticktext": [f"{y:.2e}" for y in y_ticktext],
                 }
             )
 
-        layout_dict.update({"xaxis_title": x_label + " (m)", "yaxis_tickformat": ".2e"})
-
-        self.figure.update_layout(layout_dict)
+        self.figure.update_layout(
+            {"xaxis_title": x_label + " (m)", "yaxis_tickformat": ".2e"}
+        )
 
     @staticmethod
     def add_markers(  # pylint: disable=too-many-arguments, too-many-locals
@@ -887,6 +886,9 @@ class PeakFinder(BaseDashApplication):
         :param raw: Raw values.
         :param locs: Locations.
         """
+        if self.figure is None:
+            return
+
         pos_inds = np.where(raw > values)[0]
         neg_inds = np.where(raw < values)[0]
 
@@ -1144,6 +1146,7 @@ class PeakFinder(BaseDashApplication):
         float | None,
         float | None,
         dict | None,
+        dict,
     ]:
         """
         Update the figure data.
@@ -1157,6 +1160,7 @@ class PeakFinder(BaseDashApplication):
         :param linear_threshold: Linear threshold.
         :param show_residuals: Whether to plot residuals.
         :param show_markers: Whether to plot markers.
+        :param trace_map: Dict mapping trace names to indices.
 
         :return: Label for y-axis.
         :return: Y-axis tick values.
@@ -1178,6 +1182,7 @@ class PeakFinder(BaseDashApplication):
             or self.lines is None
             or not self.lines
             or line_id is None
+            or self.figure is None
         ):
             return None, None, None, None, None, None, None, None, trace_map
 
@@ -1371,7 +1376,7 @@ class PeakFinder(BaseDashApplication):
         # Update data on traces
         for trace_name in ["lines", "property_groups", "markers"]:
             if trace_name in trace_dict:
-                for key, value in trace_dict[trace_name].items():
+                for key, value in trace_dict[trace_name].items():  # type: ignore
                     self.figure.data[trace_map[key]]["x"] = value["x"]
                     self.figure.data[trace_map[key]]["y"] = value["y"]
                     if "customdata" in value:
@@ -1395,7 +1400,8 @@ class PeakFinder(BaseDashApplication):
             self.figure.data[trace_map["pos_residuals_legend"]]["showlegend"] = False
             self.figure.data[trace_map["neg_residuals_legend"]]["showlegend"] = False
             for ind in range(len(trace_map), len(self.figure.data)):
-                self.figure.data[ind] = []
+                self.figure.data[ind]["x"] = []
+                self.figure.data[ind]["y"] = []
 
         # Update linear threshold
         pos_vals = all_values[all_values > 0]  # type: ignore
