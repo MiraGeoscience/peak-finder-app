@@ -696,7 +696,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
             )
         elif "property_groups" in triggers:
             # Update trace colours if property groups are the only change
-            self.update_data_colours(property_groups)
+            self.update_data_colours(property_groups, trace_map)
 
         # Update figure layout
         self.update_figure_layout(
@@ -711,23 +711,23 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
 
         if len(self.figure.layout["shapes"]) == 0:
             self.figure.add_vline(x=0)
-        return (self.figure, thresh_min, thresh_max, thresh_ticks, trace_map)
+        return self.figure, thresh_min, thresh_max, thresh_ticks, trace_map
 
     def update_data_colours(
         self,
         property_groups: dict,
+        trace_map: dict,
     ):
         """
         Update figure data on colour change.
 
         :param property_groups: Property groups dictionary.
-
-        :return: Updated figure data.
+        :param trace_map: Dict mapping figure trace names to indices.
         """
         if self.figure is not None:
-            for trace in self.figure.data:
-                if trace["name"] in property_groups:
-                    trace["line_color"] = property_groups[trace["name"]]["color"]
+            for key, value in property_groups.items():
+                if key in trace_map:
+                    self.figure.data[trace_map[key]]["line_color"] = value["color"]
 
     def update_figure_layout(  # pylint: disable=too-many-arguments
         self,
