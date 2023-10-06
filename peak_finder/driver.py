@@ -17,7 +17,7 @@ from geoapps_utils.conversions import hex_to_rgb
 from geoapps_utils.driver.driver import BaseDriver
 from geoapps_utils.formatters import string_name
 from geoh5py import Workspace
-from geoh5py.data import BooleanData, ReferencedData
+from geoh5py.data import ReferencedData
 from geoh5py.groups import ContainerGroup, PropertyGroup
 from geoh5py.objects import Curve, Points
 from geoh5py.shared.utils import fetch_active_workspace
@@ -40,7 +40,6 @@ class PeakFinderDriver(BaseDriver):
     def get_line_indices(  # pylint: disable=R0914
         survey: Curve,
         line_field: ReferencedData,
-        masking_data: BooleanData | None,
         line_ids: list[int],
     ) -> dict:
         """
@@ -48,20 +47,10 @@ class PeakFinderDriver(BaseDriver):
 
         :param survey: Survey object.
         :param line_field: Line field.
-        :param masking_data: Masking data.
         :param line_ids: List of line ids.
 
         :return: Dictionary of line indices with line IDs as keys.
         """
-        if masking_data is not None and masking_data.values is not None:
-            masking_array = masking_data.values
-            workspace = Workspace()
-            masked_survey = survey.copy(parent=workspace)
-            masked_survey.remove_vertices(~masking_array)
-            masking = True
-        else:
-            masking = False
-
         indices_dict: dict[str, np.ndarray] = {}
         for line_id in line_ids:
             indices_dict[str(line_id)] = []
@@ -70,25 +59,14 @@ class PeakFinderDriver(BaseDriver):
             full_line_indices = np.where(line_bool)[0]
             if len(full_line_indices) < 2:
                 continue
-            if masking:
-                nan_inds = np.cumsum(~masking_array)[line_bool]
-                inds = (full_line_indices - nan_inds)[masking_array[line_bool]]
 
-                parts = np.unique(masked_survey.parts[inds])
-            else:
-                parts = np.unique(survey.parts[full_line_indices])
+            parts = np.unique(survey.parts[full_line_indices])
 
             for part in parts:
-                if masking and survey.vertices is not None:
-                    parts_mask = np.full(len(survey.vertices), False)
-                    parts_mask[masking_array & line_bool] = (
-                        masked_survey.parts[inds] == part
-                    )
-                    line_indices = np.where(parts_mask)[0]
-                else:
-                    line_indices = np.where(
-                        (line_field.values == line_id) & (survey.parts == part)
-                    )[0]
+                line_indices = np.where(
+                    (line_field.values == line_id) & (survey.parts == part)
+                )[0]
+
                 indices_dict[str(line_id)] += [line_indices]
 
         return indices_dict
@@ -180,14 +158,24 @@ class PeakFinderDriver(BaseDriver):
                 for name in channel_groups
             ]
 
+            survey_obj = self.params.objects
+            if self.params.masking_data is not None:
+                masking_array = self.params.masking_data.values
+
+                workspace = Workspace()
+                survey_obj = survey_obj.copy(parent=workspace)
+                survey_obj.remove_vertices(~masking_array)
+                line_field_obj = survey_obj.get_data(self.params.line_field.uid)[0]
+            else:
+                line_field_obj = self.params.line_field
+
             line_indices = self.get_line_indices(
-                survey=self.params.objects,
-                line_field=self.params.line_field,
-                masking_data=self.params.masking_data,
+                survey=survey_obj,
+                line_field=line_field_obj,
                 line_ids=[self.params.line_id],
             )
             anomalies = PeakFinderDriver.compute_lines(
-                survey=survey,
+                survey=survey_obj,
                 line_indices=line_indices,
                 line_ids=[self.params.line_id],
                 property_groups=property_groups,

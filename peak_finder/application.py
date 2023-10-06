@@ -28,6 +28,7 @@ from geoapps_utils.application.dash_application import (
     ObjectSelection,
 )
 from geoapps_utils.plotting import format_axis, symlog
+from geoh5py import Workspace
 from geoh5py.data import BooleanData, ReferencedData
 from geoh5py.ui_json import InputFile
 from tqdm import tqdm
@@ -112,7 +113,6 @@ class PeakFinder(BaseDashApplication):
             Output(component_id="line_id", component_property="options"),
             Output(component_id="line_id", component_property="value"),
             Input(component_id="line_field", component_property="value"),
-            Input(component_id="masking_data", component_property="value"),
             State(component_id="line_id", component_property="value"),
         )(self.update_line_id_options)
         self.app.callback(
@@ -130,6 +130,13 @@ class PeakFinder(BaseDashApplication):
             Input(component_id="flip_sign", component_property="value"),
         )(self.update_active_channels)
         self.app.callback(
+            Output(component_id="objects", component_property="data"),
+            Output(component_id="line_field", component_property="value"),
+            Input(component_id="objects", component_property="data"),
+            Input(component_id="line_field", component_property="value"),
+            Input(component_id="masking_data", component_property="value"),
+        )(self.mask_data)
+        self.app.callback(
             Output(component_id="line_ids", component_property="data"),
             Input(component_id="line_field", component_property="value"),
             Input(component_id="line_id", component_property="value"),
@@ -139,7 +146,6 @@ class PeakFinder(BaseDashApplication):
             Output(component_id="line_indices", component_property="data"),
             Input(component_id="objects", component_property="data"),
             Input(component_id="line_field", component_property="value"),
-            Input(component_id="masking_data", component_property="value"),
             Input(component_id="line_ids", component_property="data"),
         )(self.get_line_indices)
         self.app.callback(
@@ -291,8 +297,10 @@ class PeakFinder(BaseDashApplication):
         :return: Masking data dropdown options.
         """
         line_field_options = []
-        masking_data_options = []
+        masking_data_options = [{"label": "None", "value": "None"}]
         obj = self.workspace.get_entity(uuid.UUID(objects))[0]
+        if obj is None or not hasattr(obj, "children"):
+            return no_update, no_update
         for child in obj.children:
             if isinstance(child, ReferencedData):
                 line_field_options.append(
@@ -307,14 +315,12 @@ class PeakFinder(BaseDashApplication):
     def update_line_id_options(
         self,
         line_field: str | None,
-        masking_data: str | None,
         line_id: int | None,
     ) -> tuple[list[dict], int | None]:
         """
         Update line ID dropdown options from line field.
 
         :param line_field: Line field.
-        :param masking_data: Masking data.
         :param line_id: Line ID.
 
         :return: Line ID dropdown options.
@@ -323,15 +329,11 @@ class PeakFinder(BaseDashApplication):
         if line_field is None:
             return [], None
 
-        line_field = self.workspace.get_entity(uuid.UUID(line_field))[0]
+        line_field_obj = self.workspace.get_entity(uuid.UUID(line_field))[0]
         value_map = line_field.value_map.map  # type: ignore
 
-        if masking_data is not None:
-            masking_data = self.workspace.get_entity(uuid.UUID(masking_data))[0]
-            line_vals = np.unique(line_field.values[masking_data.values])  # type: ignore
-            value_map = {
-                key: value for key, value in value_map.items() if key in line_vals
-            }
+        line_vals = np.unique(line_field_obj.values)  # type: ignore
+        value_map = {key: value for key, value in value_map.items() if key in line_vals}
 
         options = []
         for key, value in value_map.items():  # type: ignore
@@ -366,7 +368,11 @@ class PeakFinder(BaseDashApplication):
         for group in property_groups_dict.values():
             for channel in group["properties"]:
                 chan = self.workspace.get_entity(uuid.UUID(channel))[0]
-                if getattr(chan, "values", None) is not None:
+                if (
+                    chan is not None
+                    and getattr(chan, "values", None) is not None
+                    and hasattr(chan, "name")
+                ):
                     active_channels[channel] = {"name": chan.name}
 
         d_min, d_max = np.inf, -np.inf
@@ -375,9 +381,15 @@ class PeakFinder(BaseDashApplication):
         for uid in keys:
             chan = self.workspace.get_entity(uuid.UUID(uid))[0]
             try:
-                active_channels[uid]["values"] = flip_sign * chan.values.copy()
-                d_min = np.nanmin([d_min, active_channels[uid]["values"].min()])
-                d_max = np.nanmax([d_max, active_channels[uid]["values"].max()])
+                if (
+                    chan is not None
+                    and hasattr(chan, "values")
+                    and hasattr(chan.values, "min")
+                    and hasattr(chan.values, "max")
+                ):
+                    active_channels[uid]["values"] = flip_sign * chan.values.copy()
+                    d_min = np.nanmin([d_min, active_channels[uid]["values"].min()])  # type: ignore
+                    d_max = np.nanmax([d_max, active_channels[uid]["values"].max()])  # type: ignore
             except KeyError:
                 continue
 
@@ -386,12 +398,50 @@ class PeakFinder(BaseDashApplication):
             min_value = d_min
         return active_channels, min_value
 
+    def mask_data(
+        self,
+        objects: str,
+        line_field: str,
+        masking_data: str,
+    ) -> tuple[str, str]:
+        """
+        Apply masking to survey object.
+
+        :param objects: Input object.
+        :param line_field: Line field.
+        :param masking_data: Masking data.
+
+        :return: Object uid to trigger other callbacks.
+        :return: Line field uid to trigger other callbacks.
+        """
+        original_workspace = self.params.geoh5
+        survey_obj = self.workspace.get_entity(uuid.UUID(objects))[0]
+        if masking_data is not None and masking_data != "None":
+            with original_workspace:
+                masking_data_obj = original_workspace.get_entity(
+                    uuid.UUID(masking_data)
+                )[0]
+                masking_array = masking_data_obj.values
+
+            self.workspace: Workspace = Workspace()
+            self.workspace.open()
+            with original_workspace.open():
+                if survey_obj is not None and hasattr(survey_obj, "copy"):
+                    survey_obj = survey_obj.copy(parent=self.workspace)
+            if survey_obj is not None and hasattr(survey_obj, "remove_vertices"):
+                survey_obj.remove_vertices(~masking_array)
+        else:
+            self.workspace = original_workspace
+            self.workspace.open()
+
+        return objects, line_field
+
     def get_line_ids(
         self,
         line_field: str,
         line_id: int,
         n_lines: int,
-    ) -> list[int]:
+    ) -> np.ndarray:
         """
         Get line IDs to compute for plotting.
 
@@ -403,10 +453,9 @@ class PeakFinder(BaseDashApplication):
         """
         if line_field is None or line_id is None or n_lines is None:
             return no_update
-
-        line_field = self.workspace.get_entity(uuid.UUID(line_field))[0]
+        line_field_obj = self.workspace.get_entity(uuid.UUID(line_field))[0]
         # Find line_ids to get indices for
-        value_map = line_field.value_map.map  # type: ignore
+        value_map = line_field_obj.value_map.map  # type: ignore
         full_line_ids = np.sort(list(value_map.keys()))
         line_id_ind = np.where(np.array(full_line_ids) == line_id)[0][0]
 
@@ -420,7 +469,6 @@ class PeakFinder(BaseDashApplication):
         self,
         survey: str,
         line_field: str,
-        masking_data: str,
         line_ids: list[int],
     ) -> dict | None:
         """
@@ -428,23 +476,19 @@ class PeakFinder(BaseDashApplication):
 
         :param survey: Survey object.
         :param line_field: Line field.
-        :param masking_data: Masking data.
         :param line_ids: Line IDs.
 
         :return: Line indices for each line ID given.
         """
         if survey is None or line_field is None or line_ids is None:
             return no_update
+
         survey_obj = self.workspace.get_entity(uuid.UUID(survey))[0]
         line_field_obj = self.workspace.get_entity(uuid.UUID(line_field))[0]
-        masking_data_obj = None
-        if masking_data is not None:
-            masking_data_obj = self.workspace.get_entity(uuid.UUID(masking_data))[0]
 
         line_indices = PeakFinderDriver.get_line_indices(
-            survey_obj,
-            line_field_obj,
-            masking_data_obj,
+            survey_obj,  # type: ignore
+            line_field_obj,  # type: ignore
             line_ids,
         )
 
@@ -490,12 +534,12 @@ class PeakFinder(BaseDashApplication):
         obj = self.workspace.get_entity(uuid.UUID(objects))[0]
 
         property_groups = [
-            obj.find_or_create_property_group(name=name)
+            obj.find_or_create_property_group(name=name)  # type: ignore
             for name in property_groups_dict
         ]
 
         line_computation = PeakFinderDriver.compute_lines(
-            survey=obj,
+            survey=obj,  # type: ignore
             line_indices=line_indices,
             line_ids=line_ids,
             property_groups=property_groups,
@@ -529,7 +573,7 @@ class PeakFinder(BaseDashApplication):
                             line_anomalies += line_group.groups  # type: ignore
                     anomalies.append(line_anomalies)
                 if len(line) > 0:
-                    line_id = str(line[0].line_id)
+                    line_id = line[0].line_id
                     self.lines[line_id] = {
                         "position": positions,
                         "anomalies": anomalies,
@@ -1017,7 +1061,12 @@ class PeakFinder(BaseDashApplication):
         obj = self.workspace.get_entity(uuid.UUID(objects))[0]
         fig_data: list[go.Scatter] = []
 
-        if obj is None or len(active_channels) == 0 or self.lines is None:
+        if (
+            obj is None
+            or len(active_channels) == 0
+            or self.lines is None
+            or line_id is None
+        ):
             return fig_data, None, None, None, None, None, None, None, None
 
         y_min, y_max = np.inf, -np.inf
@@ -1050,8 +1099,9 @@ class PeakFinder(BaseDashApplication):
             "property_groups": {},
             "markers": {},
         }
-        position = self.lines[str(line_id)]["position"]
-        anomalies = self.lines[str(line_id)]["anomalies"]
+
+        position = self.lines[line_id]["position"]
+        anomalies = self.lines[line_id]["anomalies"]
         line_indices = line_indices_dict[str(line_id)]
         for ind, lines_position in enumerate(position):
             if len(line_indices[ind]) < 2:
