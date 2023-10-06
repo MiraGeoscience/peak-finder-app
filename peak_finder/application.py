@@ -30,6 +30,7 @@ from geoapps_utils.application.dash_application import (
 from geoapps_utils.plotting import format_axis, symlog
 from geoh5py import Workspace
 from geoh5py.data import BooleanData, ReferencedData
+from geoh5py.shared.utils import fetch_active_workspace
 from geoh5py.ui_json import InputFile
 from tqdm import tqdm
 
@@ -330,7 +331,7 @@ class PeakFinder(BaseDashApplication):
             return [], None
 
         line_field_obj = self.workspace.get_entity(uuid.UUID(line_field))[0]
-        value_map = line_field.value_map.map  # type: ignore
+        value_map = line_field_obj.value_map.map  # type: ignore
 
         line_vals = np.unique(line_field_obj.values)  # type: ignore
         value_map = {key: value for key, value in value_map.items() if key in line_vals}
@@ -415,20 +416,16 @@ class PeakFinder(BaseDashApplication):
         :return: Line field uid to trigger other callbacks.
         """
         original_workspace = self.params.geoh5
-        survey_obj = self.workspace.get_entity(uuid.UUID(objects))[0]
+        survey_obj = original_workspace.get_entity(uuid.UUID(objects))[0]
         if masking_data is not None and masking_data != "None":
-            with original_workspace:
-                masking_data_obj = original_workspace.get_entity(
-                    uuid.UUID(masking_data)
-                )[0]
-                masking_array = masking_data_obj.values
-
             self.workspace: Workspace = Workspace()
-            self.workspace.open()
-            with original_workspace.open():
+            with fetch_active_workspace(original_workspace):
                 if survey_obj is not None and hasattr(survey_obj, "copy"):
                     survey_obj = survey_obj.copy(parent=self.workspace)
+
             if survey_obj is not None and hasattr(survey_obj, "remove_vertices"):
+                masking_data_obj = survey_obj.get_data(uuid.UUID(masking_data))[0]
+                masking_array = masking_data_obj.values
                 survey_obj.remove_vertices(~masking_array)
         else:
             self.workspace = original_workspace
