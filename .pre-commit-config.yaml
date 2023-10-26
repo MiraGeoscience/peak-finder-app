@@ -12,33 +12,29 @@ ci:
 
 repos:
 -   repo: https://github.com/psf/black
-    rev: 23.1.0
+    rev: 23.10.1
     hooks:
     -   id: black
--   repo: https://github.com/asottile/seed-isort-config
-    rev: v2.2.0
-    hooks:
-    -   id: seed-isort-config
 -   repo: https://github.com/PyCQA/isort
     rev: 5.12.0
     hooks:
     -   id: isort
-        additional_dependencies: [toml] # to read config from pyproject.toml
+        additional_dependencies: [tomli] # to read config from pyproject.toml
 -   repo: https://github.com/humitos/mirrors-autoflake
     rev: v1.1
     hooks:
     -   id: autoflake
 -   repo: https://github.com/PyCQA/flake8
-    rev: 6.0.0
+    rev: 6.1.0
     hooks:
     -   id: flake8
 -   repo: https://github.com/asottile/pyupgrade
-    rev: v3.3.1
+    rev: v3.15.0
     hooks:
     -   id: pyupgrade
         args: [--py39-plus]
 -   repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.0.0
+    rev: v1.6.1
     hooks:
     -   id: mypy
         additional_dependencies: [types-toml]
@@ -58,16 +54,17 @@ repos:
         name: Check copyright
         entry: python devtools/check-copyright.py
         language: python
-        types: [python]
-        exclude: (^setup.py$|(docs|assets)/)
+        files: (^LICENSE|README.rst|\.py|\.pyi)$
+        types: [text]
+        exclude: (^setup.py$|^\.|\b(docs|peak_finder_assets)/)
 -   repo: https://github.com/codespell-project/codespell
-    rev: v2.2.2
+    rev: v2.2.6
     hooks:
     -   id: codespell
-        exclude: (\.ipynb$)
+        exclude: (-lock\.ya?ml|\benvironments/.*\.ya?ml|\.ipynb|^THIRD_PARTY_SOFTWARE\.rst)$
         entry: codespell -I .codespellignore
 -   repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.4.0
+    rev: v4.5.0
     hooks:
     -   id: trailing-whitespace
         exclude: \.mdj$
@@ -83,9 +80,10 @@ repos:
     -   id: mixed-line-ending
     -   id: name-tests-test
 -   repo: https://github.com/rstcheck/rstcheck
-    rev: v6.1.1
+    rev: v6.2.0
     hooks:
     -   id: rstcheck
+        exclude: ^THIRD_PARTY_SOFTWARE.rst$
         additional_dependencies: [sphinx]
 -   repo: https://github.com/pre-commit/pygrep-hooks
     rev: v1.10.0
