@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "peak_finder"
+name = "peak-finder"
 version = "0.1.0"
 authors = ["Mira Geoscience <support@mirageoscience.com>"]
 description = "Peak Finder App"
