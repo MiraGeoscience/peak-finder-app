@@ -35,7 +35,7 @@ dash-daq = {version = "~0.5.0"}
 pylint = "*"
 pytest = "*"
 pytest-cov = "*"
-toml = "*" # for tests only
+tomli = "*" # for tests only
 
 [tool.conda-lock]
 platforms = ['win-64', 'osx-64', 'linux-64']
