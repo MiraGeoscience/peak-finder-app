@@ -17,8 +17,8 @@
 version: 1
 metadata:
   content_hash:
-    win-64: ed37f4f465c9794e963bf42a23f947380376fcb7b5903d75ad154d0a65a66cc3
-    linux-64: 6d340b19fb8a5849ace3389ffa0fddb545e0a9d57563158727f9d34b8b414798
+    win-64: f8649510823f84de6fc9344f43469d431e6208d6b87cf7cbd436d773aaeda7a2
+    linux-64: 36d70b1acc37995978785f63bec1fb84016f91b0373b921345ca4fb096ce932a
   channels:
   - url: conda-forge
     used_env_vars: []
@@ -4023,18 +4023,18 @@ package:
   manager: pip
   platform: linux-64
   dependencies:
-    plotly: '>=5.13.1,<5.14.0'
-    pillow: '>=9.4.0,<9.5.0'
-    h5py: '>=3.8.0,<3.9.0'
-    geoh5py: '>=0.8.0rc1,<0.9.0'
     numpy: '>=1.23.5,<1.24.0'
-  url: https://github.com/MiraGeoscience/geoapps-utils/archive/refs/heads/dash_in_extras.zip
+    geoh5py: '>=0.8.0rc1,<0.9.0'
+    pillow: '>=9.4.0,<9.5.0'
+    plotly: '>=5.13.1,<5.14.0'
+    h5py: '>=3.8.0,<3.9.0'
+  url: https://github.com/MiraGeoscience/geoapps-utils/archive/refs/heads/develop.zip
   hash:
     sha256: ''
   category: main
   source:
     type: url
-    url: https://github.com/MiraGeoscience/geoapps-utils/archive/refs/heads/dash_in_extras.zip#sha256=
+    url: https://github.com/MiraGeoscience/geoapps-utils/archive/refs/heads/develop.zip#sha256=
   optional: false
 - name: ca-certificates
   version: 2023.7.22
@@ -7065,16 +7065,16 @@ package:
   manager: pip
   platform: win-64
   dependencies:
-    plotly: '>=5.13.1,<5.14.0'
-    pillow: '>=9.4.0,<9.5.0'
-    h5py: '>=3.8.0,<3.9.0'
-    geoh5py: '>=0.8.0rc1,<0.9.0'
     numpy: '>=1.23.5,<1.24.0'
-  url: https://github.com/MiraGeoscience/geoapps-utils/archive/refs/heads/dash_in_extras.zip
+    geoh5py: '>=0.8.0rc1,<0.9.0'
+    pillow: '>=9.4.0,<9.5.0'
+    plotly: '>=5.13.1,<5.14.0'
+    h5py: '>=3.8.0,<3.9.0'
+  url: https://github.com/MiraGeoscience/geoapps-utils/archive/refs/heads/develop.zip
   hash:
     sha256: ''
   category: main
   source:
     type: url
-    url: https://github.com/MiraGeoscience/geoapps-utils/archive/refs/heads/dash_in_extras.zip#sha256=
+    url: https://github.com/MiraGeoscience/geoapps-utils/archive/refs/heads/develop.zip#sha256=
   optional: false

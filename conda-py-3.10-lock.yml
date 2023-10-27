@@ -8,6 +8,8 @@
 #     conda-lock install -n YOURENV --file conda-py-3.10-lock.yml
 # This lock contains optional development dependencies. Include them in the installed environment with:
 #     conda-lock install --dev-dependencies -n YOURENV --file conda-py-3.10-lock.yml
+# This lock contains optional dependency categories dash. Include them in the installed environment with:
+#     conda-lock install -e dash -n YOURENV --file conda-py-3.10-lock.yml
 # To update a single package to the latest version compatible with the version constraints in the source:
 #     conda-lock lock  --lockfile conda-py-3.10-lock.yml --update PACKAGE
 # To re-solve the entire environment, e.g. after changing a version constraint in the source file:
@@ -15,8 +17,8 @@
 version: 1
 metadata:
   content_hash:
-    win-64: 726dd718f62bed65d42ceec6193624b5832c638d8093f4a6e09c7663ba77bc1a
-    linux-64: e1cdca637f778f0c1e5f4c1f7e4e53446b390a85bf0593fddb42f1bbb525d43b
+    win-64: 72b5dd6792fd705d8f73d30d3e093abb5674e108f75314b6663da7daec25a46d
+    linux-64: 3c1645c046a374ecb2a59708f06188545997e45423ca15f95159573c396d789c
   channels:
   - url: conda-forge
     used_env_vars: []
@@ -4021,18 +4023,18 @@ package:
   manager: pip
   platform: linux-64
   dependencies:
-    geoh5py: '>=0.8.0rc1,<0.9.0'
     numpy: '>=1.23.5,<1.24.0'
+    plotly: '>=5.13.1,<5.14.0'
     pillow: '>=9.4.0,<9.5.0'
     h5py: '>=3.8.0,<3.9.0'
-    plotly: '>=5.13.1,<5.14.0'
-  url: https://github.com/MiraGeoscience/geoapps-utils/archive/refs/heads/dash_in_extras.zip
+    geoh5py: '>=0.8.0rc1,<0.9.0'
+  url: https://github.com/MiraGeoscience/geoapps-utils/archive/refs/heads/develop.zip
   hash:
     sha256: ''
   category: main
   source:
     type: url
-    url: https://github.com/MiraGeoscience/geoapps-utils/archive/refs/heads/dash_in_extras.zip#sha256=
+    url: https://github.com/MiraGeoscience/geoapps-utils/archive/refs/heads/develop.zip#sha256=
   optional: false
 - name: ca-certificates
   version: 2023.7.22
@@ -7063,16 +7065,16 @@ package:
   manager: pip
   platform: win-64
   dependencies:
-    geoh5py: '>=0.8.0rc1,<0.9.0'
     numpy: '>=1.23.5,<1.24.0'
+    plotly: '>=5.13.1,<5.14.0'
     pillow: '>=9.4.0,<9.5.0'
     h5py: '>=3.8.0,<3.9.0'
-    plotly: '>=5.13.1,<5.14.0'
-  url: https://github.com/MiraGeoscience/geoapps-utils/archive/refs/heads/dash_in_extras.zip
+    geoh5py: '>=0.8.0rc1,<0.9.0'
+  url: https://github.com/MiraGeoscience/geoapps-utils/archive/refs/heads/develop.zip
   hash:
     sha256: ''
   category: main
   source:
     type: url
-    url: https://github.com/MiraGeoscience/geoapps-utils/archive/refs/heads/dash_in_extras.zip#sha256=
+    url: https://github.com/MiraGeoscience/geoapps-utils/archive/refs/heads/develop.zip#sha256=
   optional: false
