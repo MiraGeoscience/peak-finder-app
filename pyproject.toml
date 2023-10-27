@@ -38,7 +38,7 @@ pytest-cov = "*"
 tomli = "*" # for tests only
 
 [tool.conda-lock]
-platforms = ['win-64', 'osx-64', 'linux-64']
+platforms = ['win-64', 'linux-64']
 channels = ['conda-forge']
 
 [tool.conda-lock.dependencies]
