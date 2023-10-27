@@ -17,4 +17,5 @@ def pyproject() -> dict:
     """Return the pyproject.toml as a dictionary."""
 
     pyproject_path = Path(__file__).resolve().parents[1] / "pyproject.toml"
-    return toml.load(pyproject_path)
+    with open(pyproject_path, "rb") as pyproject_file:
+        return toml.load(pyproject_file)
