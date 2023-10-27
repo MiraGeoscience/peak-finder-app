@@ -11,7 +11,7 @@ import re
 import peak_finder
 
 
-def test_version_is_consistent(pyproject: dict[str]):
+def test_version_is_consistent(pyproject: dict):
     assert peak_finder.__version__ == pyproject["tool"]["poetry"]["version"]
 
 

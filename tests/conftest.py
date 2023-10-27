@@ -13,7 +13,7 @@ import tomli as toml
 
 
 @pytest.fixture
-def pyproject() -> dict[str]:
+def pyproject() -> dict:
     """Return the pyproject.toml as a dictionary."""
 
     pyproject_path = Path(__file__).resolve().parents[1] / "pyproject.toml"
