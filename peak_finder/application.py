@@ -183,6 +183,9 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
             Input(component_id="line_id", component_property="value"),
             Input(component_id="active_channels", component_property="data"),
             State(component_id="property_groups", component_property="data"),
+            State(
+                component_id="update_from_property_groups", component_property="data"
+            ),
             Input(component_id="y_scale", component_property="value"),
             Input(component_id="linear_threshold", component_property="value"),
             Input(component_id="line_indices", component_property="data"),
@@ -348,10 +351,18 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
             color_picker_out = {"hex": property_groups[group_name]["color"]}
         elif trigger == "color_picker":
             property_groups_out = property_groups
+            original_colour = property_groups_out[group_name]["color"]
             property_groups_out[group_name]["color"] = str(color_picker["hex"])
+            # Update line colours
             for key, value in property_groups.items():
                 if key in trace_map:
                     self.figure.data[trace_map[key]]["line_color"] = value["color"]
+            # Update marker colours
+            colour_array = np.array(
+                self.figure.data[trace_map["peaks"]]["marker_color"]
+            )
+            colour_array[colour_array == str(original_colour)] = value["color"]
+            self.figure.data[trace_map["peaks"]]["marker_color"] = colour_array
         elif trigger == "property_groups" or trigger is None:
             group_name_options = list(property_groups.keys())
             update_from_property_groups = True
@@ -866,6 +877,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         line_id,
         active_channels,
         property_groups,
+        update_from_property_groups,
         y_scale,
         linear_threshold,
         line_indices_dict,
@@ -879,6 +891,12 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
             or self.figure is None
         ):
             return no_update
+        triggers = [t["prop_id"].split(".")[0] for t in callback_context.triggered]
+        if (
+            "update_from_property_groups" in triggers
+            and not update_from_property_groups
+        ):
+            raise PreventUpdate
         if not show_markers:
             self.figure.data[trace_map["markers_legend"]]["visible"] = False
             return update_markers + 1
