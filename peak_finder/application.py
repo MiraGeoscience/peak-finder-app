@@ -197,7 +197,9 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         self.app.callback(
             Output(component_id="update_click_data", component_property="data"),
             State(component_id="update_click_data", component_property="data"),
-            Input(component_id="property_groups", component_property="data"),
+            Input(component_id="line_figure", component_property="clickData"),
+            Input(component_id="full_lines_figure", component_property="clickData"),
+            Input(component_id="line_id", component_property="value"),
         )(self.update_click_data)
         self.app.callback(
             Output(component_id="line_figure", component_property="figure"),
@@ -721,7 +723,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
                     continue
 
                 values = np.array(channel_dict["values"])[indices]
-                values, raw = position.resample_values(values)
+                values, _ = position.resample_values(values)
                 all_values += list(values.flatten())
 
                 if log:
@@ -874,7 +876,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
                     continue
 
                 values = np.array(channel_dict["values"])[indices]
-                values, raw = position.resample_values(values)
+                values, _ = position.resample_values(values)
                 all_values += list(values.flatten())
 
                 if log:
@@ -1070,9 +1072,37 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
     def update_click_data(
         self,
         update_click_data,
-        property_groups,
+        line_click_data: dict | None,
+        full_lines_click_data: dict | None,
+        line_id,
     ):
-        return no_update
+        if self.figure is None:
+            return no_update
+
+        if len(self.figure.layout.shapes) == 0:
+            self.figure.add_vline(x=0)
+
+        triggers = [t["prop_id"].split(".")[0] for t in callback_context.triggered]
+        if line_click_data is not None and "line_figure" in triggers:
+            x_val = line_click_data["points"][0]["x"]
+            self.figure.update_shapes(
+                {"x0": x_val, "x1": x_val}
+            )
+        if (
+                full_lines_click_data is not None
+                and "full_lines_figure" in triggers
+                and self.lines is not None
+        ):
+            x_min = np.min(np.concatenate(tuple([pos.x_locations for pos in self.lines[line_id]["position"]])))
+            x_val = (
+                full_lines_click_data["points"][0]["x"]
+                - x_min
+            )
+            self.figure.update_shapes(
+                {"x0": x_val, "x1": x_val}
+            )
+
+        return update_click_data + 1
 
     def update_colours(
         self,
@@ -1521,10 +1551,12 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
                 and "line_figure" in triggers
                 and self.lines is not None
             ):
-                x_locs = self.lines[line_id]["position"][0].x_locations
-                x_val = x_locs[0] + line_click_data["points"][0]["x"]  # type: ignore
+                x_locs = np.concatenate(tuple([pos.x_locations for pos in self.lines[line_id]["position"]]))
+                y_locs = np.concatenate(tuple([pos.y_locations for pos in self.lines[line_id]["position"]]))
+                x_min = np.min(x_locs)
+                x_val = x_min + line_click_data["points"][0]["x"]  # type: ignore
                 ind = (np.abs(x_locs - x_val)).argmin()
-                y_val = self.lines[line_id]["position"][0].y_locations[ind]  # type: ignore
+                y_val = y_locs[ind]
                 figure["data"][-1]["x"] = [x_val]
                 figure["data"][-1]["y"] = [y_val]
                 return figure
@@ -1539,7 +1571,6 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         if (
             line_ids is None
             or self.lines is None
-            or not isinstance(line_id_options, dict)
         ):
             return figure
 
