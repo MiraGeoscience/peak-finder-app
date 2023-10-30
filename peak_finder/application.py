@@ -19,9 +19,9 @@ import numpy as np
 import plotly.graph_objects as go
 from dash import Dash, callback_context, ctx, dcc, no_update
 from dash.dependencies import Input, Output, State
+from dash.exceptions import PreventUpdate
 from dask import compute
 from dask.diagnostics import ProgressBar
-from dash.exceptions import PreventUpdate
 from flask import Flask
 from geoapps_utils.application.application import get_output_workspace
 from geoapps_utils.application.dash_application import (
@@ -103,7 +103,9 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
             Output(component_id="color_picker", component_property="value"),
             Output(component_id="group_name", component_property="options"),
             Output(component_id="update_colours", component_property="data"),
-            Output(component_id="update_from_property_groups", component_property="data"),
+            Output(
+                component_id="update_from_property_groups", component_property="data"
+            ),
             Input(component_id="group_name", component_property="value"),
             Input(component_id="color_picker", component_property="value"),
             Input(component_id="property_groups", component_property="data"),
@@ -115,7 +117,9 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
             Output(component_id="min_value", component_property="value"),
             Input(component_id="property_groups", component_property="data"),
             Input(component_id="flip_sign", component_property="value"),
-            Input(component_id="update_from_property_groups", component_property="data"),
+            Input(
+                component_id="update_from_property_groups", component_property="data"
+            ),
         )(self.update_active_channels)
         self.app.callback(
             Output(component_id="objects", component_property="data"),
@@ -150,7 +154,9 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
             Input(component_id="min_width", component_property="value"),
             Input(component_id="n_groups", component_property="value"),
             Input(component_id="max_separation", component_property="value"),
-            Input(component_id="update_from_property_groups", component_property="data"),
+            Input(
+                component_id="update_from_property_groups", component_property="data"
+            ),
             State(component_id="update_computation", component_property="data"),
         )(self.compute_line)
         self.app.callback(
@@ -175,8 +181,8 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
             State(component_id="update_markers", component_property="data"),
             Input(component_id="structural_markers", component_property="value"),
             Input(component_id="line_id", component_property="value"),
-            State(component_id="property_groups", component_property="data"),
             Input(component_id="active_channels", component_property="data"),
+            State(component_id="property_groups", component_property="data"),
             Input(component_id="y_scale", component_property="value"),
             Input(component_id="linear_threshold", component_property="value"),
             Input(component_id="line_indices", component_property="data"),
@@ -216,7 +222,9 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
             Input(component_id="full_lines_figure", component_property="clickData"),
             Input(component_id="line_id", component_property="options"),
             Input(component_id="property_groups", component_property="data"),
-            Input(component_id="update_from_property_groups", component_property="data"),
+            Input(
+                component_id="update_from_property_groups", component_property="data"
+            ),
             Input(component_id="line_id", component_property="value"),
             Input(component_id="line_ids", component_property="data"),
             Input(component_id="update_computation", component_property="data"),
@@ -353,7 +361,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
             color_picker_out,
             group_name_options,
             update_colours + 1,
-            update_from_property_groups
+            update_from_property_groups,
         )
 
     def init_data_dropdowns(self, objects: str) -> tuple[list[dict], list[dict]]:
@@ -417,7 +425,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         self,
         property_groups_dict: dict,
         flip_sign: list[bool],
-        update_from_property_groups
+        update_from_property_groups,
     ) -> tuple[dict, float]:
         """
         Update active channels from property groups.
@@ -429,7 +437,10 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         :return: Minimum value.
         """
         triggers = [t["prop_id"].split(".")[0] for t in callback_context.triggered]
-        if "update_from_property_groups" in triggers and not update_from_property_groups:
+        if (
+            "update_from_property_groups" in triggers
+            and not update_from_property_groups
+        ):
             raise PreventUpdate
 
         if flip_sign:
@@ -606,8 +617,13 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         """
         triggers = [t["prop_id"].split(".")[0] for t in callback_context.triggered]
         if (
-            objects is None or line_ids is None or line_indices is None
-            or ("update_from_property_groups" in triggers and not update_from_property_groups)
+            objects is None
+            or line_ids is None
+            or line_indices is None
+            or (
+                "update_from_property_groups" in triggers
+                and not update_from_property_groups
+            )
         ):
             return no_update
         obj = self.workspace.get_entity(uuid.UUID(objects))[0]
@@ -864,8 +880,9 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         ):
             return no_update
         if not show_markers:
-            self.figure.data[trace_map["markers_legend"]]["showlegend"] = False
-            return no_update
+            self.figure.data[trace_map["markers_legend"]]["visible"] = False
+            return update_markers + 1
+        self.figure.data[trace_map["markers_legend"]]["visible"] = True
 
         log = y_scale == "symlog"
         threshold = np.float_power(10, linear_threshold)
@@ -920,7 +937,6 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
                         continue
 
                     i = query[0]
-
                     if anomaly_group.azimuth < 180:  # type: ignore
                         ori = "right"
                     else:
@@ -996,25 +1012,16 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         )
 
         # Update data on traces
-        for trace_name in ["lines", "property_groups", "markers"]:
-            if trace_name in trace_dict:
-                for key, value in trace_dict[trace_name].items():  # type: ignore
-                    self.figure.data[trace_map[key]]["x"] = value["x"]
-                    self.figure.data[trace_map[key]]["y"] = value["y"]
-                    if "customdata" in value:
-                        self.figure.data[trace_map[key]]["customdata"] = value[
-                            "customdata"
-                        ]
-                    if "marker_color" in value:
-                        self.figure.data[trace_map[key]]["marker_color"] = value[
-                            "marker_color"
-                        ]
-
-        # Update legend with markers and residuals
-        if show_markers:
-            self.figure.data[trace_map["markers_legend"]]["showlegend"] = True
-        else:
-            self.figure.data[trace_map["markers_legend"]]["showlegend"] = False
+        if "markers" in trace_dict:
+            for key, value in trace_dict["markers"].items():  # type: ignore
+                self.figure.data[trace_map[key]]["x"] = value["x"]
+                self.figure.data[trace_map[key]]["y"] = value["y"]
+                if "customdata" in value:
+                    self.figure.data[trace_map[key]]["customdata"] = value["customdata"]
+                if "marker_color" in value:
+                    self.figure.data[trace_map[key]]["marker_color"] = value[
+                        "marker_color"
+                    ]
 
         return update_markers + 1
 
@@ -1031,8 +1038,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         update_residuals,
     ):
         if (
-            not show_residuals
-            or len(active_channels) == 0
+            len(active_channels) == 0
             or self.lines is None
             or not self.lines
             or line_id is None
@@ -1040,12 +1046,15 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         ):
             return no_update
         if not show_residuals:
-            self.figure.data[trace_map["pos_residuals_legend"]]["showlegend"] = False
-            self.figure.data[trace_map["neg_residuals_legend"]]["showlegend"] = False
+            self.figure.data[trace_map["pos_residuals_legend"]]["visible"] = False
+            self.figure.data[trace_map["neg_residuals_legend"]]["visible"] = False
             for ind in range(len(trace_map), len(self.figure.data)):
                 self.figure.data[ind]["x"] = []
                 self.figure.data[ind]["y"] = []
-            return no_update
+            return update_residuals + 1
+
+        self.figure.data[trace_map["pos_residuals_legend"]]["visible"] = True
+        self.figure.data[trace_map["neg_residuals_legend"]]["visible"] = True
 
         log = y_scale == "symlog"
         threshold = np.float_power(10, linear_threshold)
@@ -1087,10 +1096,6 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
                     sym_raw,
                     locs,
                 )
-
-        self.figure.data[trace_map["pos_residuals_legend"]]["showlegend"] = True
-        self.figure.data[trace_map["neg_residuals_legend"]]["showlegend"] = True
-
         return update_residuals + 1
 
     def update_click_data(
@@ -1312,7 +1317,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
                 name="positive residuals",
                 legendgroup="positive residuals",
                 showlegend=False,
-                visible="legendonly",
+                visible=True,
                 hoverinfo="skip",
             )
         )
@@ -1336,7 +1341,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
                 name="negative residuals",
                 legendgroup="negative residuals",
                 showlegend=False,
-                visible="legendonly",
+                visible=True,
                 hoverinfo="skip",
             )
         )
@@ -1384,7 +1389,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
                     "marker_symbol": "circle",
                     "legendgroup": "markers",
                     "name": "markers",
-                    "visible": "legendonly",
+                    "visible": True,
                     "showlegend": True,
                 },
                 "pos_residuals_legend": {
@@ -1395,7 +1400,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
                     "line_width": 8,
                     "legendgroup": "positive residuals",
                     "name": "positive residuals",
-                    "visible": "legendonly",
+                    "visible": True,
                     "showlegend": True,
                 },
                 "neg_residuals_legend": {
@@ -1406,7 +1411,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
                     "line_width": 8,
                     "legendgroup": "negative residuals",
                     "name": "negative residuals",
-                    "visible": "legendonly",
+                    "visible": True,
                     "showlegend": True,
                 },
             }
@@ -1423,7 +1428,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
                 "name": "peaks start",
                 "legendgroup": "markers",
                 "showlegend": False,
-                "visible": "legendonly",
+                "visible": True,
                 "hovertemplate": (
                     "<b>x</b>: %{x:,.2f} <br>" + "<b>y</b>: %{customdata:,.2e}"
                 ),
@@ -1442,7 +1447,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
                     "name": "peaks",
                     "legendgroup": "markers",
                     "showlegend": False,
-                    "visible": "legendonly",
+                    "visible": True,
                     "hovertemplate": (
                         "<b>x</b>: %{x:,.2f} <br>" + "<b>y</b>: %{customdata:,.2e}"
                     ),
@@ -1458,7 +1463,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
                     "name": "start markers",
                     "legendgroup": "markers",
                     "showlegend": False,
-                    "visible": "legendonly",
+                    "visible": True,
                     "hovertemplate": (
                         "<b>x</b>: %{x:,.2f} <br>" + "<b>y</b>: %{customdata:,.2e}"
                     ),
@@ -1474,7 +1479,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
                     "name": "end markers",
                     "legendgroup": "markers",
                     "showlegend": False,
-                    "visible": "legendonly",
+                    "visible": True,
                     "hovertemplate": (
                         "<b>x</b>: %{x:,.2f} <br>" + "<b>y</b>: %{customdata:,.2e}"
                     ),
@@ -1490,7 +1495,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
                     "name": "up markers",
                     "legendgroup": "markers",
                     "showlegend": False,
-                    "visible": "legendonly",
+                    "visible": True,
                     "hovertemplate": (
                         "<b>x</b>: %{x:,.2f} <br>" + "<b>y</b>: %{customdata:,.2e}"
                     ),
@@ -1506,7 +1511,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
                     "name": "down markers",
                     "legendgroup": "markers",
                     "showlegend": False,
-                    "visible": "legendonly",
+                    "visible": True,
                     "hovertemplate": (
                         "<b>x</b>: %{x:,.2f} <br>" + "<b>y</b>: %{customdata:,.2e}"
                     ),
