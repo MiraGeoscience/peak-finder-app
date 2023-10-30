@@ -78,27 +78,6 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         self.set_initialized_layout()
 
         # Set up callbacks
-        line_figure_inputs = [
-            Input(component_id="line_figure", component_property="clickData"),
-            Input(component_id="full_lines_figure", component_property="clickData"),
-            Input(component_id="objects", component_property="data"),
-            Input(component_id="property_groups", component_property="data"),
-            Input(component_id="update_line", component_property="data"),
-            Input(component_id="min_value", component_property="value"),
-            Input(component_id="line_id", component_property="value"),
-            Input(component_id="line_indices", component_property="data"),
-            Input(component_id="active_channels", component_property="data"),
-            Input(component_id="y_scale", component_property="value"),
-            Input(component_id="linear_threshold", component_property="value"),
-            Input(component_id="x_label", component_property="value"),
-            Input(component_id="show_residuals", component_property="value"),
-            Input(component_id="structural_markers", component_property="value"),
-            Input(component_id="trace_map", component_property="data"),
-        ]
-        self.app.callback(
-            Output(component_id="line_loading", component_property="children"),
-            *line_figure_inputs,
-        )(PeakFinder.loading_figure)
         self.app.callback(
             Output(component_id="linear_threshold", component_property="disabled"),
             Input(component_id="y_scale", component_property="value"),
@@ -152,7 +131,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
             Input(component_id="line_ids", component_property="data"),
         )(self.get_line_indices)
         self.app.callback(
-            Output(component_id="update_line", component_property="data"),
+            Output(component_id="update_computation", component_property="data"),
             Input(component_id="line_indices", component_property="data"),
             Input(component_id="line_ids", component_property="data"),
             Input(component_id="objects", component_property="data"),
@@ -165,15 +144,68 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
             Input(component_id="min_width", component_property="value"),
             Input(component_id="n_groups", component_property="value"),
             Input(component_id="max_separation", component_property="value"),
-            State(component_id="update_line", component_property="data"),
+            State(component_id="update_computation", component_property="data"),
         )(self.compute_line)
         self.app.callback(
-            Output(component_id="line_figure", component_property="figure"),
+            Output(component_id="update_lines", component_property="data"),
             Output(component_id="linear_threshold", component_property="min"),
             Output(component_id="linear_threshold", component_property="max"),
             Output(component_id="linear_threshold", component_property="marks"),
-            Output(component_id="trace_map", component_property="data"),
-            *line_figure_inputs,
+            Input(component_id="update_computation", component_property="data"),
+            Input(component_id="line_id", component_property="value"),
+            Input(component_id="line_indices", component_property="data"),
+            Input(component_id="y_scale", component_property="value"),
+            Input(component_id="linear_threshold", component_property="value"),
+            Input(component_id="property_groups", component_property="data"),
+            Input(component_id="active_channels", component_property="data"),
+            Input(component_id="trace_map", component_property="data"),
+            Input(component_id="min_value", component_property="value"),
+            Input(component_id="x_label", component_property="value"),
+            State(component_id="update_lines", component_property="data"),
+        )(self.update_lines)
+        self.app.callback(
+            Output(component_id="update_markers", component_property="data"),
+            Input(component_id="update_computation", component_property="data"),
+            State(component_id="update_markers", component_property="data"),
+            Input(component_id="structural_markers", component_property="value"),
+            Input(component_id="line_id", component_property="value"),
+            Input(component_id="property_groups", component_property="data"),
+            Input(component_id="active_channels", component_property="data"),
+            Input(component_id="y_scale", component_property="value"),
+            Input(component_id="linear_threshold", component_property="value"),
+            Input(component_id="line_indices", component_property="data"),
+            Input(component_id="trace_map", component_property="data"),
+        )(self.update_markers)
+        self.app.callback(
+            Output(component_id="update_residuals", component_property="data"),
+            Input(component_id="update_computation", component_property="data"),
+            Input(component_id="show_residuals", component_property="value"),
+            Input(component_id="active_channels", component_property="data"),
+            Input(component_id="line_id", component_property="value"),
+            Input(component_id="y_scale", component_property="value"),
+            Input(component_id="linear_threshold", component_property="value"),
+            Input(component_id="line_indices", component_property="data"),
+            Input(component_id="trace_map", component_property="data"),
+            State(component_id="update_residuals", component_property="data"),
+        )(self.update_residuals)
+        self.app.callback(
+            Output(component_id="update_colours", component_property="data"),
+            Input(component_id="property_groups", component_property="data"),
+            Input(component_id="trace_map", component_property="data"),
+            State(component_id="update_colours", component_property="data"),
+        )(self.update_colours)
+        self.app.callback(
+            Output(component_id="update_click_data", component_property="data"),
+            State(component_id="update_click_data", component_property="data"),
+            Input(component_id="property_groups", component_property="data"),
+        )(self.update_click_data)
+        self.app.callback(
+            Output(component_id="line_figure", component_property="figure"),
+            Input(component_id="update_lines", component_property="data"),
+            Input(component_id="update_markers", component_property="data"),
+            Input(component_id="update_residuals", component_property="data"),
+            Input(component_id="update_colours", component_property="data"),
+            Input(component_id="update_click_data", component_property="data"),
         )(self.update_line_figure)
         self.app.callback(
             Output(component_id="full_lines_figure", component_property="figure"),
@@ -184,7 +216,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
             Input(component_id="property_groups", component_property="data"),
             Input(component_id="line_id", component_property="value"),
             Input(component_id="line_ids", component_property="data"),
-            Input(component_id="update_line", component_property="data"),
+            Input(component_id="update_computation", component_property="data"),
         )(self.update_full_lines_figure)
         self.app.callback(
             Output(component_id="live_link", component_property="value"),
@@ -245,9 +277,13 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         for value in property_groups.values():
             value["data"] = str(value["data"])
             value["properties"] = [str(p) for p in value["properties"]]
-        self.app.layout.children.append(
-            dcc.Store(id="property_groups", data=property_groups)
-        )
+
+        trace_map = self.initialize_figure(property_groups)
+
+        self.app.layout.children += [
+            dcc.Store(id="property_groups", data=property_groups),
+            dcc.Store(id="trace_map", data=trace_map),
+        ]
 
     @staticmethod
     def loading_figure(*args) -> no_update:
@@ -345,7 +381,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
             return [], None
 
         line_field_obj = self.workspace.get_entity(uuid.UUID(line_field))[0]
-        value_map = line_field.value_map.map  # type: ignore
+        value_map = line_field_obj.value_map.map  # type: ignore
 
         line_vals = np.unique(line_field_obj.values)  # type: ignore
         value_map = {key: value for key, value in value_map.items() if key in line_vals}
@@ -523,7 +559,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         min_width: float,
         n_groups: int,
         max_separation: float,
-        update_line: int,
+        update_computation: int,
     ) -> int | None:
         """
         Compute line anomalies.
@@ -540,7 +576,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         :param min_width: Minimum width of anomaly in meters.
         :param n_groups: Number of groups to use for grouping anomalies.
         :param max_separation: Maximum separation between anomalies in meters.
-        :param update_line: Count for if line has been updated.
+        :param update_computation: Count for if line has been updated.
 
         :return: Count for if line has been updated.
         """
@@ -605,145 +641,166 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
                         line_anomalies += line_group.groups  # type: ignore
                 self.lines[line_anomaly.line_id]["anomalies"].append(line_anomalies)
 
-        return update_line + 1
+        return update_computation + 1
 
-    def update_line_figure(  # pylint: disable=too-many-arguments, too-many-locals
+    def update_line_figure(self, *args) -> go.Figure | None:
+        return self.figure
+
+    def update_lines(
         self,
-        line_click_data: dict | None,
-        full_lines_click_data: dict | None,
-        objects: str,
-        property_groups: dict,
-        update_line: int,
-        min_value: float,
+        update_computation,
         line_id,
-        line_indices,
-        active_channels: dict,
-        y_scale: str,
-        linear_threshold: float,
-        x_label: str,
-        show_residuals: list[bool],
-        show_markers: list[bool],
-        trace_map: dict,
-    ) -> tuple[go.Figure, float | None, float | None, dict | None, dict | None]:
+        line_indices_dict,
+        y_scale,
+        linear_threshold,
+        property_groups,
+        active_channels,
+        trace_map,
+        min_value,
+        x_label,
+        update_lines,
+    ):
         """
-        Update the figure.
+        Update the figure data.
 
-        :param line_click_data: Click data for single line plot.
-        :param full_lines_click_data: Click data for full lines plot.
         :param objects: Input object.
-        :param property_groups: Property groups dictionary.
-        :param update_line: Count for if line has been updated.
-        :param min_value: Minimum value.
         :param line_id: Line ID.
-        :param line_indices: Line indices for each line ID given.
+        :param property_groups: Property groups dictionary.
         :param active_channels: Active channels.
+        :param line_indices_dict: Line indices for each line ID given.
         :param y_scale: Whether y-axis ticks are linear or symlog.
-        :param linear_threshold: Linear threshold slider value.
-        :param x_label: X-axis label.
-        :param show_residuals: Whether to plot residuals.
-        :param show_markers: Whether to plot structural markers.
+        :param linear_threshold: Linear threshold.
+        :param trace_map: Dict mapping trace names to indices.
 
-        :return: Updated figure.
+        :return: Label for y-axis.
+        :return: Y-axis tick values.
+        :return: Y-axis tick text.
+        :return: Minimum y-axis value.
+        :return: Maximum y-axis value.
         :return: Linear threshold slider min.
         :return: Linear threshold slider max.
         :return: Linear threshold slider marks.
-        :return: Trace map for plotting.
         """
-        triggers = [t["prop_id"].split(".")[0] for t in callback_context.triggered]
-        if self.figure is not None:
-            # Update click data marker
-            if line_click_data is not None and "line_figure" in triggers:
-                self.figure.update_layout(
-                    shapes=[
-                        {
-                            "type": "line",
-                            "x0": line_click_data["points"][0]["x"],
-                            "x1": line_click_data["points"][0]["x"],
-                        }
-                    ]
-                )
-                return (
-                    self.figure,
-                    no_update,
-                    no_update,
-                    no_update,
-                    no_update,
-                )
-            if (
-                full_lines_click_data is not None
-                and "full_lines_figure" in triggers
-                and self.lines is not None
-            ):
-                x_val = (
-                    full_lines_click_data["points"][0]["x"]
-                    - self.lines[line_id]["position"].x_locations[0]  # type: ignore
-                )
-                self.figure.update_layout(
-                    shapes=[
-                        {
-                            "type": "line",
-                            "x0": x_val,
-                            "x1": x_val,
-                        }
-                    ]
-                )
-                return (
-                    self.figure,
-                    no_update,
-                    no_update,
-                    no_update,
-                    no_update,
-                )
+        if (
+            len(active_channels) == 0
+            or self.lines is None
+            or not self.lines
+            or line_id is None
+            or self.figure is None
+        ):
+            return
 
-        y_min, y_max, y_label, y_tickvals, y_ticktext = (
-            None,
-            None,
-            None,
-            None,
-            None,
+        y_min, y_max = np.inf, -np.inf
+        log = y_scale == "symlog"
+        threshold = np.float_power(10, linear_threshold)
+        all_values = []
+
+        trace_dict = {
+            "lines": {
+                "lines": {
+                    "x": [None],
+                    "y": [None],
+                }
+            },
+            "property_groups": {},
+            "markers": {},
+        }
+
+        n_parts = len(self.lines[line_id]["position"])
+        for ind in range(n_parts):  # pylint: disable=R1702
+            position = self.lines[line_id]["position"][ind]
+            anomalies = self.lines[line_id]["anomalies"][ind]
+            indices = line_indices_dict[str(line_id)][ind]
+
+            if len(indices) < 2:
+                continue
+            locs = position.locations_resampled
+
+            for channel_dict in list(active_channels.values()):
+                if "values" not in channel_dict:
+                    continue
+
+                values = np.array(channel_dict["values"])[indices]
+                values, raw = position.resample_values(values)
+                all_values += list(values.flatten())
+
+                if log:
+                    sym_values = symlog(values, threshold)
+                else:
+                    sym_values = values
+
+                y_min = np.nanmin([sym_values.min(), y_min])
+                y_max = np.nanmax([sym_values.max(), y_max])
+
+                trace_dict["lines"]["lines"]["x"] += list(locs) + [None]  # type: ignore
+                trace_dict["lines"]["lines"]["y"] += list(sym_values) + [None]  # type: ignore
+
+                for anomaly_group in anomalies:
+                    channels = np.array(
+                        [a.parent.data_entity.name for a in anomaly_group.anomalies]
+                    )
+                    group_name = anomaly_group.property_group.name
+                    query = np.where(np.array(channels) == channel_dict["name"])[0]
+                    if len(query) == 0:
+                        continue
+
+                    start = anomaly_group.start
+                    end = anomaly_group.end
+
+                    if group_name not in trace_dict["property_groups"]:  # type: ignore
+                        trace_dict["property_groups"][group_name] = {  # type: ignore
+                            "x": [None],
+                            "y": [None],
+                            "customdata": [None],
+                        }
+                    trace_dict["property_groups"][group_name]["x"] += list(  # type: ignore
+                        locs[start:end]
+                    ) + [
+                        None
+                    ]
+                    trace_dict["property_groups"][group_name]["y"] += list(  # type: ignore
+                        sym_values[start:end]
+                    ) + [
+                        None
+                    ]
+                    trace_dict["property_groups"][group_name]["customdata"] += list(  # type: ignore
+                        values[start:end]
+                    ) + [
+                        None
+                    ]
+
+        if np.isinf(y_min):
+            return None, None, None, None, None, None, None, None, trace_map
+
+        all_values = np.array(all_values)
+        _, y_label, y_tickvals, y_ticktext = format_axis(
+            channel="Data",
+            axis=all_values,
+            log=log,
+            threshold=threshold,
         )
-        thresh_min, thresh_max, thresh_ticks = no_update, no_update, no_update
 
-        # Update figure data
-        figure_data_triggers = [
-            "objects",
-            "active_channels",
-            "y_scale",
-            "linear_threshold",
-            "show_residuals",
-            "structural_markers",
-            "line_id",
-            "update_line",
-        ]
-        if self.figure is None or any(t in triggers for t in figure_data_triggers):
-            (
-                y_label,
-                y_tickvals,
-                y_ticktext,
-                y_min,
-                y_max,
-                thresh_min,
-                thresh_max,
-                thresh_ticks,
-                trace_map,
-            ) = self.update_figure_data(
-                objects,
-                line_id,
-                property_groups,
-                active_channels,
-                line_indices,
-                y_scale,
-                linear_threshold,
-                show_residuals,
-                show_markers,
-                trace_map,
-            )
-        elif "property_groups" in triggers:
-            # Update trace colours if property groups are the only change
-            self.update_data_colours(property_groups, trace_map)
+        # Update data on traces
+        for trace_name in ["lines", "property_groups"]:
+            if trace_name in trace_dict:
+                for key, value in trace_dict[trace_name].items():  # type: ignore
+                    self.figure.data[trace_map[key]]["x"] = value["x"]
+                    self.figure.data[trace_map[key]]["y"] = value["y"]
+                    if "customdata" in value:
+                        self.figure.data[trace_map[key]]["customdata"] = value[
+                            "customdata"
+                        ]
 
-        # Update figure layout
-        self.update_figure_layout(
+        # Update linear threshold
+        pos_vals = all_values[all_values > 0]  # type: ignore
+
+        thresh_min = np.log10(np.min(pos_vals))
+        thresh_max = np.log10(np.max(pos_vals))
+        thresh_ticks = {
+            t: "10E" + f"{t:.2g}" for t in np.linspace(thresh_min, thresh_max, 5)
+        }
+
+        self.update_layout(
             y_label,
             y_tickvals,
             y_ticktext,
@@ -752,28 +809,294 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
             min_value,
             x_label,
         )
+        return (
+            update_lines + 1,
+            thresh_min,
+            thresh_max,
+            thresh_ticks,
+        )
 
-        if len(self.figure.layout["shapes"]) == 0:
-            self.figure.add_vline(x=0)
-        return self.figure, thresh_min, thresh_max, thresh_ticks, trace_map
+    def update_markers(
+        self,
+        update_computation,
+        update_markers,
+        show_markers,
+        line_id,
+        active_channels,
+        property_groups,
+        y_scale,
+        linear_threshold,
+        line_indices_dict,
+        trace_map,
+    ):
+        if (
+            len(active_channels) == 0
+            or self.lines is None
+            or not self.lines
+            or line_id is None
+            or self.figure is None
+        ):
+            return no_update
+        if not show_markers:
+            self.figure.data[trace_map["markers_legend"]]["showlegend"] = False
+            return no_update
 
-    def update_data_colours(
+        log = y_scale == "symlog"
+        threshold = np.float_power(10, linear_threshold)
+        all_values = []
+        peak_markers_x, peak_markers_y, peak_markers_customdata, peak_markers_c = (
+            [],
+            [],
+            [],
+            [],
+        )
+        end_markers_x, end_markers_y, end_markers_customdata = [], [], []
+        start_markers_x, start_markers_y, start_markers_customdata = [], [], []
+        up_markers_x, up_markers_y, up_markers_customdata = [], [], []
+        dwn_markers_x, dwn_markers_y, dwn_markers_customdata = [], [], []
+
+        trace_dict = {
+            "markers": {},
+        }
+
+        n_parts = len(self.lines[line_id]["position"])
+        for ind in range(n_parts):  # pylint: disable=R1702
+            position = self.lines[line_id]["position"][ind]
+            anomalies = self.lines[line_id]["anomalies"][ind]
+            indices = line_indices_dict[str(line_id)][ind]
+
+            if len(indices) < 2:
+                continue
+            locs = position.locations_resampled
+
+            for channel_dict in list(active_channels.values()):
+                if "values" not in channel_dict:
+                    continue
+
+                values = np.array(channel_dict["values"])[indices]
+                values, raw = position.resample_values(values)
+                all_values += list(values.flatten())
+
+                if log:
+                    sym_values = symlog(values, threshold)
+                else:
+                    sym_values = values
+
+                for anomaly_group in anomalies:
+                    channels = np.array(
+                        [a.parent.data_entity.name for a in anomaly_group.anomalies]
+                    )
+                    group_name = anomaly_group.property_group.name
+                    color = property_groups[group_name]["color"]
+                    peaks = anomaly_group.get_list_attr("peak")
+                    query = np.where(np.array(channels) == channel_dict["name"])[0]
+                    if len(query) == 0:
+                        continue
+
+                    i = query[0]
+
+                    if anomaly_group.azimuth < 180:  # type: ignore
+                        ori = "right"
+                    else:
+                        ori = "left"
+
+                    # Add markers
+                    if i == 0:
+                        if ori + "_azimuth" not in trace_dict["markers"]:  # type: ignore
+                            trace_dict["markers"][ori + "_azimuth"] = {  # type: ignore
+                                "x": [None],
+                                "y": [None],
+                                "customdata": [None],
+                            }
+                        trace_dict["markers"][ori + "_azimuth"]["x"] += [  # type: ignore
+                            locs[peaks[i]]
+                        ]
+                        trace_dict["markers"][ori + "_azimuth"]["y"] += [  # type: ignore
+                            sym_values[peaks[i]]
+                        ]
+                        trace_dict["markers"][ori + "_azimuth"][  # type: ignore
+                            "customdata"
+                        ] += [values[peaks[i]]]
+
+                        peak_markers_x += [locs[peaks[i]]]
+                        peak_markers_y += [sym_values[peaks[i]]]
+                        peak_markers_customdata += [values[peaks[i]]]
+                        peak_markers_c += [color]
+                        start_markers_x += [locs[anomaly_group.anomalies[i].start]]
+                        start_markers_y += [
+                            sym_values[anomaly_group.anomalies[i].start]
+                        ]
+                        start_markers_customdata += [
+                            values[anomaly_group.anomalies[i].start]
+                        ]
+                        end_markers_x += [locs[anomaly_group.anomalies[i].end]]
+                        end_markers_y += [sym_values[anomaly_group.anomalies[i].end]]
+                        end_markers_customdata += [
+                            values[anomaly_group.anomalies[i].end]
+                        ]
+                        up_markers_x += [locs[anomaly_group.anomalies[i].inflect_up]]
+                        up_markers_y += [
+                            sym_values[anomaly_group.anomalies[i].inflect_up]
+                        ]
+                        up_markers_customdata += [
+                            values[anomaly_group.anomalies[i].inflect_up]
+                        ]
+                        dwn_markers_x += [locs[anomaly_group.anomalies[i].inflect_down]]
+                        dwn_markers_y += [
+                            sym_values[anomaly_group.anomalies[i].inflect_down]
+                        ]
+                        dwn_markers_customdata += [
+                            values[anomaly_group.anomalies[i].inflect_down]
+                        ]
+
+        trace_dict = PeakFinder.add_markers(
+            trace_dict,
+            peak_markers_x,
+            peak_markers_y,
+            peak_markers_customdata,
+            peak_markers_c,
+            start_markers_x,
+            start_markers_y,
+            start_markers_customdata,
+            end_markers_x,
+            end_markers_y,
+            end_markers_customdata,
+            up_markers_x,
+            up_markers_y,
+            up_markers_customdata,
+            dwn_markers_x,
+            dwn_markers_y,
+            dwn_markers_customdata,
+        )
+
+        # Update data on traces
+        for trace_name in ["lines", "property_groups", "markers"]:
+            if trace_name in trace_dict:
+                for key, value in trace_dict[trace_name].items():  # type: ignore
+                    self.figure.data[trace_map[key]]["x"] = value["x"]
+                    self.figure.data[trace_map[key]]["y"] = value["y"]
+                    if "customdata" in value:
+                        self.figure.data[trace_map[key]]["customdata"] = value[
+                            "customdata"
+                        ]
+                    if "marker_color" in value:
+                        self.figure.data[trace_map[key]]["marker_color"] = value[
+                            "marker_color"
+                        ]
+
+        # Update legend with markers and residuals
+        if show_markers:
+            self.figure.data[trace_map["markers_legend"]]["showlegend"] = True
+        else:
+            self.figure.data[trace_map["markers_legend"]]["showlegend"] = False
+
+        return update_markers + 1
+
+    def update_residuals(
+        self,
+        update_computation,
+        show_residuals,
+        active_channels,
+        line_id,
+        y_scale,
+        linear_threshold,
+        line_indices_dict,
+        trace_map,
+        update_residuals,
+    ):
+        if (
+            not show_residuals
+            or len(active_channels) == 0
+            or self.lines is None
+            or not self.lines
+            or line_id is None
+            or self.figure is None
+        ):
+            return no_update
+        if not show_residuals:
+            self.figure.data[trace_map["pos_residuals_legend"]]["showlegend"] = False
+            self.figure.data[trace_map["neg_residuals_legend"]]["showlegend"] = False
+            for ind in range(len(trace_map), len(self.figure.data)):
+                self.figure.data[ind]["x"] = []
+                self.figure.data[ind]["y"] = []
+            return no_update
+
+        log = y_scale == "symlog"
+        threshold = np.float_power(10, linear_threshold)
+
+        n_parts = len(self.lines[line_id]["position"])
+        for ind in range(n_parts):  # pylint: disable=R1702
+            position = self.lines[line_id]["position"][ind]
+            anomalies = self.lines[line_id]["anomalies"][ind]
+            indices = line_indices_dict[str(line_id)][ind]
+
+            if len(indices) < 2:
+                continue
+            locs = position.locations_resampled
+
+            for channel_dict in list(active_channels.values()):
+                if "values" not in channel_dict:
+                    continue
+
+                values = np.array(channel_dict["values"])[indices]
+                values, raw = position.resample_values(values)
+
+                if log:
+                    sym_values = symlog(values, threshold)
+                    sym_raw = symlog(raw, threshold)
+                else:
+                    sym_values = values
+                    sym_raw = raw
+
+                for anomaly_group in anomalies:
+                    channels = np.array(
+                        [a.parent.data_entity.name for a in anomaly_group.anomalies]
+                    )
+                    query = np.where(np.array(channels) == channel_dict["name"])[0]
+                    if len(query) == 0:
+                        continue
+
+                self.add_residuals(
+                    sym_values,
+                    sym_raw,
+                    locs,
+                )
+
+        self.figure.data[trace_map["pos_residuals_legend"]]["showlegend"] = True
+        self.figure.data[trace_map["neg_residuals_legend"]]["showlegend"] = True
+
+        return update_residuals + 1
+
+    def update_click_data(
+        self,
+        update_click_data,
+        property_groups,
+    ):
+        return no_update
+
+    def update_colours(
         self,
         property_groups: dict,
         trace_map: dict,
-    ):
+        update_colours: int,
+    ) -> int:
         """
         Update figure data on colour change.
 
         :param property_groups: Property groups dictionary.
         :param trace_map: Dict mapping figure trace names to indices.
-        """
-        if self.figure is not None:
-            for key, value in property_groups.items():
-                if key in trace_map:
-                    self.figure.data[trace_map[key]]["line_color"] = value["color"]
+        :param update_colours: Trigger for updating trace colours.
 
-    def update_figure_layout(  # pylint: disable=too-many-arguments
+        :return: Trigger for updating trace colours.
+        """
+        if self.figure is None:
+            return no_update
+        for key, value in property_groups.items():
+            if key in trace_map:
+                self.figure.data[trace_map[key]]["line_color"] = value["color"]
+        return update_colours + 1
+
+    def update_layout(  # pylint: disable=too-many-arguments
         self,
         y_label: str | None,
         y_tickvals: np.ndarray | None,
@@ -1166,307 +1489,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         for ind, (key, trace) in enumerate(all_traces.items()):
             self.figure.add_trace(go.Scatter(**trace))
             trace_map[key] = ind
-
         return trace_map
-
-    def update_figure_data(  # noqa: C901  # pylint: disable=too-many-arguments, too-many-locals, too-many-branches, too-many-statements
-        self,
-        objects: str,
-        line_id: int,
-        property_groups: dict,
-        active_channels: dict,
-        line_indices_dict: dict,
-        y_scale: str,
-        linear_threshold: float,
-        show_residuals: list[bool],
-        show_markers: list[bool],
-        trace_map: dict,
-    ) -> tuple[
-        str | None,
-        np.ndarray | None,
-        np.ndarray | None,
-        float | None,
-        float | None,
-        float | None,
-        float | None,
-        dict | None,
-        dict,
-    ]:
-        """
-        Update the figure data.
-
-        :param objects: Input object.
-        :param line_id: Line ID.
-        :param property_groups: Property groups dictionary.
-        :param active_channels: Active channels.
-        :param line_indices_dict: Line indices for each line ID given.
-        :param y_scale: Whether y-axis ticks are linear or symlog.
-        :param linear_threshold: Linear threshold.
-        :param show_residuals: Whether to plot residuals.
-        :param show_markers: Whether to plot markers.
-        :param trace_map: Dict mapping trace names to indices.
-
-        :return: Label for y-axis.
-        :return: Y-axis tick values.
-        :return: Y-axis tick text.
-        :return: Minimum y-axis value.
-        :return: Maximum y-axis value.
-        :return: Linear threshold slider min.
-        :return: Linear threshold slider max.
-        :return: Linear threshold slider marks.
-        """
-        if self.figure is None:
-            trace_map = self.initialize_figure(property_groups)
-
-        obj = self.workspace.get_entity(uuid.UUID(objects))[0]
-
-        if (
-            obj is None
-            or len(active_channels) == 0
-            or self.lines is None
-            or not self.lines
-            or line_id is None
-            or self.figure is None
-        ):
-            return None, None, None, None, None, None, None, None, trace_map
-
-        y_min, y_max = np.inf, -np.inf
-        log = y_scale == "symlog"
-        threshold = np.float_power(10, linear_threshold)
-        all_values = []
-        peak_markers_x, peak_markers_y, peak_markers_customdata, peak_markers_c = (
-            [],
-            [],
-            [],
-            [],
-        )
-        end_markers_x, end_markers_y, end_markers_customdata = [], [], []
-        start_markers_x, start_markers_y, start_markers_customdata = [], [], []
-        up_markers_x, up_markers_y, up_markers_customdata = [], [], []
-        dwn_markers_x, dwn_markers_y, dwn_markers_customdata = [], [], []
-
-        trace_dict = {
-            "lines": {
-                "lines": {
-                    "x": [None],
-                    "y": [None],
-                }
-            },
-            "property_groups": {},
-            "markers": {},
-        }
-
-        n_parts = len(self.lines[line_id]["position"])
-        for ind in range(n_parts):  # pylint: disable=R1702
-            position = self.lines[line_id]["position"][ind]
-            anomalies = self.lines[line_id]["anomalies"][ind]
-            indices = line_indices_dict[str(line_id)][ind]
-
-            if len(indices) < 2:
-                continue
-            locs = position.locations_resampled
-
-            for channel_dict in list(active_channels.values()):
-                if "values" not in channel_dict:
-                    continue
-
-                values = np.array(channel_dict["values"])[indices]
-                values, raw = position.resample_values(values)
-                all_values += list(values.flatten())
-
-                if log:
-                    sym_values = symlog(values, threshold)
-                    sym_raw = symlog(raw, threshold)
-                else:
-                    sym_values = values
-                    sym_raw = raw
-
-                y_min = np.nanmin([sym_values.min(), y_min])
-                y_max = np.nanmax([sym_values.max(), y_max])
-
-                trace_dict["lines"]["lines"]["x"] += list(locs) + [None]  # type: ignore
-                trace_dict["lines"]["lines"]["y"] += list(sym_values) + [None]  # type: ignore
-
-                for anomaly_group in anomalies:
-                    channels = np.array(
-                        [a.parent.data_entity.name for a in anomaly_group.anomalies]
-                    )
-                    group_name = anomaly_group.property_group.name
-                    color = property_groups[group_name]["color"]
-                    peaks = anomaly_group.get_list_attr("peak")
-                    query = np.where(np.array(channels) == channel_dict["name"])[0]
-                    if len(query) == 0:
-                        continue
-
-                    i = query[0]
-                    start = anomaly_group.start
-                    end = anomaly_group.end
-
-                    if group_name not in trace_dict["property_groups"]:  # type: ignore
-                        trace_dict["property_groups"][group_name] = {  # type: ignore
-                            "x": [None],
-                            "y": [None],
-                            "customdata": [None],
-                        }
-                    trace_dict["property_groups"][group_name]["x"] += list(  # type: ignore
-                        locs[start:end]
-                    ) + [
-                        None
-                    ]
-                    trace_dict["property_groups"][group_name]["y"] += list(  # type: ignore
-                        sym_values[start:end]
-                    ) + [
-                        None
-                    ]
-                    trace_dict["property_groups"][group_name]["customdata"] += list(  # type: ignore
-                        values[start:end]
-                    ) + [
-                        None
-                    ]
-
-                    if show_markers:
-                        if anomaly_group.azimuth < 180:  # type: ignore
-                            ori = "right"
-                        else:
-                            ori = "left"
-
-                        # Add markers
-                        if i == 0:
-                            if ori + "_azimuth" not in trace_dict["markers"]:  # type: ignore
-                                trace_dict["markers"][ori + "_azimuth"] = {  # type: ignore
-                                    "x": [None],
-                                    "y": [None],
-                                    "customdata": [None],
-                                }
-                            trace_dict["markers"][ori + "_azimuth"]["x"] += [  # type: ignore
-                                locs[peaks[i]]
-                            ]
-                            trace_dict["markers"][ori + "_azimuth"]["y"] += [  # type: ignore
-                                sym_values[peaks[i]]
-                            ]
-                            trace_dict["markers"][ori + "_azimuth"][  # type: ignore
-                                "customdata"
-                            ] += [values[peaks[i]]]
-
-                        peak_markers_x += [locs[peaks[i]]]
-                        peak_markers_y += [sym_values[peaks[i]]]
-                        peak_markers_customdata += [values[peaks[i]]]
-                        peak_markers_c += [color]
-                        start_markers_x += [locs[anomaly_group.anomalies[i].start]]
-                        start_markers_y += [
-                            sym_values[anomaly_group.anomalies[i].start]
-                        ]
-                        start_markers_customdata += [
-                            values[anomaly_group.anomalies[i].start]
-                        ]
-                        end_markers_x += [locs[anomaly_group.anomalies[i].end]]
-                        end_markers_y += [sym_values[anomaly_group.anomalies[i].end]]
-                        end_markers_customdata += [
-                            values[anomaly_group.anomalies[i].end]
-                        ]
-                        up_markers_x += [locs[anomaly_group.anomalies[i].inflect_up]]
-                        up_markers_y += [
-                            sym_values[anomaly_group.anomalies[i].inflect_up]
-                        ]
-                        up_markers_customdata += [
-                            values[anomaly_group.anomalies[i].inflect_up]
-                        ]
-                        dwn_markers_x += [locs[anomaly_group.anomalies[i].inflect_down]]
-                        dwn_markers_y += [
-                            sym_values[anomaly_group.anomalies[i].inflect_down]
-                        ]
-                        dwn_markers_customdata += [
-                            values[anomaly_group.anomalies[i].inflect_down]
-                        ]
-                if show_residuals:
-                    self.add_residuals(
-                        sym_values,
-                        sym_raw,
-                        locs,
-                    )
-
-        if np.isinf(y_min):
-            return None, None, None, None, None, None, None, None, trace_map
-
-        all_values = np.array(all_values)
-        _, y_label, y_tickvals, y_ticktext = format_axis(
-            channel="Data",
-            axis=all_values,
-            log=log,
-            threshold=threshold,
-        )
-
-        if show_markers:
-            trace_dict = PeakFinder.add_markers(
-                trace_dict,
-                peak_markers_x,
-                peak_markers_y,
-                peak_markers_customdata,
-                peak_markers_c,
-                start_markers_x,
-                start_markers_y,
-                start_markers_customdata,
-                end_markers_x,
-                end_markers_y,
-                end_markers_customdata,
-                up_markers_x,
-                up_markers_y,
-                up_markers_customdata,
-                dwn_markers_x,
-                dwn_markers_y,
-                dwn_markers_customdata,
-            )
-
-        # Update data on traces
-        for trace_name in ["lines", "property_groups", "markers"]:
-            if trace_name in trace_dict:
-                for key, value in trace_dict[trace_name].items():  # type: ignore
-                    self.figure.data[trace_map[key]]["x"] = value["x"]
-                    self.figure.data[trace_map[key]]["y"] = value["y"]
-                    if "customdata" in value:
-                        self.figure.data[trace_map[key]]["customdata"] = value[
-                            "customdata"
-                        ]
-                    if "marker_color" in value:
-                        self.figure.data[trace_map[key]]["marker_color"] = value[
-                            "marker_color"
-                        ]
-
-        # Update legend with markers and residuals
-        if show_markers:
-            self.figure.data[trace_map["markers_legend"]]["showlegend"] = True
-        else:
-            self.figure.data[trace_map["markers_legend"]]["showlegend"] = False
-        if show_residuals:
-            self.figure.data[trace_map["pos_residuals_legend"]]["showlegend"] = True
-            self.figure.data[trace_map["neg_residuals_legend"]]["showlegend"] = True
-        else:
-            self.figure.data[trace_map["pos_residuals_legend"]]["showlegend"] = False
-            self.figure.data[trace_map["neg_residuals_legend"]]["showlegend"] = False
-            for ind in range(len(trace_map), len(self.figure.data)):
-                self.figure.data[ind]["x"] = []
-                self.figure.data[ind]["y"] = []
-
-        # Update linear threshold
-        pos_vals = all_values[all_values > 0]  # type: ignore
-
-        thresh_min = np.log10(np.min(pos_vals))
-        thresh_max = np.log10(np.max(pos_vals))
-        thresh_ticks = {
-            t: "10E" + f"{t:.2g}" for t in np.linspace(thresh_min, thresh_max, 5)
-        }
-
-        return (
-            y_label,
-            y_tickvals,
-            y_ticktext,
-            y_min,
-            y_max,
-            thresh_min,
-            thresh_max,
-            thresh_ticks,
-            trace_map,
-        )
 
     def update_full_lines_figure(  # pylint: disable=too-many-arguments, too-many-locals, too-many-branches
         self,
@@ -1477,7 +1500,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         property_groups: dict,
         line_id: int,
         line_ids: list[int],
-        update_line,
+        update_computation,
     ):
         """
         Update the full lines figure.
@@ -1489,7 +1512,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         :param property_groups: Property groups dictionary.
         :param line_id: Line id.
         :param line_ids: Line ids.
-        :param update_line: Trigger for line computation.
+        :param update_computation: Trigger for line computation.
         """
         triggers = [t["prop_id"].split(".")[0] for t in callback_context.triggered]
         if figure is not None:
@@ -1513,7 +1536,11 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
                 return figure
 
         figure = go.Figure()
-        if line_ids is None or self.lines is None:
+        if (
+            line_ids is None
+            or self.lines is None
+            or not isinstance(line_id_options, dict)
+        ):
             return figure
 
         line_ids_labels = {line["value"]: line["label"] for line in line_id_options}
