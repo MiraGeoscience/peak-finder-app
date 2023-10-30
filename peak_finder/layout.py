@@ -486,5 +486,6 @@ peak_finder_layout = html.Div(
         dcc.Store(id="update_residuals", data=0),
         dcc.Store(id="update_colours", data=0),
         dcc.Store(id="update_click_data", data=0),
+        dcc.Store(id="update_from_property_groups"),
     ],
 )

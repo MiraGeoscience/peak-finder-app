@@ -21,6 +21,7 @@ from dash import Dash, callback_context, ctx, dcc, no_update
 from dash.dependencies import Input, Output, State
 from dask import compute
 from dask.diagnostics import ProgressBar
+from dash.exceptions import PreventUpdate
 from flask import Flask
 from geoapps_utils.application.application import get_output_workspace
 from geoapps_utils.application.dash_application import (
@@ -101,15 +102,20 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
             Output(component_id="property_groups", component_property="data"),
             Output(component_id="color_picker", component_property="value"),
             Output(component_id="group_name", component_property="options"),
+            Output(component_id="update_colours", component_property="data"),
+            Output(component_id="update_from_property_groups", component_property="data"),
             Input(component_id="group_name", component_property="value"),
             Input(component_id="color_picker", component_property="value"),
             Input(component_id="property_groups", component_property="data"),
-        )(PeakFinder.update_property_groups)
+            State(component_id="trace_map", component_property="data"),
+            State(component_id="update_colours", component_property="data"),
+        )(self.update_property_groups)
         self.app.callback(
             Output(component_id="active_channels", component_property="data"),
             Output(component_id="min_value", component_property="value"),
             Input(component_id="property_groups", component_property="data"),
             Input(component_id="flip_sign", component_property="value"),
+            Input(component_id="update_from_property_groups", component_property="data"),
         )(self.update_active_channels)
         self.app.callback(
             Output(component_id="objects", component_property="data"),
@@ -144,6 +150,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
             Input(component_id="min_width", component_property="value"),
             Input(component_id="n_groups", component_property="value"),
             Input(component_id="max_separation", component_property="value"),
+            Input(component_id="update_from_property_groups", component_property="data"),
             State(component_id="update_computation", component_property="data"),
         )(self.compute_line)
         self.app.callback(
@@ -156,7 +163,6 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
             Input(component_id="line_indices", component_property="data"),
             Input(component_id="y_scale", component_property="value"),
             Input(component_id="linear_threshold", component_property="value"),
-            Input(component_id="property_groups", component_property="data"),
             Input(component_id="active_channels", component_property="data"),
             Input(component_id="trace_map", component_property="data"),
             Input(component_id="min_value", component_property="value"),
@@ -169,7 +175,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
             State(component_id="update_markers", component_property="data"),
             Input(component_id="structural_markers", component_property="value"),
             Input(component_id="line_id", component_property="value"),
-            Input(component_id="property_groups", component_property="data"),
+            State(component_id="property_groups", component_property="data"),
             Input(component_id="active_channels", component_property="data"),
             Input(component_id="y_scale", component_property="value"),
             Input(component_id="linear_threshold", component_property="value"),
@@ -188,12 +194,6 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
             Input(component_id="trace_map", component_property="data"),
             State(component_id="update_residuals", component_property="data"),
         )(self.update_residuals)
-        self.app.callback(
-            Output(component_id="update_colours", component_property="data"),
-            Input(component_id="property_groups", component_property="data"),
-            Input(component_id="trace_map", component_property="data"),
-            State(component_id="update_colours", component_property="data"),
-        )(self.update_colours)
         self.app.callback(
             Output(component_id="update_click_data", component_property="data"),
             State(component_id="update_click_data", component_property="data"),
@@ -216,6 +216,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
             Input(component_id="full_lines_figure", component_property="clickData"),
             Input(component_id="line_id", component_property="options"),
             Input(component_id="property_groups", component_property="data"),
+            Input(component_id="update_from_property_groups", component_property="data"),
             Input(component_id="line_id", component_property="value"),
             Input(component_id="line_ids", component_property="data"),
             Input(component_id="update_computation", component_property="data"),
@@ -309,9 +310,13 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
             return False
         return True
 
-    @staticmethod
     def update_property_groups(
-        group_name: str, color_picker: dict, property_groups: dict
+        self,
+        group_name: str,
+        color_picker: dict,
+        property_groups: dict,
+        trace_map,
+        update_colours,
     ) -> tuple[dict, dict, list[str]]:
         """
         Update property groups on color change.
@@ -328,6 +333,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
             no_update,
             no_update,
         )
+        update_from_property_groups = False
         trigger = ctx.triggered_id
 
         if trigger == "group_name":
@@ -335,10 +341,20 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         elif trigger == "color_picker":
             property_groups_out = property_groups
             property_groups_out[group_name]["color"] = str(color_picker["hex"])
+            for key, value in property_groups.items():
+                if key in trace_map:
+                    self.figure.data[trace_map[key]]["line_color"] = value["color"]
         elif trigger == "property_groups" or trigger is None:
             group_name_options = list(property_groups.keys())
+            update_from_property_groups = True
 
-        return property_groups_out, color_picker_out, group_name_options
+        return (
+            property_groups_out,
+            color_picker_out,
+            group_name_options,
+            update_colours + 1,
+            update_from_property_groups
+        )
 
     def init_data_dropdowns(self, objects: str) -> tuple[list[dict], list[dict]]:
         """
@@ -401,6 +417,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         self,
         property_groups_dict: dict,
         flip_sign: list[bool],
+        update_from_property_groups
     ) -> tuple[dict, float]:
         """
         Update active channels from property groups.
@@ -411,6 +428,10 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         :return: Active channels.
         :return: Minimum value.
         """
+        triggers = [t["prop_id"].split(".")[0] for t in callback_context.triggered]
+        if "update_from_property_groups" in triggers and not update_from_property_groups:
+            raise PreventUpdate
+
         if flip_sign:
             flip_sign = -1  # type: ignore
         else:
@@ -561,6 +582,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         min_width: float,
         n_groups: int,
         max_separation: float,
+        update_from_property_groups,
         update_computation: int,
     ) -> int | None:
         """
@@ -582,7 +604,11 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
 
         :return: Count for if line has been updated.
         """
-        if objects is None or line_ids is None or line_indices is None:
+        triggers = [t["prop_id"].split(".")[0] for t in callback_context.triggered]
+        if (
+            objects is None or line_ids is None or line_indices is None
+            or ("update_from_property_groups" in triggers and not update_from_property_groups)
+        ):
             return no_update
         obj = self.workspace.get_entity(uuid.UUID(objects))[0]
 
@@ -655,7 +681,6 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         line_indices_dict,
         y_scale,
         linear_threshold,
-        property_groups,
         active_channels,
         trace_map,
         min_value,
@@ -707,7 +732,6 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
             "property_groups": {},
             "markers": {},
         }
-
         n_parts = len(self.lines[line_id]["position"])
         for ind in range(n_parts):  # pylint: disable=R1702
             position = self.lines[line_id]["position"][ind]
@@ -1085,46 +1109,21 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         triggers = [t["prop_id"].split(".")[0] for t in callback_context.triggered]
         if line_click_data is not None and "line_figure" in triggers:
             x_val = line_click_data["points"][0]["x"]
-            self.figure.update_shapes(
-                {"x0": x_val, "x1": x_val}
-            )
+            self.figure.update_shapes({"x0": x_val, "x1": x_val})
         if (
-                full_lines_click_data is not None
-                and "full_lines_figure" in triggers
-                and self.lines is not None
+            full_lines_click_data is not None
+            and "full_lines_figure" in triggers
+            and self.lines is not None
         ):
-            x_min = np.min(np.concatenate(tuple([pos.x_locations for pos in self.lines[line_id]["position"]])))
-            x_val = (
-                full_lines_click_data["points"][0]["x"]
-                - x_min
+            x_min = np.min(
+                np.concatenate(
+                    tuple([pos.x_locations for pos in self.lines[line_id]["position"]])
+                )
             )
-            self.figure.update_shapes(
-                {"x0": x_val, "x1": x_val}
-            )
+            x_val = full_lines_click_data["points"][0]["x"] - x_min
+            self.figure.update_shapes({"x0": x_val, "x1": x_val})
 
         return update_click_data + 1
-
-    def update_colours(
-        self,
-        property_groups: dict,
-        trace_map: dict,
-        update_colours: int,
-    ) -> int:
-        """
-        Update figure data on colour change.
-
-        :param property_groups: Property groups dictionary.
-        :param trace_map: Dict mapping figure trace names to indices.
-        :param update_colours: Trigger for updating trace colours.
-
-        :return: Trigger for updating trace colours.
-        """
-        if self.figure is None:
-            return no_update
-        for key, value in property_groups.items():
-            if key in trace_map:
-                self.figure.data[trace_map[key]]["line_color"] = value["color"]
-        return update_colours + 1
 
     def update_layout(  # pylint: disable=too-many-arguments
         self,
@@ -1528,6 +1527,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         full_lines_click_data: dict | None,
         line_id_options: list[dict[str, str]],
         property_groups: dict,
+        update_from_property_groups,
         line_id: int,
         line_ids: list[int],
         update_computation,
@@ -1545,14 +1545,20 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         :param update_computation: Trigger for line computation.
         """
         triggers = [t["prop_id"].split(".")[0] for t in callback_context.triggered]
+        if property_groups in triggers and not update_from_property_groups:
+            raise PreventUpdate
         if figure is not None:
             if (
                 line_click_data is not None
                 and "line_figure" in triggers
                 and self.lines is not None
             ):
-                x_locs = np.concatenate(tuple([pos.x_locations for pos in self.lines[line_id]["position"]]))
-                y_locs = np.concatenate(tuple([pos.y_locations for pos in self.lines[line_id]["position"]]))
+                x_locs = np.concatenate(
+                    tuple([pos.x_locations for pos in self.lines[line_id]["position"]])
+                )
+                y_locs = np.concatenate(
+                    tuple([pos.y_locations for pos in self.lines[line_id]["position"]])
+                )
                 x_min = np.min(x_locs)
                 x_val = x_min + line_click_data["points"][0]["x"]  # type: ignore
                 ind = (np.abs(x_locs - x_val)).argmin()
@@ -1568,10 +1574,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
                 return figure
 
         figure = go.Figure()
-        if (
-            line_ids is None
-            or self.lines is None
-        ):
+        if line_ids is None or self.lines is None:
             return figure
 
         line_ids_labels = {line["value"]: line["label"] for line in line_id_options}
