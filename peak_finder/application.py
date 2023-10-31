@@ -106,8 +106,8 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
             Output(
                 component_id="update_from_property_groups", component_property="data"
             ),
-            Input(component_id="group_name", component_property="value"),
             Input(component_id="color_picker", component_property="value"),
+            Input(component_id="group_name", component_property="value"),
             Input(component_id="property_groups", component_property="data"),
             State(component_id="trace_map", component_property="data"),
             State(component_id="update_colours", component_property="data"),
@@ -115,8 +115,8 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         self.app.callback(
             Output(component_id="active_channels", component_property="data"),
             Output(component_id="min_value", component_property="value"),
-            Input(component_id="property_groups", component_property="data"),
             Input(component_id="flip_sign", component_property="value"),
+            Input(component_id="property_groups", component_property="data"),
             Input(
                 component_id="update_from_property_groups", component_property="data"
             ),
@@ -124,9 +124,9 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         self.app.callback(
             Output(component_id="objects", component_property="data"),
             Output(component_id="line_field", component_property="value"),
-            Input(component_id="objects", component_property="data"),
             Input(component_id="line_field", component_property="value"),
             Input(component_id="masking_data", component_property="value"),
+            Input(component_id="objects", component_property="data"),
         )(self.mask_data)
         self.app.callback(
             Output(component_id="line_ids", component_property="data"),
@@ -300,15 +300,6 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         ]
 
     @staticmethod
-    def loading_figure(*args) -> no_update:
-        """
-        Callback for loading symbol on figure update.
-
-        :param args: Same inputs as update_figure.
-        """
-        return no_update
-
-    @staticmethod
     def disable_linear_threshold(y_scale: str) -> bool:
         """
         Disable linear threshold input if y_scale is symlog.
@@ -323,21 +314,29 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
 
     def update_property_groups(
         self,
-        group_name: str,
         color_picker: dict,
+        group_name: str,
         property_groups: dict,
-        trace_map,
-        update_colours,
-    ) -> tuple[dict, dict, list[str]]:
+        trace_map: dict,
+        update_colours: int,
+    ) -> tuple[dict, dict, list[str], int, bool]:
         """
         Update property groups on color change.
         Update color picker on group name dropdown change.
 
-        :param group_name: Name of property group from dropdown.
         :param color_picker: Color picker hex value.
+        :param group_name: Name of property group from dropdown.
         :param property_groups: Property groups dictionary.
+        :param trace_map: Dict mapping figure trace indices to trace name.
+        :param update_colours: Trigger for updating figure colours.
 
-        :return: Updated property groups, color picker, and group name options.
+        :return: Updated property groups
+        :return: Updated color picker.
+        :return: Updated group name options.
+        :return: Trigger to update figure colours.
+        :return: Whether to update other callbacks from property groups.
+            (If only the colours have been updated, the other plotting callbacks should not be
+            triggered.)
         """
         property_groups_out, color_picker_out, group_name_options = (
             no_update,
@@ -352,17 +351,18 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         elif trigger == "color_picker":
             property_groups_out = property_groups
             original_colour = property_groups_out[group_name]["color"]
-            property_groups_out[group_name]["color"] = str(color_picker["hex"])
+            new_colour = str(color_picker["hex"])
+            property_groups_out[group_name]["color"] = new_colour
             # Update line colours
-            for key, value in property_groups.items():
-                if key in trace_map:
-                    self.figure.data[trace_map[key]]["line_color"] = value["color"]
-            # Update marker colours
-            colour_array = np.array(
-                self.figure.data[trace_map["peaks"]]["marker_color"]
-            )
-            colour_array[colour_array == str(original_colour)] = value["color"]
-            self.figure.data[trace_map["peaks"]]["marker_color"] = colour_array
+            if self.figure is not None:
+                if group_name in trace_map:
+                    self.figure.data[trace_map[group_name]]["line_color"] = new_colour
+                    # Update marker colours
+                    colour_array = np.array(
+                        self.figure.data[trace_map["peaks"]]["marker_color"]
+                    )
+                    colour_array[colour_array == str(original_colour)] = new_colour
+                    self.figure.data[trace_map["peaks"]]["marker_color"] = colour_array
         elif trigger == "property_groups" or trigger is None:
             group_name_options = list(property_groups.keys())
             update_from_property_groups = True
@@ -434,15 +434,16 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
 
     def update_active_channels(
         self,
+        flip_sign_bool: list[bool],
         property_groups_dict: dict,
-        flip_sign: list[bool],
-        update_from_property_groups,
+        update_from_property_groups: bool,
     ) -> tuple[dict, float]:
         """
         Update active channels from property groups.
 
+        :param flip_sign_bool: Whether to flip the sign of the data.
         :param property_groups_dict: Property groups dictionary.
-        :param flip_sign: Whether to flip the sign of the data.
+        :param update_from_property_groups: Whether to update if property groups is triggered.
 
         :return: Active channels.
         :return: Minimum value.
@@ -452,12 +453,13 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
             "update_from_property_groups" in triggers
             and not update_from_property_groups
         ):
+            # Prevent updating the rest of the figure if only the colours have changed.
             raise PreventUpdate
 
-        if flip_sign:
-            flip_sign = -1  # type: ignore
+        if flip_sign_bool:
+            flip_sign = -1
         else:
-            flip_sign = 1  # type: ignore
+            flip_sign = 1
 
         active_channels = {}
         property_groups_dict = dict(property_groups_dict)
@@ -496,16 +498,16 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
 
     def mask_data(
         self,
-        objects: str,
         line_field: str,
         masking_data: str,
+        objects: str,
     ) -> tuple[str, str]:
         """
         Apply masking to survey object.
 
-        :param objects: Input object.
         :param line_field: Line field.
         :param masking_data: Masking data.
+        :param objects: Input object.
 
         :return: Object uid to trigger other callbacks.
         :return: Line field uid to trigger other callbacks.
@@ -604,7 +606,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         min_width: float,
         n_groups: int,
         max_separation: float,
-        update_from_property_groups,
+        update_from_property_groups: bool,
         update_computation: int,
     ) -> int | None:
         """
@@ -622,6 +624,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         :param min_width: Minimum width of anomaly in meters.
         :param n_groups: Number of groups to use for grouping anomalies.
         :param max_separation: Maximum separation between anomalies in meters.
+        :param update_from_property_groups: Whether to update if property groups is triggered.
         :param update_computation: Count for if line has been updated.
 
         :return: Count for if line has been updated.
@@ -699,38 +702,41 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         return update_computation + 1
 
     def update_line_figure(self, *args) -> go.Figure | None:
+        """
+        :param args: Triggers for updating the figure.
+
+        :return: Updated figure.
+        """
         return self.figure
 
-    def update_lines(
+    def update_lines(  # pylint: disable=too-many-arguments, too-many-locals, too-many-branches
         self,
-        update_computation,
-        line_id,
-        line_indices_dict,
-        y_scale,
-        linear_threshold,
-        active_channels,
-        trace_map,
-        min_value,
-        x_label,
-        update_lines,
+        update_computation: int,
+        line_id: int,
+        line_indices_dict: dict,
+        y_scale: str,
+        linear_threshold: float,
+        active_channels: dict,
+        trace_map: dict,
+        min_value: float,
+        x_label: str,
+        update_lines: int,
     ):
         """
-        Update the figure data.
+        Update the figure lines data.
 
-        :param objects: Input object.
+        :param update_computation: Trigger for if the line computation has been updated.
         :param line_id: Line ID.
-        :param property_groups: Property groups dictionary.
-        :param active_channels: Active channels.
         :param line_indices_dict: Line indices for each line ID given.
         :param y_scale: Whether y-axis ticks are linear or symlog.
         :param linear_threshold: Linear threshold.
+        :param active_channels: Active channels.
         :param trace_map: Dict mapping trace names to indices.
+        :param min_value: Minimum value for figure.
+        :param x_label: Label for x-axis.
+        :param update_lines: Trigger for updating the figure lines data.
 
-        :return: Label for y-axis.
-        :return: Y-axis tick values.
-        :return: Y-axis tick text.
-        :return: Minimum y-axis value.
-        :return: Maximum y-axis value.
+        :return: Trigger for updating the figure lines data.
         :return: Linear threshold slider min.
         :return: Linear threshold slider max.
         :return: Linear threshold slider marks.
@@ -742,7 +748,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
             or line_id is None
             or self.figure is None
         ):
-            return
+            return no_update, no_update, no_update, no_update
 
         y_min, y_max = np.inf, -np.inf
         log = y_scale == "symlog"
@@ -823,7 +829,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
                     ]
 
         if np.isinf(y_min):
-            return None, None, None, None, None, None, None, None, trace_map
+            return None, None, None, None
 
         all_values = np.array(all_values)
         _, y_label, y_tickvals, y_ticktext = format_axis(
@@ -853,6 +859,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
             t: "10E" + f"{t:.2g}" for t in np.linspace(thresh_min, thresh_max, 5)
         }
 
+        # Update figure layout
         self.update_layout(
             y_label,
             y_tickvals,
@@ -869,20 +876,135 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
             thresh_ticks,
         )
 
-    def update_markers(
+    @staticmethod
+    def add_markers(  # pylint: disable=too-many-arguments, too-many-locals
+        trace_dict: dict,
+        peak_markers_x: list[float],
+        peak_markers_y: list[float],
+        peak_markers_customdata: list[float],
+        peak_markers_c: list[str],
+        start_markers_x: list[float],
+        start_markers_y: list[float],
+        start_markers_customdata: list[float],
+        end_markers_x: list[float],
+        end_markers_y: list[float],
+        end_markers_customdata: list[float],
+        up_markers_x: list[float],
+        up_markers_y: list[float],
+        up_markers_customdata: list[float],
+        dwn_markers_x: list[float],
+        dwn_markers_y: list[float],
+        dwn_markers_customdata: list[float],
+    ) -> dict:
+        """
+        Format marker arrays as traces and add to trace_dict.
+
+        :param trace_dict: Dictionary of figure traces.
+        :param peak_markers_x: Peak marker x-coordinates.
+        :param peak_markers_y: Peak marker y-coordinates.
+        :param peak_markers_customdata: Peak marker customdata for y values.
+        :param peak_markers_c: Peak marker colors.
+        :param start_markers_x: Start marker x-coordinates.
+        :param start_markers_y: Start marker y-coordinates.
+        :param start_markers_customdata: Start marker customdata for y values.
+        :param end_markers_x: End marker x-coordinates.
+        :param end_markers_y: End marker y-coordinates.
+        :param end_markers_customdata: End marker customdata for y values.
+        :param up_markers_x: Up marker x-coordinates.
+        :param up_markers_y: Up marker y-coordinates.
+        :param up_markers_customdata: Up marker customdata for y values.
+        :param dwn_markers_x: Down marker x-coordinates.
+        :param dwn_markers_y: Down marker y-coordinates.
+        :param dwn_markers_customdata: Down marker customdata for y values.
+
+        :return: Updated trace dictionary.
+        """
+        # Add markers
+        if "peaks" not in trace_dict["markers"]:
+            trace_dict["markers"]["peaks"] = {
+                "x": [None],
+                "y": [None],
+                "customdata": [None],
+                "marker_color": ["black"],
+            }
+        trace_dict["markers"]["peaks"]["x"] += peak_markers_x
+        trace_dict["markers"]["peaks"]["y"] += peak_markers_y
+        trace_dict["markers"]["peaks"]["customdata"] += peak_markers_customdata
+        trace_dict["markers"]["peaks"]["marker_color"] += peak_markers_c
+
+        if "start_markers" not in trace_dict["markers"]:
+            trace_dict["markers"]["start_markers"] = {
+                "x": [None],
+                "y": [None],
+                "customdata": [None],
+            }
+        trace_dict["markers"]["start_markers"]["x"] += start_markers_x
+        trace_dict["markers"]["start_markers"]["y"] += start_markers_y
+        trace_dict["markers"]["start_markers"]["customdata"] += start_markers_customdata
+
+        if "end_markers" not in trace_dict["markers"]:
+            trace_dict["markers"]["end_markers"] = {
+                "x": [None],
+                "y": [None],
+                "customdata": [None],
+            }
+        trace_dict["markers"]["end_markers"]["x"] += end_markers_x
+        trace_dict["markers"]["end_markers"]["y"] += end_markers_y
+        trace_dict["markers"]["end_markers"]["customdata"] += end_markers_customdata
+
+        if "up_markers" not in trace_dict["markers"]:
+            trace_dict["markers"]["up_markers"] = {
+                "x": [None],
+                "y": [None],
+                "customdata": [None],
+            }
+        trace_dict["markers"]["up_markers"]["x"] += up_markers_x
+        trace_dict["markers"]["up_markers"]["y"] += up_markers_y
+        trace_dict["markers"]["up_markers"]["customdata"] += up_markers_customdata
+
+        if "down_markers" not in trace_dict["markers"]:
+            trace_dict["markers"]["down_markers"] = {
+                "x": [None],
+                "y": [None],
+                "customdata": [None],
+            }
+        trace_dict["markers"]["down_markers"]["x"] += dwn_markers_x
+        trace_dict["markers"]["down_markers"]["y"] += dwn_markers_y
+        trace_dict["markers"]["down_markers"]["customdata"] += dwn_markers_customdata
+
+        return trace_dict
+
+    def update_markers(  # noqa: C901  # pylint: disable=too-many-arguments, too-many-locals, too-many-branches, too-many-statements
         self,
-        update_computation,
-        update_markers,
-        show_markers,
-        line_id,
-        active_channels,
-        property_groups,
-        update_from_property_groups,
-        y_scale,
-        linear_threshold,
-        line_indices_dict,
-        trace_map,
-    ):
+        update_computation: int,
+        update_markers: int,
+        show_markers: list[bool],
+        line_id: int,
+        active_channels: dict,
+        property_groups: dict,
+        update_from_property_groups: bool,
+        y_scale: str,
+        linear_threshold: float,
+        line_indices_dict: dict,
+        trace_map: dict,
+    ) -> int:
+        """
+        Update the figure markers data.
+
+        :param update_computation: Trigger for if the line computation has been updated.
+        :param update_markers: Trigger for updating the figure markers data.
+        :param show_markers: Whether to show markers.
+        :param line_id: Line ID.
+        :param active_channels: Active channels.
+        :param property_groups: Property groups dictionary.
+        :param update_from_property_groups: Whether to update if property groups is triggered.
+        :param y_scale: Whether y-axis ticks are linear or symlog.
+        :param linear_threshold: Linear threshold.
+        :param line_indices_dict: Line indices for each line ID given.
+        :param trace_map: Dict mapping trace names to indices.
+
+        :return: Trigger for updating the figure markers data.
+        """
         if (
             len(active_channels) == 0
             or self.lines is None
@@ -916,7 +1038,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         up_markers_x, up_markers_y, up_markers_customdata = [], [], []
         dwn_markers_x, dwn_markers_y, dwn_markers_customdata = [], [], []
 
-        trace_dict = {
+        trace_dict: dict[str, dict] = {
             "markers": {},
         }
 
@@ -1009,6 +1131,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
                             values[anomaly_group.anomalies[i].inflect_down]
                         ]
 
+        # Add markers to trace_dict
         trace_dict = PeakFinder.add_markers(
             trace_dict,
             peak_markers_x,
@@ -1029,7 +1152,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
             dwn_markers_customdata,
         )
 
-        # Update data on traces
+        # Update figure markers from trace_dict
         if "markers" in trace_dict:
             for key, value in trace_dict["markers"].items():  # type: ignore
                 self.figure.data[trace_map[key]]["x"] = value["x"]
@@ -1042,255 +1165,6 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
                     ]
 
         return update_markers + 1
-
-    def update_residuals(
-        self,
-        update_computation,
-        show_residuals,
-        active_channels,
-        line_id,
-        y_scale,
-        linear_threshold,
-        line_indices_dict,
-        trace_map,
-        update_residuals,
-    ):
-        if (
-            len(active_channels) == 0
-            or self.lines is None
-            or not self.lines
-            or line_id is None
-            or self.figure is None
-        ):
-            return no_update
-        if not show_residuals:
-            self.figure.data[trace_map["pos_residuals_legend"]]["visible"] = False
-            self.figure.data[trace_map["neg_residuals_legend"]]["visible"] = False
-            for ind in range(len(trace_map), len(self.figure.data)):
-                self.figure.data[ind]["x"] = []
-                self.figure.data[ind]["y"] = []
-            return update_residuals + 1
-
-        self.figure.data[trace_map["pos_residuals_legend"]]["visible"] = True
-        self.figure.data[trace_map["neg_residuals_legend"]]["visible"] = True
-
-        log = y_scale == "symlog"
-        threshold = np.float_power(10, linear_threshold)
-
-        n_parts = len(self.lines[line_id]["position"])
-        for ind in range(n_parts):  # pylint: disable=R1702
-            position = self.lines[line_id]["position"][ind]
-            anomalies = self.lines[line_id]["anomalies"][ind]
-            indices = line_indices_dict[str(line_id)][ind]
-
-            if len(indices) < 2:
-                continue
-            locs = position.locations_resampled
-
-            for channel_dict in list(active_channels.values()):
-                if "values" not in channel_dict:
-                    continue
-
-                values = np.array(channel_dict["values"])[indices]
-                values, raw = position.resample_values(values)
-
-                if log:
-                    sym_values = symlog(values, threshold)
-                    sym_raw = symlog(raw, threshold)
-                else:
-                    sym_values = values
-                    sym_raw = raw
-
-                for anomaly_group in anomalies:
-                    channels = np.array(
-                        [a.parent.data_entity.name for a in anomaly_group.anomalies]
-                    )
-                    query = np.where(np.array(channels) == channel_dict["name"])[0]
-                    if len(query) == 0:
-                        continue
-
-                self.add_residuals(
-                    sym_values,
-                    sym_raw,
-                    locs,
-                )
-        return update_residuals + 1
-
-    def update_click_data(
-        self,
-        update_click_data,
-        line_click_data: dict | None,
-        full_lines_click_data: dict | None,
-        line_id,
-    ):
-        if self.figure is None:
-            return no_update
-
-        if len(self.figure.layout.shapes) == 0:
-            self.figure.add_vline(x=0)
-
-        triggers = [t["prop_id"].split(".")[0] for t in callback_context.triggered]
-        if line_click_data is not None and "line_figure" in triggers:
-            x_val = line_click_data["points"][0]["x"]
-            self.figure.update_shapes({"x0": x_val, "x1": x_val})
-        if (
-            full_lines_click_data is not None
-            and "full_lines_figure" in triggers
-            and self.lines is not None
-        ):
-            x_min = np.min(
-                np.concatenate(
-                    tuple([pos.x_locations for pos in self.lines[line_id]["position"]])
-                )
-            )
-            x_val = full_lines_click_data["points"][0]["x"] - x_min
-            self.figure.update_shapes({"x0": x_val, "x1": x_val})
-
-        return update_click_data + 1
-
-    def update_layout(  # pylint: disable=too-many-arguments
-        self,
-        y_label: str | None,
-        y_tickvals: np.ndarray | None,
-        y_ticktext: list[str] | None,
-        y_min: float | None,
-        y_max: float | None,
-        min_value: float,
-        x_label: str,
-    ):
-        """
-        Update the figure layout.
-
-        :param y_label: Label for y-axis.
-        :param y_tickvals: Y-axis tick values.
-        :param y_ticktext: Y-axis tick text.
-        :param y_min: Minimum y-axis value.
-        :param y_max: Maximum y-axis value.
-        :param min_value: Minimum value.
-        :param x_label: X-axis label.
-        """
-        if self.figure is None:
-            return
-
-        if y_min is not None and y_max is not None:
-            self.figure.update_layout(
-                {"yaxis_range": [np.nanmax([y_min, min_value]), y_max]}
-            )
-        if y_label is not None:
-            self.figure.update_layout(
-                {
-                    "yaxis_title": y_label,
-                }
-            )
-        if y_tickvals is not None and y_ticktext is not None:
-            self.figure.update_layout(
-                {
-                    "yaxis_tickvals": y_tickvals,
-                    "yaxis_ticktext": [f"{y:.2e}" for y in y_ticktext],
-                }
-            )
-
-        self.figure.update_layout(
-            {"xaxis_title": x_label + " (m)", "yaxis_tickformat": ".2e"}
-        )
-
-    @staticmethod
-    def add_markers(  # pylint: disable=too-many-arguments, too-many-locals
-        trace_dict: dict,
-        peak_markers_x: list[float],
-        peak_markers_y: list[float],
-        peak_markers_customdata: list[float],
-        peak_markers_c: list[str],
-        start_markers_x: list[float],
-        start_markers_y: list[float],
-        start_markers_customdata: list[float],
-        end_markers_x: list[float],
-        end_markers_y: list[float],
-        end_markers_customdata: list[float],
-        up_markers_x: list[float],
-        up_markers_y: list[float],
-        up_markers_customdata: list[float],
-        dwn_markers_x: list[float],
-        dwn_markers_y: list[float],
-        dwn_markers_customdata: list[float],
-    ) -> dict:
-        """
-        Add markers to the figure.
-
-        :param trace_dict: Dictionary of figure traces.
-        :param peak_markers_x: Peak marker x-coordinates.
-        :param peak_markers_y: Peak marker y-coordinates.
-        :param peak_markers_customdata: Peak marker customdata for y values.
-        :param peak_markers_c: Peak marker colors.
-        :param start_markers_x: Start marker x-coordinates.
-        :param start_markers_y: Start marker y-coordinates.
-        :param start_markers_customdata: Start marker customdata for y values.
-        :param end_markers_x: End marker x-coordinates.
-        :param end_markers_y: End marker y-coordinates.
-        :param end_markers_customdata: End marker customdata for y values.
-        :param up_markers_x: Up marker x-coordinates.
-        :param up_markers_y: Up marker y-coordinates.
-        :param up_markers_customdata: Up marker customdata for y values.
-        :param dwn_markers_x: Down marker x-coordinates.
-        :param dwn_markers_y: Down marker y-coordinates.
-        :param dwn_markers_customdata: Down marker customdata for y values.
-
-        :return: Updated trace dictionary.
-        """
-        # Add markers
-        if "peaks" not in trace_dict["markers"]:
-            trace_dict["markers"]["peaks"] = {
-                "x": [None],
-                "y": [None],
-                "customdata": [None],
-                "marker_color": ["black"],
-            }
-        trace_dict["markers"]["peaks"]["x"] += peak_markers_x
-        trace_dict["markers"]["peaks"]["y"] += peak_markers_y
-        trace_dict["markers"]["peaks"]["customdata"] += peak_markers_customdata
-        trace_dict["markers"]["peaks"]["marker_color"] += peak_markers_c
-
-        if "start_markers" not in trace_dict["markers"]:
-            trace_dict["markers"]["start_markers"] = {
-                "x": [None],
-                "y": [None],
-                "customdata": [None],
-            }
-        trace_dict["markers"]["start_markers"]["x"] += start_markers_x
-        trace_dict["markers"]["start_markers"]["y"] += start_markers_y
-        trace_dict["markers"]["start_markers"]["customdata"] += start_markers_customdata
-
-        if "end_markers" not in trace_dict["markers"]:
-            trace_dict["markers"]["end_markers"] = {
-                "x": [None],
-                "y": [None],
-                "customdata": [None],
-            }
-        trace_dict["markers"]["end_markers"]["x"] += end_markers_x
-        trace_dict["markers"]["end_markers"]["y"] += end_markers_y
-        trace_dict["markers"]["end_markers"]["customdata"] += end_markers_customdata
-
-        if "up_markers" not in trace_dict["markers"]:
-            trace_dict["markers"]["up_markers"] = {
-                "x": [None],
-                "y": [None],
-                "customdata": [None],
-            }
-        trace_dict["markers"]["up_markers"]["x"] += up_markers_x
-        trace_dict["markers"]["up_markers"]["y"] += up_markers_y
-        trace_dict["markers"]["up_markers"]["customdata"] += up_markers_customdata
-
-        if "down_markers" not in trace_dict["markers"]:
-            trace_dict["markers"]["down_markers"] = {
-                "x": [None],
-                "y": [None],
-                "customdata": [None],
-            }
-        trace_dict["markers"]["down_markers"]["x"] += dwn_markers_x
-        trace_dict["markers"]["down_markers"]["y"] += dwn_markers_y
-        trace_dict["markers"]["down_markers"]["customdata"] += dwn_markers_customdata
-
-        return trace_dict
 
     def add_residuals(
         self,
@@ -1364,10 +1238,193 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
             )
         )
 
+    def update_residuals(  # pylint: disable=too-many-arguments, too-many-locals
+        self,
+        update_computation: int,
+        show_residuals: list[bool],
+        active_channels: dict,
+        line_id: int,
+        y_scale: str,
+        linear_threshold: float,
+        line_indices_dict: dict,
+        trace_map: dict,
+        update_residuals: int,
+    ) -> int:
+        """
+        Add residuals to figure.
+
+        :param update_computation: Trigger for if the line computation has been updated.
+        :param show_residuals: Whether to show residuals.
+        :param active_channels: Active channels.
+        :param line_id: Line ID.
+        :param y_scale: Whether y-axis ticks are linear or symlog.
+        :param linear_threshold: Linear threshold.
+        :param line_indices_dict: Line indices for each line ID given.
+        :param trace_map: Dict mapping trace names to indices.
+        :param update_residuals: Trigger for updating the figure residuals data.
+
+        :return: Trigger for updating the figure residuals data.
+        """
+        if (
+            len(active_channels) == 0
+            or self.lines is None
+            or not self.lines
+            or line_id is None
+            or self.figure is None
+        ):
+            return no_update
+        if not show_residuals:
+            self.figure.data[trace_map["pos_residuals_legend"]]["visible"] = False
+            self.figure.data[trace_map["neg_residuals_legend"]]["visible"] = False
+            for ind in range(len(trace_map), len(self.figure.data)):
+                self.figure.data[ind]["x"] = []
+                self.figure.data[ind]["y"] = []
+            return update_residuals + 1
+
+        self.figure.data[trace_map["pos_residuals_legend"]]["visible"] = True
+        self.figure.data[trace_map["neg_residuals_legend"]]["visible"] = True
+
+        log = y_scale == "symlog"
+        threshold = np.float_power(10, linear_threshold)
+
+        n_parts = len(self.lines[line_id]["position"])
+        for ind in range(n_parts):  # pylint: disable=R1702
+            position = self.lines[line_id]["position"][ind]
+            anomalies = self.lines[line_id]["anomalies"][ind]
+            indices = line_indices_dict[str(line_id)][ind]
+
+            if len(indices) < 2:
+                continue
+            locs = position.locations_resampled
+
+            for channel_dict in list(active_channels.values()):
+                if "values" not in channel_dict:
+                    continue
+
+                values = np.array(channel_dict["values"])[indices]
+                values, raw = position.resample_values(values)
+
+                if log:
+                    sym_values = symlog(values, threshold)
+                    sym_raw = symlog(raw, threshold)
+                else:
+                    sym_values = values
+                    sym_raw = raw
+
+                for anomaly_group in anomalies:
+                    channels = np.array(
+                        [a.parent.data_entity.name for a in anomaly_group.anomalies]
+                    )
+                    query = np.where(np.array(channels) == channel_dict["name"])[0]
+                    if len(query) == 0:
+                        continue
+
+                self.add_residuals(
+                    sym_values,
+                    sym_raw,
+                    locs,
+                )
+        return update_residuals + 1
+
+    def update_click_data(
+        self,
+        update_click_data: int,
+        line_click_data: dict | None,
+        full_lines_click_data: dict | None,
+        line_id: int,
+    ) -> int:
+        """
+        Update the markers on the single line figure from clicking on either figure.
+
+        :param update_click_data: Trigger for updating the click data.
+        :param line_click_data: Click data from the single line figure.
+        :param full_lines_click_data: Click data from the full lines figure.
+        :param line_id: Line ID.
+
+        :return: Trigger for updating the click data.
+        """
+        if self.figure is None:
+            return no_update
+
+        if len(self.figure.layout.shapes) == 0:
+            self.figure.add_vline(x=0)
+
+        triggers = [t["prop_id"].split(".")[0] for t in callback_context.triggered]
+        if line_click_data is not None and "line_figure" in triggers:
+            x_val = line_click_data["points"][0]["x"]
+            self.figure.update_shapes({"x0": x_val, "x1": x_val})
+        if (
+            full_lines_click_data is not None
+            and "full_lines_figure" in triggers
+            and self.lines is not None
+        ):
+            x_min = np.min(
+                np.concatenate(
+                    tuple(pos.x_locations for pos in self.lines[line_id]["position"])
+                )
+            )
+            x_val = full_lines_click_data["points"][0]["x"] - x_min
+            self.figure.update_shapes({"x0": x_val, "x1": x_val})
+
+        return update_click_data + 1
+
+    def update_layout(  # pylint: disable=too-many-arguments
+        self,
+        y_label: str | None,
+        y_tickvals: np.ndarray | None,
+        y_ticktext: list[str] | None,
+        y_min: float | None,
+        y_max: float | None,
+        min_value: float,
+        x_label: str,
+    ):
+        """
+        Update the figure layout.
+
+        :param y_label: Label for y-axis.
+        :param y_tickvals: Y-axis tick values.
+        :param y_ticktext: Y-axis tick text.
+        :param y_min: Minimum y-axis value.
+        :param y_max: Maximum y-axis value.
+        :param min_value: Minimum value.
+        :param x_label: X-axis label.
+        """
+        if self.figure is None:
+            return
+
+        if y_min is not None and y_max is not None:
+            self.figure.update_layout(
+                {"yaxis_range": [np.nanmax([y_min, min_value]), y_max]}
+            )
+        if y_label is not None:
+            self.figure.update_layout(
+                {
+                    "yaxis_title": y_label,
+                }
+            )
+        if y_tickvals is not None and y_ticktext is not None:
+            self.figure.update_layout(
+                {
+                    "yaxis_tickvals": y_tickvals,
+                    "yaxis_ticktext": [f"{y:.2e}" for y in y_ticktext],
+                }
+            )
+
+        self.figure.update_layout(
+            {"xaxis_title": x_label + " (m)", "yaxis_tickformat": ".2e"}
+        )
+
     def initialize_figure(
         self,
         property_groups: dict,
-    ):
+    ) -> dict:
+        """
+        Add initial, empty traces to figure and return dict mapping trace names to indices.
+
+        :param property_groups: Property groups dictionary.
+
+        :return: Dict mapping trace names to indices.
+        """
         self.figure = go.Figure()
 
         # Add full lines
@@ -1550,11 +1607,11 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         full_lines_click_data: dict | None,
         line_id_options: list[dict[str, str]],
         property_groups: dict,
-        update_from_property_groups,
+        update_from_property_groups: bool,
         line_id: int,
         line_ids: list[int],
-        update_computation,
-    ):
+        update_computation: int,
+    ) -> go.Figure:
         """
         Update the full lines figure.
 
@@ -1563,9 +1620,13 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         :param full_lines_click_data: Full lines figure click data.
         :param line_id_options: Line id options.
         :param property_groups: Property groups dictionary.
+        :param update_from_property_groups: Whether to update the plot if property groups is
+            triggered.
         :param line_id: Line id.
         :param line_ids: Line ids.
         :param update_computation: Trigger for line computation.
+
+        :return: Full lines figure.
         """
         triggers = [t["prop_id"].split(".")[0] for t in callback_context.triggered]
         if property_groups in triggers and not update_from_property_groups:
@@ -1577,10 +1638,10 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
                 and self.lines is not None
             ):
                 x_locs = np.concatenate(
-                    tuple([pos.x_locations for pos in self.lines[line_id]["position"]])
+                    tuple(pos.x_locations for pos in self.lines[line_id]["position"])
                 )
                 y_locs = np.concatenate(
-                    tuple([pos.y_locations for pos in self.lines[line_id]["position"]])
+                    tuple(pos.y_locations for pos in self.lines[line_id]["position"])
                 )
                 x_min = np.min(x_locs)
                 x_val = x_min + line_click_data["points"][0]["x"]  # type: ignore
