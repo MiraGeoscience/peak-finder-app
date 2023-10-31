@@ -142,7 +142,7 @@ class PeakFinder(BaseDashApplication):
             Input(component_id="line_id", component_property="options"),
             Input(component_id="line_id", component_property="value"),
             Input(component_id="n_lines", component_property="value"),
-        )(self.get_line_ids)
+        )(PeakFinder.get_line_ids)
         self.app.callback(
             Output(component_id="line_indices", component_property="data"),
             Input(component_id="objects", component_property="data"),
@@ -339,7 +339,7 @@ class PeakFinder(BaseDashApplication):
             if key in line_vals:
                 options.append({"label": value, "value": key})
 
-        if line_id not in value_map.keys():
+        if line_id not in line_vals:
             line_id = None
 
         return options, line_id
@@ -425,15 +425,16 @@ class PeakFinder(BaseDashApplication):
             if survey_obj is not None and hasattr(survey_obj, "remove_vertices"):
                 masking_data_obj = survey_obj.get_data(uuid.UUID(masking_data))[0]
                 masking_array = masking_data_obj.values
-                survey_obj.remove_vertices(~masking_array)
+                if masking_array is not None:
+                    survey_obj.remove_vertices(~masking_array)
         else:
             self.workspace = original_workspace
             self.workspace.open()
 
         return objects, line_field
 
+    @staticmethod
     def get_line_ids(
-        self,
         line_id_options: list[dict],
         line_id: int,
         n_lines: int,
