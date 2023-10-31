@@ -139,7 +139,7 @@ class PeakFinder(BaseDashApplication):
         )(self.mask_data)
         self.app.callback(
             Output(component_id="line_ids", component_property="data"),
-            Input(component_id="line_field", component_property="value"),
+            Input(component_id="line_id", component_property="options"),
             Input(component_id="line_id", component_property="value"),
             Input(component_id="n_lines", component_property="value"),
         )(self.get_line_ids)
@@ -332,13 +332,12 @@ class PeakFinder(BaseDashApplication):
 
         line_field_obj = self.workspace.get_entity(uuid.UUID(line_field))[0]
         value_map = line_field_obj.value_map.map  # type: ignore
-
         line_vals = np.unique(line_field_obj.values)  # type: ignore
-        value_map = {key: value for key, value in value_map.items() if key in line_vals}
 
         options = []
         for key, value in value_map.items():  # type: ignore
-            options.append({"label": value, "value": key})
+            if key in line_vals:
+                options.append({"label": value, "value": key})
 
         if line_id not in value_map.keys():
             line_id = None
@@ -435,25 +434,23 @@ class PeakFinder(BaseDashApplication):
 
     def get_line_ids(
         self,
-        line_field: str,
+        line_id_options: list[dict],
         line_id: int,
         n_lines: int,
     ) -> np.ndarray:
         """
         Get line IDs to compute for plotting.
 
-        :param line_field: Line field.
+        :param line_id_options: Line ID options.
         :param line_id: Line ID.
         :param n_lines: Number of lines to plot on either side of line_id.
 
         :return: Line IDs.
         """
-        if line_field is None or line_id is None or n_lines is None:
+        if line_id is None or n_lines is None:
             return no_update
-        line_field_obj = self.workspace.get_entity(uuid.UUID(line_field))[0]
-        # Find line_ids to get indices for
-        value_map = line_field_obj.value_map.map  # type: ignore
-        full_line_ids = np.sort(list(value_map.keys()))
+
+        full_line_ids = [val["value"] for val in line_id_options]
         line_id_ind = np.where(np.array(full_line_ids) == line_id)[0][0]
 
         min_ind = max(0, line_id_ind - n_lines)
@@ -576,7 +573,6 @@ class PeakFinder(BaseDashApplication):
                         "anomalies": anomalies,
                         "indices": indices,
                     }
-
         return update_line + 1
 
     def update_line_figure(  # pylint: disable=too-many-arguments, too-many-locals
