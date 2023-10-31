@@ -1097,7 +1097,9 @@ class PeakFinder(BaseDashApplication):
         position = self.lines[line_id]["position"]
         anomalies = self.lines[line_id]["anomalies"]
         line_indices = line_indices_dict[str(line_id)]
-        for ind, lines_position in enumerate(position):
+        for ind, lines_position in enumerate(  # pylint: disable=too-many-nested-blocks
+            position
+        ):
             if len(line_indices[ind]) < 2:
                 continue
             locs = lines_position.locations_resampled
@@ -1124,115 +1126,112 @@ class PeakFinder(BaseDashApplication):
                 trace_dict["lines"]["lines"]["y"] += list(sym_values) + [None]  # type: ignore
 
                 for anomaly_group in anomalies[ind]:  # type: ignore
-                    channels = np.array(
-                        [a.parent.data_entity.name for a in anomaly_group.anomalies]
-                    )
-                    group_name = anomaly_group.property_group.name
-                    color = property_groups[group_name]["color"]
-                    peaks = anomaly_group.get_list_attr("peak")
-                    query = np.where(np.array(channels) == channel_dict["name"])[0]
-                    if len(query) == 0:
-                        continue
+                    for subgroup in anomaly_group.subgroups:
+                        channels = np.array(
+                            [a.parent.data_entity.name for a in subgroup.anomalies]
+                        )
+                        group_name = subgroup.property_group.name
+                        color = property_groups[group_name]["color"]
+                        peaks = subgroup.get_list_attr("peak")
+                        query = np.where(np.array(channels) == channel_dict["name"])[0]
+                        if len(query) == 0:
+                            continue
 
-                    i = query[0]
-                    start = anomaly_group.start
-                    end = anomaly_group.end
+                        i = query[0]
+                        start = subgroup.start
+                        end = subgroup.end
 
-                    if group_name not in trace_dict["property_groups"]:  # type: ignore
-                        trace_dict["property_groups"][group_name] = {  # type: ignore
-                            "x": [None],
-                            "y": [None],
-                            "customdata": [None],
-                            "mode": "lines",
-                            "line_color": color,
-                            "name": group_name,
-                            "hovertemplate": (
-                                "<b>x</b>: %{x:,.2f} <br>"
-                                + "<b>y</b>: %{customdata:,.2e}"
-                            ),
-                        }
-                    trace_dict["property_groups"][group_name]["x"] += list(  # type: ignore
-                        locs[start:end]
-                    ) + [
-                        None
-                    ]
-                    trace_dict["property_groups"][group_name]["y"] += list(  # type: ignore
-                        sym_values[start:end]
-                    ) + [
-                        None
-                    ]
-                    trace_dict["property_groups"][group_name]["customdata"] += list(  # type: ignore
-                        values[start:end]
-                    ) + [
-                        None
-                    ]
-
-                    if anomaly_group.azimuth < 180:  # type: ignore
-                        ori = "right"
-                    else:
-                        ori = "left"
-
-                    # Add markers
-                    if i == 0:
-                        if ori + "_azimuth" not in trace_dict["markers"]:  # type: ignore
-                            trace_dict["markers"][ori + "_azimuth"] = {  # type: ignore
+                        if group_name not in trace_dict["property_groups"]:  # type: ignore
+                            trace_dict["property_groups"][group_name] = {  # type: ignore
                                 "x": [None],
                                 "y": [None],
                                 "customdata": [None],
-                                "mode": "markers",
-                                "marker_color": "black",
-                                "marker_symbol": "arrow-" + ori,
-                                "marker_size": 8,
-                                "name": "peaks start",
-                                "legendgroup": "markers",
-                                "showlegend": False,
-                                "visible": "legendonly",
+                                "mode": "lines",
+                                "line_color": color,
+                                "name": group_name,
                                 "hovertemplate": (
                                     "<b>x</b>: %{x:,.2f} <br>"
                                     + "<b>y</b>: %{customdata:,.2e}"
                                 ),
                             }
-                        trace_dict["markers"][ori + "_azimuth"]["x"] += [  # type: ignore
-                            locs[peaks[i]]
+                        trace_dict["property_groups"][group_name]["x"] += list(  # type: ignore
+                            locs[start:end]
+                        ) + [
+                            None
                         ]
-                        trace_dict["markers"][ori + "_azimuth"]["y"] += [  # type: ignore
-                            sym_values[peaks[i]]
+                        trace_dict["property_groups"][group_name][  # type: ignore
+                            "y"
+                        ] += list(sym_values[start:end]) + [None]
+                        trace_dict["property_groups"][group_name][  # type: ignore
+                            "customdata"
+                        ] += list(values[start:end]) + [None]
+
+                        if subgroup.azimuth < 180:  # type: ignore
+                            ori = "right"
+                        else:
+                            ori = "left"
+
+                        # Add markers
+                        if i == 0:
+                            if ori + "_azimuth" not in trace_dict["markers"]:  # type: ignore
+                                trace_dict["markers"][ori + "_azimuth"] = {  # type: ignore
+                                    "x": [None],
+                                    "y": [None],
+                                    "customdata": [None],
+                                    "mode": "markers",
+                                    "marker_color": "black",
+                                    "marker_symbol": "arrow-" + ori,
+                                    "marker_size": 8,
+                                    "name": "peaks start",
+                                    "legendgroup": "markers",
+                                    "showlegend": False,
+                                    "visible": "legendonly",
+                                    "hovertemplate": (
+                                        "<b>x</b>: %{x:,.2f} <br>"
+                                        + "<b>y</b>: %{customdata:,.2e}"
+                                    ),
+                                }
+                            trace_dict["markers"][ori + "_azimuth"]["x"] += [  # type: ignore
+                                locs[peaks[i]]
+                            ]
+                            trace_dict["markers"][ori + "_azimuth"]["y"] += [  # type: ignore
+                                sym_values[peaks[i]]
+                            ]
+                            trace_dict["markers"][ori + "_azimuth"][  # type: ignore
+                                "customdata"
+                            ] += [values[peaks[i]]]
+
+                        peak_markers_x += [locs[peaks[i]]]
+                        peak_markers_y += [sym_values[peaks[i]]]
+                        peak_markers_customdata += [values[peaks[i]]]
+                        peak_markers_c += [color]
+                        start_markers_x += [locs[subgroup.anomalies[i].start]]
+                        start_markers_y += [sym_values[subgroup.anomalies[i].start]]
+                        start_markers_customdata += [
+                            values[subgroup.anomalies[i].start]
                         ]
-                        trace_dict["markers"][ori + "_azimuth"]["customdata"] += [  # type: ignore
-                            values[peaks[i]]
+                        end_markers_x += [locs[subgroup.anomalies[i].end]]
+                        end_markers_y += [sym_values[subgroup.anomalies[i].end]]
+                        end_markers_customdata += [values[subgroup.anomalies[i].end]]
+                        up_markers_x += [locs[subgroup.anomalies[i].inflect_up]]
+                        up_markers_y += [sym_values[subgroup.anomalies[i].inflect_up]]
+                        up_markers_customdata += [
+                            values[subgroup.anomalies[i].inflect_up]
+                        ]
+                        dwn_markers_x += [locs[subgroup.anomalies[i].inflect_down]]
+                        dwn_markers_y += [
+                            sym_values[subgroup.anomalies[i].inflect_down]
+                        ]
+                        dwn_markers_customdata += [
+                            values[subgroup.anomalies[i].inflect_down]
                         ]
 
-                    peak_markers_x += [locs[peaks[i]]]
-                    peak_markers_y += [sym_values[peaks[i]]]
-                    peak_markers_customdata += [values[peaks[i]]]
-                    peak_markers_c += [color]
-                    start_markers_x += [locs[anomaly_group.anomalies[i].start]]
-                    start_markers_y += [sym_values[anomaly_group.anomalies[i].start]]
-                    start_markers_customdata += [
-                        values[anomaly_group.anomalies[i].start]
-                    ]
-                    end_markers_x += [locs[anomaly_group.anomalies[i].end]]
-                    end_markers_y += [sym_values[anomaly_group.anomalies[i].end]]
-                    end_markers_customdata += [values[anomaly_group.anomalies[i].end]]
-                    up_markers_x += [locs[anomaly_group.anomalies[i].inflect_up]]
-                    up_markers_y += [sym_values[anomaly_group.anomalies[i].inflect_up]]
-                    up_markers_customdata += [
-                        values[anomaly_group.anomalies[i].inflect_up]
-                    ]
-                    dwn_markers_x += [locs[anomaly_group.anomalies[i].inflect_down]]
-                    dwn_markers_y += [
-                        sym_values[anomaly_group.anomalies[i].inflect_down]
-                    ]
-                    dwn_markers_customdata += [
-                        values[anomaly_group.anomalies[i].inflect_down]
-                    ]
-
-                fig_data = PeakFinder.add_residuals(
-                    fig_data,
-                    sym_values,
-                    sym_raw,
-                    locs,
-                )
+                    fig_data = PeakFinder.add_residuals(
+                        fig_data,
+                        sym_values,
+                        sym_raw,
+                        locs,
+                    )
 
         if np.isinf(y_min):
             return fig_data, None, None, None, None, None, None, None, None
