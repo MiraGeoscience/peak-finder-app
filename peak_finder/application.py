@@ -24,7 +24,7 @@ from flask import Flask
 from geoapps_utils.application.application import get_output_workspace
 from geoapps_utils.application.dash_application import (
     BaseDashApplication,
-    ObjectSelection
+    ObjectSelection,
 )
 from geoapps_utils.plotting import format_axis, symlog
 from geoh5py import Workspace
