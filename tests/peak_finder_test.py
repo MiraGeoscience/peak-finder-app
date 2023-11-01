@@ -19,7 +19,7 @@ from scipy import stats
 from peak_finder.application import PeakFinder, PeakFinderDriver
 from peak_finder.params import PeakFinderParams
 
-# pylint: disable=R0801
+# pylint: disable=R0801, duplicate-code
 
 
 def test_peak_finder_app(tmp_path: Path):  # pylint: disable=too-many-locals
