@@ -4,7 +4,7 @@
 #
 #  All rights reserved.
 
-# pylint: disable=W0613, C0302
+# pylint: disable=W0613, C0302, duplicate-code
 
 from __future__ import annotations
 
