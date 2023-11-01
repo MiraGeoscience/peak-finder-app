@@ -2,10 +2,9 @@
 
 #  Copyright (c) 2023 Mira Geoscience Ltd.
 #
-#  This file is part of geoapps.
+#  This file is part of peak-finder-app.
 #
-#  geoapps is distributed under the terms and conditions of the MIT License
-#  (see LICENSE file at the root of this source code package).
+#  All rights reserved.
 
 """
 Patch pyproject.toml with the computed sha256 for pip dependencies with a tag URL.

@@ -41,6 +41,11 @@ repos:
         args: [--ignore-missing-imports, --scripts-are-modules, --show-error-context,
                --show-column-numbers]
         exclude: ^docs/
+-   repo: https://github.com/codingjoe/relint
+    rev: 3.1.0
+    hooks:
+    -   id: relint
+        args: [-W]  # to fail on warnings
 -   repo: local
     hooks:
     -   id: pylint
@@ -56,7 +61,7 @@ repos:
         language: python
         files: (^LICENSE|README.rst|\.py|\.pyi)$
         types: [text]
-        exclude: (^setup.py$|^\.|\b(docs|peak_finder_assets)/)
+        exclude: (^setup.py$|^\.|\b(docs|peak_finder-assets)/)
 -   repo: https://github.com/codespell-project/codespell
     rev: v2.2.6
     hooks:
