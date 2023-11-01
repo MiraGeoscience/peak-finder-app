@@ -24,15 +24,42 @@ env:
   source_dir: peak_finder
 
 jobs:
+  pre-commit:
+    name: pre-commit
+    strategy:
+      fail-fast: false
+    runs-on: ubuntu-latest
+    env:
+      SKIP: pylint
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+      - name: capture modified files
+        if: github.event_name == 'pull_request'
+        run: >-
+          git fetch --deepen=500 origin ${{github.base_ref}}
+          && echo "FILES_PARAM=$(
+          git diff --diff-filter=AM --name-only refs/remotes/origin/${{github.base_ref}}... -- | grep -E "^(${source_dir}|tests)/.*\.py$" | xargs
+          )" >> $GITHUB_ENV
+      - name: Run pre-commit on modified files
+        if: github.event_name == 'pull_request' && env.FILES_PARAM
+        uses: pre-commit/action@v3.0.0
+        with:
+          extra_args: --hook-stage push --files ${{ env.FILES_PARAM }}
+      - name: Run pre-commit on all files
+        if: github.event_name == 'push'
+        uses: pre-commit/action@v3.0.0
+        with:
+          extra_args: --hook-stage push --all-files
   pylint:
     name: pylint
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
     defaults:
       run:
         shell: bash -l {0}
     env:
       PYTHONUTF8: 1
-      CONDA_LOCK_ENV_FILE: environments/conda-py-3.9-win-64-dev.lock.yml
+      CONDA_LOCK_ENV_FILE: environments/conda-py-3.9-linux-64-dev.lock.yml
       PIP_EXTRA_INDEX_URL: https://test.pypi.org/simple/
     steps:
       - uses: actions/checkout@v3

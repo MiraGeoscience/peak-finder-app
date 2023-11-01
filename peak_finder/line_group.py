@@ -294,10 +294,12 @@ class LineGroup:
         return_groups = []
         unique_groups = []
         for group in groups:
-            if len(group.subgroups) == self.n_groups:
-                if group.subgroups not in unique_groups:
-                    unique_groups.append(group.subgroups)
-                    return_groups.append(group)
+            if (
+                len(group.subgroups) == self.n_groups
+                and group.subgroups not in unique_groups
+            ):
+                unique_groups.append(group.subgroups)
+                return_groups.append(group)
 
         return return_groups
 

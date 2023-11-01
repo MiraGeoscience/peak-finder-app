@@ -1,26 +1,34 @@
 [tool.poetry]
-name = "peak_finder"
+name = "peak-finder"
 version = "0.1.0"
-authors = ["Mira Geoscience Ltd."]
+authors = ["Mira Geoscience <support@mirageoscience.com>"]
 description = "Peak Finder App"
 repository = "https://github.com/MiraGeoscience/peak-finder-app"
 homepage = "https://mirageoscience.com"
 
 [tool.poetry.dependencies]
-python = "^3.9, < 3.11"
+python = "^3.9, <3.11"
 
-## dependencies for a minimal environment
-#geoh5py = {version = "~0.8.0rc1", source = "pypi", allow-prereleases = true}
-geoh5py = { url = "https://github.com/MiraGeoscience/geoh5py/archive/refs/heads/develop.zip#sha256=" }
+numpy = "~1.23.5"  # also in geoapps-utils and geoh5py
+geoh5py = {version = "~0.8.0rc1", source = "pypi", allow-prereleases = true}  # also in geoapps-utils
+
 #geoapps-utils = {version = "~0.1.0", source = "pypi"}
 geoapps-utils = { url = "https://github.com/MiraGeoscience/geoapps-utils/archive/refs/heads/develop.zip#sha256=" }
 
-notebook = {version = "~6.5.3"}
+dash-daq = {version = "~0.5.0"}
 dask = {version = "2022.10.0", extras = ["distributed"]}
 jupyter-server = {version = "~1.23.6"}
+notebook = {version = "~6.5.3"}
 scipy = {version = "~1.10.1"}
 tqdm = {version = "^4.64.0"}
-dash-daq = {version = "~0.5.0"}
+
+## indirect dependencies, forcing them here for installation through Conda not pip
+Pillow = "~9.4.0"  # from geoh5py
+h5py = "~3.8.0"  # from geoh5py
+dash = {version = "~2.12", optional = true}  # from geoapps-utils
+plotly = {version = "~5.13.1"}  # from geoapps-utils
+pyqtwebengine = {version = "~5.15", optional = true}  # from geoapps-utils
+pyside2 = {version = "~5.15", optional = true}  # from geoapps-utils
 
 ## about pip dependencies
 # to be specified to work with conda-lock
@@ -36,10 +44,17 @@ dash-daq = {version = "~0.5.0"}
 pylint = "*"
 pytest = "*"
 pytest-cov = "*"
-toml = "*" # for tests only
+tomli = "*" # for tests only
+
+[tool.poetry.extras]
+dash = [
+    "dash",
+    "pyqtwebengine",
+    "pyside2",
+]
 
 [tool.conda-lock]
-platforms = ['win-64', 'osx-64', 'linux-64']
+platforms = ['win-64', 'linux-64']
 channels = ['conda-forge']
 
 [tool.conda-lock.dependencies]
@@ -52,19 +67,9 @@ include_trailing_comma = true
 force_grid_wrap = 0
 use_parentheses = true
 line_length = 88
-profile = "black"
-known_third_party = ["add_url_tag_sha256", "dash", "dash_daq", "dask", "flask", "geoapps_utils", "geoh5py", "numpy", "plotly", "run_conda_lock", "scipy", "tqdm"]
 
 [tool.black]
 # defaults are just fine
-
-[tool.poetry2conda]
-name = "peak_finder"
-## usage of poetry2conda
-# As poetry2conda does not support url sources for pip dependencies,
-# temporarily edit this file and use git sources instead, with 'tag=' indifferently whether it is actually a branch or rev.
-#> poetry2conda pyproject.toml -E full environment.yml
-#> poetry2conda pyproject.toml -E full --dev environment-dev.yml
 
 [build-system]
 requires = ["poetry-core>=1.0.0", "setuptools"]

@@ -1,9 +1,8 @@
 #  Copyright (c) 2023 Mira Geoscience Ltd.
 #
-#  This file is part of geoapps.
+#  This file is part of peak-finder-app.
 #
-#  geoapps is distributed under the terms and conditions of the MIT License
-#  (see LICENSE file at the root of this source code package).
+#  All rights reserved.
 
 # pylint: disable=W0613, C0302
 
@@ -23,10 +22,8 @@ from dask import compute
 from dask.diagnostics import ProgressBar
 from flask import Flask
 from geoapps_utils.application.application import get_output_workspace
-from geoapps_utils.application.dash_application import (
-    BaseDashApplication,
-    ObjectSelection,
-)
+from geoapps_utils.application.dash_application import (BaseDashApplication,
+                                                        ObjectSelection)
 from geoapps_utils.plotting import format_axis, symlog
 from geoh5py import Workspace
 from geoh5py.data import BooleanData, ReferencedData
