@@ -33,6 +33,7 @@ class PeakFinderParams(BaseParams):  # pylint: disable=R0902, R0904
         self._objects: ObjectBase | None = None
         self._flip_sign: bool | None = None
         self._line_field: Data | None = None
+        self._masking_data: Data | None = None
         self._smoothing: int | None = None
         self._min_amplitude: int | None = None
         self._min_value: float | None = None
@@ -111,11 +112,25 @@ class PeakFinderParams(BaseParams):  # pylint: disable=R0902, R0904
 
     @property
     def line_field(self) -> Data | None:
+        """
+        Line data.
+        """
         return self._line_field
 
     @line_field.setter
     def line_field(self, val):
         self.setter_validator("line_field", val, fun=self._uuid_promoter)
+
+    @property
+    def masking_data(self) -> Data | None:
+        """
+        Masking data.
+        """
+        return self._masking_data
+
+    @masking_data.setter
+    def masking_data(self, val):
+        self.setter_validator("masking_data", val)
 
     @property
     def line_id(self) -> int | None:

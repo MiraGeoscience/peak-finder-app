@@ -58,6 +58,27 @@ data_selection_layout = html.Div(
         html.Div(
             [
                 dcc.Markdown(
+                    children="Masking Data",
+                    style={
+                        "width": "30%",
+                        "display": "inline-block",
+                        "vertical-align": "middle",
+                    },
+                ),
+                dcc.Dropdown(
+                    id="masking_data",
+                    style={
+                        "width": "70%",
+                        "display": "inline-block",
+                        "vertical-align": "middle",
+                    },
+                ),
+            ],
+            style={"margin-bottom": "20px"},
+        ),
+        html.Div(
+            [
+                dcc.Markdown(
                     children="N outward lines",
                     style={
                         "width": "30%",
@@ -456,5 +477,8 @@ peak_finder_layout = html.Div(
         ),
         dcc.Store(id="objects"),
         dcc.Store(id="active_channels"),
+        dcc.Store(id="line_indices"),
+        dcc.Store(id="line_ids"),
+        dcc.Store(id="update_line", data=0),
     ],
 )

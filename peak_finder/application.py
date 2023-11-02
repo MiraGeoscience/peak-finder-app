@@ -4,7 +4,7 @@
 #
 #  All rights reserved.
 
-# pylint: disable=W0613, C0302
+# pylint: disable=W0613, C0302, duplicate-code
 
 from __future__ import annotations
 
@@ -18,6 +18,8 @@ import numpy as np
 import plotly.graph_objects as go
 from dash import Dash, callback_context, ctx, dcc, no_update
 from dash.dependencies import Input, Output, State
+from dask import compute
+from dask.diagnostics import ProgressBar
 from flask import Flask
 from geoapps_utils.application.application import get_output_workspace
 from geoapps_utils.application.dash_application import (
@@ -25,14 +27,15 @@ from geoapps_utils.application.dash_application import (
     ObjectSelection,
 )
 from geoapps_utils.plotting import format_axis, symlog
-from geoh5py.data import ReferencedData
+from geoh5py import Workspace
+from geoh5py.data import BooleanData, ReferencedData
+from geoh5py.shared.utils import fetch_active_workspace
 from geoh5py.ui_json import InputFile
+from tqdm import tqdm
 
 from peak_finder.anomaly_group import AnomalyGroup
 from peak_finder.driver import PeakFinderDriver
 from peak_finder.layout import peak_finder_layout
-from peak_finder.line_anomaly import LineAnomaly
-from peak_finder.line_position import LinePosition
 from peak_finder.params import PeakFinderParams
 
 
@@ -44,8 +47,7 @@ class PeakFinder(BaseDashApplication):
     _param_class = PeakFinderParams
     _driver_class = PeakFinderDriver
 
-    _lines_position = None
-    _lines_anomalies = None
+    _lines = None
 
     def __init__(
         self,
@@ -81,16 +83,10 @@ class PeakFinder(BaseDashApplication):
             Input(component_id="full_lines_figure", component_property="clickData"),
             Input(component_id="objects", component_property="data"),
             Input(component_id="property_groups", component_property="data"),
-            Input(component_id="smoothing", component_property="value"),
-            Input(component_id="max_migration", component_property="value"),
-            Input(component_id="min_channels", component_property="value"),
-            Input(component_id="min_amplitude", component_property="value"),
+            Input(component_id="update_line", component_property="data"),
             Input(component_id="min_value", component_property="value"),
-            Input(component_id="min_width", component_property="value"),
-            Input(component_id="n_groups", component_property="value"),
-            Input(component_id="max_separation", component_property="value"),
-            Input(component_id="line_field", component_property="value"),
             Input(component_id="line_id", component_property="value"),
+            Input(component_id="line_indices", component_property="data"),
             Input(component_id="active_channels", component_property="data"),
             Input(component_id="y_scale", component_property="value"),
             Input(component_id="linear_threshold", component_property="value"),
@@ -110,11 +106,14 @@ class PeakFinder(BaseDashApplication):
         )(BaseDashApplication.update_visibility_from_checklist)
         self.app.callback(
             Output(component_id="line_field", component_property="options"),
+            Output(component_id="masking_data", component_property="options"),
             Input(component_id="objects", component_property="data"),
-        )(self.init_line_field_dropdown)
+        )(self.init_data_dropdowns)
         self.app.callback(
             Output(component_id="line_id", component_property="options"),
+            Output(component_id="line_id", component_property="value"),
             Input(component_id="line_field", component_property="value"),
+            State(component_id="line_id", component_property="value"),
         )(self.update_line_id_options)
         self.app.callback(
             Output(component_id="property_groups", component_property="data"),
@@ -131,6 +130,41 @@ class PeakFinder(BaseDashApplication):
             Input(component_id="flip_sign", component_property="value"),
         )(self.update_active_channels)
         self.app.callback(
+            Output(component_id="objects", component_property="data"),
+            Output(component_id="line_field", component_property="value"),
+            Input(component_id="objects", component_property="data"),
+            Input(component_id="line_field", component_property="value"),
+            Input(component_id="masking_data", component_property="value"),
+        )(self.mask_data)
+        self.app.callback(
+            Output(component_id="line_ids", component_property="data"),
+            Input(component_id="line_id", component_property="options"),
+            Input(component_id="line_id", component_property="value"),
+            Input(component_id="n_lines", component_property="value"),
+        )(PeakFinder.get_line_ids)
+        self.app.callback(
+            Output(component_id="line_indices", component_property="data"),
+            Input(component_id="objects", component_property="data"),
+            Input(component_id="line_field", component_property="value"),
+            Input(component_id="line_ids", component_property="data"),
+        )(self.get_line_indices)
+        self.app.callback(
+            Output(component_id="update_line", component_property="data"),
+            Input(component_id="line_indices", component_property="data"),
+            Input(component_id="line_ids", component_property="data"),
+            Input(component_id="objects", component_property="data"),
+            Input(component_id="property_groups", component_property="data"),
+            Input(component_id="smoothing", component_property="value"),
+            Input(component_id="max_migration", component_property="value"),
+            Input(component_id="min_channels", component_property="value"),
+            Input(component_id="min_amplitude", component_property="value"),
+            Input(component_id="min_value", component_property="value"),
+            Input(component_id="min_width", component_property="value"),
+            Input(component_id="n_groups", component_property="value"),
+            Input(component_id="max_separation", component_property="value"),
+            State(component_id="update_line", component_property="data"),
+        )(self.compute_line)
+        self.app.callback(
             Output(component_id="line_figure", component_property="figure"),
             Output(component_id="linear_threshold", component_property="min"),
             Output(component_id="linear_threshold", component_property="max"),
@@ -142,20 +176,11 @@ class PeakFinder(BaseDashApplication):
             Input(component_id="full_lines_figure", component_property="figure"),
             Input(component_id="line_figure", component_property="clickData"),
             Input(component_id="full_lines_figure", component_property="clickData"),
-            Input(component_id="n_lines", component_property="value"),
             Input(component_id="line_id", component_property="options"),
-            Input(component_id="objects", component_property="data"),
             Input(component_id="property_groups", component_property="data"),
-            Input(component_id="smoothing", component_property="value"),
-            Input(component_id="max_migration", component_property="value"),
-            Input(component_id="min_channels", component_property="value"),
-            Input(component_id="min_amplitude", component_property="value"),
-            Input(component_id="min_value", component_property="value"),
-            Input(component_id="min_width", component_property="value"),
-            Input(component_id="n_groups", component_property="value"),
-            Input(component_id="max_separation", component_property="value"),
-            Input(component_id="line_field", component_property="value"),
             Input(component_id="line_id", component_property="value"),
+            Input(component_id="line_ids", component_property="data"),
+            Input(component_id="update_line", component_property="data"),
         )(self.update_full_lines_figure)
         self.app.callback(
             Output(component_id="live_link", component_property="value"),
@@ -164,6 +189,7 @@ class PeakFinder(BaseDashApplication):
             State(component_id="objects", component_property="data"),
             State(component_id="flip_sign", component_property="value"),
             State(component_id="line_field", component_property="value"),
+            State(component_id="masking_data", component_property="value"),
             State(component_id="smoothing", component_property="value"),
             State(component_id="min_amplitude", component_property="value"),
             State(component_id="min_value", component_property="value"),
@@ -182,26 +208,15 @@ class PeakFinder(BaseDashApplication):
         )(self.trigger_click)
 
     @property
-    def lines_position(self) -> LinePosition | None:
+    def lines(self) -> dict | None:
         """
-        Line position for the current plot.
+        Line anomalies for the current plot.
         """
-        return self._lines_position
+        return self._lines
 
-    @lines_position.setter
-    def lines_position(self, value):
-        self._lines_position = value
-
-    @property
-    def lines_anomalies(self) -> list[AnomalyGroup] | None:
-        """
-        Anomalies for the current plot.
-        """
-        return self._lines_anomalies
-
-    @lines_anomalies.setter
-    def lines_anomalies(self, value):
-        self._lines_anomalies = value
+    @lines.setter
+    def lines(self, value):
+        self._lines = value
 
     def set_initialized_layout(self):
         """
@@ -272,60 +287,66 @@ class PeakFinder(BaseDashApplication):
 
         return property_groups_out, color_picker_out, group_name_options
 
-    def init_line_field_dropdown(self, objects: str) -> list[dict]:
+    def init_data_dropdowns(self, objects: str) -> tuple[list[dict], list[dict]]:
         """
         Initialize data and line field dropdowns from input object.
 
         :param objects: Input object.
 
         :return: Line field dropdown options.
+        :return: Masking data dropdown options.
         """
         line_field_options = []
+        masking_data_options = [{"label": "None", "value": "None"}]
         obj = self.workspace.get_entity(uuid.UUID(objects))[0]
+        if obj is None or not hasattr(obj, "children"):
+            return no_update, no_update
         for child in obj.children:
             if isinstance(child, ReferencedData):
                 line_field_options.append(
                     {"label": child.name, "value": "{" + str(child.uid) + "}"}
                 )
-        return line_field_options
+            if isinstance(child, BooleanData):
+                masking_data_options.append(
+                    {"label": child.name, "value": "{" + str(child.uid) + "}"}
+                )
+        return line_field_options, masking_data_options
 
     def update_line_id_options(
         self,
         line_field: str | None,
-    ) -> list[dict]:
+        line_id: int | None,
+    ) -> tuple[list[dict], int | None]:
         """
         Update line ID dropdown options from line field.
 
         :param line_field: Line field.
-
-        :return: Line ID dropdown options.
-        """
-        line_field = self.workspace.get_entity(uuid.UUID(line_field))[0]
-        options = []
-
-        for key, value in line_field.value_map.map.items():  # type: ignore
-            options.append({"label": value, "value": key})
-
-        return options
-
-    def get_line_indices(self, line_field: str, line_id: int) -> np.ndarray | None:
-        """
-        Find the vertices for a given line ID.
-
-        :param line_field: Line field.
         :param line_id: Line ID.
 
-        :return: Line indices.
+        :return: Line ID dropdown options.
+        :return: Line ID value.
         """
-        line_data = self.workspace.get_entity(uuid.UUID(line_field))[0]
-        indices = np.where(np.asarray(line_data.values) == line_id)[0]
+        if line_field is None:
+            return [], None
 
-        if len(indices) == 0:
-            return None
-        return indices
+        line_field_obj = self.workspace.get_entity(uuid.UUID(line_field))[0]
+        value_map = line_field_obj.value_map.map  # type: ignore
+        line_vals = np.unique(line_field_obj.values)  # type: ignore
+
+        options = []
+        for key, value in value_map.items():  # type: ignore
+            if key in line_vals:
+                options.append({"label": value, "value": key})
+
+        if line_id not in line_vals:
+            line_id = None
+
+        return options, line_id
 
     def update_active_channels(
-        self, property_groups_dict: dict, flip_sign: list[bool]
+        self,
+        property_groups_dict: dict,
+        flip_sign: list[bool],
     ) -> tuple[dict, float]:
         """
         Update active channels from property groups.
@@ -346,7 +367,11 @@ class PeakFinder(BaseDashApplication):
         for group in property_groups_dict.values():
             for channel in group["properties"]:
                 chan = self.workspace.get_entity(uuid.UUID(channel))[0]
-                if getattr(chan, "values", None) is not None:
+                if (
+                    chan is not None
+                    and getattr(chan, "values", None) is not None
+                    and hasattr(chan, "name")
+                ):
                     active_channels[channel] = {"name": chan.name}
 
         d_min, d_max = np.inf, -np.inf
@@ -355,9 +380,15 @@ class PeakFinder(BaseDashApplication):
         for uid in keys:
             chan = self.workspace.get_entity(uuid.UUID(uid))[0]
             try:
-                active_channels[uid]["values"] = flip_sign * chan.values.copy()
-                d_min = np.nanmin([d_min, active_channels[uid]["values"].min()])
-                d_max = np.nanmax([d_max, active_channels[uid]["values"].max()])
+                if (
+                    chan is not None
+                    and hasattr(chan, "values")
+                    and hasattr(chan.values, "min")
+                    and hasattr(chan.values, "max")
+                ):
+                    active_channels[uid]["values"] = flip_sign * chan.values.copy()
+                    d_min = np.nanmin([d_min, active_channels[uid]["values"].min()])  # type: ignore
+                    d_max = np.nanmax([d_max, active_channels[uid]["values"].max()])  # type: ignore
             except KeyError:
                 continue
 
@@ -366,8 +397,101 @@ class PeakFinder(BaseDashApplication):
             min_value = d_min
         return active_channels, min_value
 
-    def line_update(  # pylint: disable=too-many-arguments, too-many-locals
+    def mask_data(
         self,
+        objects: str,
+        line_field: str,
+        masking_data: str,
+    ) -> tuple[str, str]:
+        """
+        Apply masking to survey object.
+
+        :param objects: Input object.
+        :param line_field: Line field.
+        :param masking_data: Masking data.
+
+        :return: Object uid to trigger other callbacks.
+        :return: Line field uid to trigger other callbacks.
+        """
+        original_workspace = self.params.geoh5
+        survey_obj = original_workspace.get_entity(uuid.UUID(objects))[0]
+        if masking_data is not None and masking_data != "None":
+            self.workspace: Workspace = Workspace()
+            with fetch_active_workspace(original_workspace):
+                if survey_obj is not None and hasattr(survey_obj, "copy"):
+                    survey_obj = survey_obj.copy(parent=self.workspace)
+
+            if survey_obj is not None and hasattr(survey_obj, "remove_vertices"):
+                masking_data_obj = survey_obj.get_data(uuid.UUID(masking_data))[0]
+                masking_array = masking_data_obj.values
+                if masking_array is not None:
+                    survey_obj.remove_vertices(~masking_array)
+        else:
+            self.workspace = original_workspace
+            self.workspace.open()
+
+        return objects, line_field
+
+    @staticmethod
+    def get_line_ids(
+        line_id_options: list[dict],
+        line_id: int,
+        n_lines: int,
+    ) -> np.ndarray:
+        """
+        Get line IDs to compute for plotting.
+
+        :param line_id_options: Line ID options.
+        :param line_id: Line ID.
+        :param n_lines: Number of lines to plot on either side of line_id.
+
+        :return: Line IDs.
+        """
+        if line_id is None or n_lines is None:
+            return no_update
+
+        full_line_ids = [val["value"] for val in line_id_options]
+        line_id_ind = np.where(np.array(full_line_ids) == line_id)[0][0]
+
+        min_ind = max(0, line_id_ind - n_lines)
+        max_ind = min(len(full_line_ids), line_id_ind + n_lines + 1)
+
+        line_ids = full_line_ids[min_ind:max_ind]
+        return line_ids
+
+    def get_line_indices(
+        self,
+        survey: str,
+        line_field: str,
+        line_ids: list[int],
+    ) -> dict | None:
+        """
+        Get line indices for plotting.
+
+        :param survey: Survey object.
+        :param line_field: Line field.
+        :param line_ids: Line IDs.
+
+        :return: Line indices for each line ID given.
+        """
+        if survey is None or line_field is None or line_ids is None:
+            return no_update
+
+        survey_obj = self.workspace.get_entity(uuid.UUID(survey))[0]
+        line_field_obj = self.workspace.get_entity(uuid.UUID(line_field))[0]
+
+        line_indices = PeakFinderDriver.get_line_indices(
+            survey_obj,  # type: ignore
+            line_field_obj,  # type: ignore
+            line_ids,
+        )
+
+        return line_indices
+
+    def compute_line(  # pylint: disable=too-many-arguments, too-many-locals
+        self,
+        line_indices: dict,
+        line_ids: dict,
         objects: str,
         property_groups_dict: dict,
         smoothing: float,
@@ -378,50 +502,40 @@ class PeakFinder(BaseDashApplication):
         min_width: float,
         n_groups: int,
         max_separation: float,
-        line_field: str,
-        line_id: int,
-    ):
+        update_line: int,
+    ) -> int | None:
         """
-        Update the line position and anomalies.
+        Compute line anomalies.
 
+        :param line_indices: Line indices for each line ID given.
+        :param line_ids: Line IDs.
         :param objects: Input object.
         :param property_groups_dict: Property groups dictionary.
         :param smoothing: Smoothing factor.
-        :param max_migration: Maximum migration.
-        :param min_channels: Minimum number of channels.
-        :param min_amplitude: Minimum amplitude.
-        :param min_value: Minimum value.
-        :param min_width: Minimum width.
-        :param n_groups: Number of consecutive peaks to merge.
-        :param max_separation: Maximum separation between peaks to merge.
-        :param line_field: Line field.
-        :param line_id: Line ID.
+        :param max_migration: Maximum peak migration.
+        :param min_channels: Minimum number of channels in anomaly.
+        :param min_amplitude: Minimum amplitude of anomaly as percent.
+        :param min_value: Minimum data value of anomaly.
+        :param min_width: Minimum width of anomaly in meters.
+        :param n_groups: Number of groups to use for grouping anomalies.
+        :param max_separation: Maximum separation between anomalies in meters.
+        :param update_line: Count for if line has been updated.
 
-        :return: Line position.
-        :return: Anomalies.
+        :return: Count for if line has been updated.
         """
+        if objects is None or line_ids is None or line_indices is None:
+            return no_update
         obj = self.workspace.get_entity(uuid.UUID(objects))[0]
-        if (
-            obj is None
-            or len(self.workspace.get_entity(uuid.UUID(line_field))) == 0
-            or line_id is None
-            or len(property_groups_dict) == 0
-        ):
-            return None, None
 
-        line_indices = self.get_line_indices(line_field, line_id)
-        if line_indices is None:
-            return None, None
-
-        obj.line_indices = line_indices
         property_groups = [
-            obj.find_or_create_property_group(name=name)
+            obj.find_or_create_property_group(name=name)  # type: ignore
             for name in property_groups_dict
         ]
 
-        line_anomaly = LineAnomaly(
-            entity=obj,
+        line_computation = PeakFinderDriver.compute_lines(
+            survey=obj,  # type: ignore
             line_indices=line_indices,
+            line_ids=line_ids,
             property_groups=property_groups,
             smoothing=smoothing,
             min_amplitude=min_amplitude,
@@ -433,16 +547,33 @@ class PeakFinder(BaseDashApplication):
             max_separation=max_separation,
         )
 
-        if line_anomaly is None:
-            return None, None
+        with ProgressBar():
+            results = compute(line_computation)
 
-        line_groups = line_anomaly.anomalies
-        anomalies: list[AnomalyGroup] = []
-        if line_groups is not None:
-            for line_group in line_groups:
-                anomalies += line_group.groups  # type: ignore
+        self.lines = {}
+        for result in tqdm(results):
+            for line in result:
+                positions = []
+                anomalies = []
+                indices = []
+                for line_anomaly in line:
+                    positions.append(line_anomaly.position)
+                    indices.append(line_anomaly.line_indices)
+                    line_groups = line_anomaly.anomalies
 
-        return line_anomaly.position, anomalies
+                    line_anomalies: list[AnomalyGroup] = []
+                    if line_groups is not None:
+                        for line_group in line_groups:
+                            line_anomalies += line_group.groups  # type: ignore
+                    anomalies.append(line_anomalies)
+                if len(line) > 0:
+                    line_id = line[0].line_id
+                    self.lines[line_id] = {
+                        "position": positions,
+                        "anomalies": anomalies,
+                        "indices": indices,
+                    }
+        return update_line + 1
 
     def update_line_figure(  # pylint: disable=too-many-arguments, too-many-locals
         self,
@@ -451,16 +582,10 @@ class PeakFinder(BaseDashApplication):
         full_lines_click_data: dict | None,
         objects: str,
         property_groups: dict,
-        smoothing: float,
-        max_migration: float,
-        min_channels: int,
-        min_amplitude: float,
+        update_line: dict | None,
         min_value: float,
-        min_width: float,
-        n_groups: int,
-        max_separation: float,
-        line_field: str,
-        line_id: int,
+        line_id,
+        line_indices,
         active_channels: dict,
         y_scale: str,
         linear_threshold: float,
@@ -474,14 +599,10 @@ class PeakFinder(BaseDashApplication):
         :param full_lines_click_data: Click data for full lines plot.
         :param objects: Input object.
         :param property_groups: Property groups dictionary.
-        :param smoothing: Smoothing factor.
-        :param max_migration: Maximum migration.
-        :param min_channels: Minimum number of channels.
-        :param min_amplitude: Minimum amplitude.
+        :param update_line: Count for if line has been updated.
         :param min_value: Minimum value.
-        :param min_width: Minimum width.
-        :param line_field: Line field.
         :param line_id: Line ID.
+        :param line_indices: Line indices for each line ID given.
         :param active_channels: Active channels.
         :param y_scale: Whether y-axis ticks are linear or symlog.
         :param linear_threshold: Linear threshold slider value.
@@ -506,11 +627,11 @@ class PeakFinder(BaseDashApplication):
             if (
                 full_lines_click_data is not None
                 and "full_lines_figure" in triggers
-                and self.lines_position is not None
+                and self.lines is not None
             ):
                 x_val = (
                     full_lines_click_data["points"][0]["x"]
-                    - self.lines_position.x_locations[0]  # type: ignore
+                    - self.lines[line_id]["position"].x_locations[0]  # type: ignore
                 )
                 figure["layout"]["shapes"][0]["x0"] = x_val
                 figure["layout"]["shapes"][0]["x1"] = x_val
@@ -521,40 +642,6 @@ class PeakFinder(BaseDashApplication):
                     no_update,
                 )
 
-        update_line_triggers = [
-            "objects",
-            "property_groups",
-            "smoothing",
-            "max_migration",
-            "min_channels",
-            "min_amplitude",
-            "min_value",
-            "min_width",
-            "n_groups",
-            "max_separation",
-            "line_field",
-            "line_id",
-        ]
-        update_line = False
-        if any(t in triggers for t in update_line_triggers):
-            # Update line position and anomalies
-            self.lines_position, self.lines_anomalies = self.line_update(
-                objects,
-                property_groups,
-                smoothing,
-                max_migration,
-                min_channels,
-                min_amplitude,
-                min_value,
-                min_width,
-                n_groups,
-                max_separation,
-                line_field,
-                line_id,
-            )
-            if self.lines_position is None and self.lines_anomalies is None:
-                return no_update, no_update, no_update, no_update
-            update_line = True
         figure_data, figure_layout, y_min, y_max, y_label, y_tickvals, y_ticktext = (
             None,
             None,
@@ -575,6 +662,8 @@ class PeakFinder(BaseDashApplication):
             "active_channels",
             "y_scale",
             "linear_threshold",
+            "line_id",
+            "update_line",
         ]
         if (
             figure_data is None
@@ -595,6 +684,8 @@ class PeakFinder(BaseDashApplication):
                 objects,
                 property_groups,
                 active_channels,
+                line_id,
+                line_indices,
                 y_scale,
                 linear_threshold,
             )
@@ -919,11 +1010,13 @@ class PeakFinder(BaseDashApplication):
         )
         return fig_data
 
-    def update_figure_data(  # pylint: disable=too-many-locals, too-many-branches, too-many-statements
+    def update_figure_data(  # noqa: C901  pylint: disable=too-many-locals, too-many-branches, too-many-statements, too-many-arguments
         self,
         objects: str,
         property_groups: dict,
         active_channels: dict,
+        line_id,
+        line_indices_dict: dict,
         y_scale: str,
         linear_threshold: float,
     ) -> tuple[
@@ -943,6 +1036,9 @@ class PeakFinder(BaseDashApplication):
         :param objects: Input object.
         :param property_groups: Property groups dictionary.
         :param active_channels: Active channels.
+        :param line_id: Line ID.
+        :param line_indices_dict: Line indices for each line ID given.
+        :param y_scale: Whether y-axis ticks are linear or symlog.
         :param linear_threshold: Linear threshold.
 
         :return: Updated figure data.
@@ -960,15 +1056,16 @@ class PeakFinder(BaseDashApplication):
 
         if (
             obj is None
-            or getattr(obj, "line_indices", None) is None
-            or len(obj.line_indices) < 2
             or len(active_channels) == 0
-            or self.lines_position is None
+            or self.lines is None
+            or line_id is None
         ):
             return fig_data, None, None, None, None, None, None, None, None
 
         y_min, y_max = np.inf, -np.inf
-        locs = self.lines_position.locations_resampled
+        log = y_scale == "symlog"
+        threshold = np.float_power(10, linear_threshold)
+        all_values = []
         peak_markers_x, peak_markers_y, peak_markers_customdata, peak_markers_c = (
             [],
             [],
@@ -996,129 +1093,144 @@ class PeakFinder(BaseDashApplication):
             "markers": {},
         }
 
-        log = y_scale == "symlog"
-        threshold = np.float_power(10, linear_threshold)
-
-        all_values = []
-        for channel_dict in list(active_channels.values()):
-            if "values" not in channel_dict:
+        position = self.lines[line_id]["position"]
+        anomalies = self.lines[line_id]["anomalies"]
+        line_indices = line_indices_dict[str(line_id)]
+        for ind, lines_position in enumerate(  # pylint: disable=too-many-nested-blocks
+            position
+        ):
+            if len(line_indices[ind]) < 2:
                 continue
-            values = np.array(channel_dict["values"])[obj.line_indices]
-            values, raw = self.lines_position.resample_values(values)
-            all_values += list(values.flatten())
+            locs = lines_position.locations_resampled
 
-            if log:
-                sym_values = symlog(values, threshold)
-                sym_raw = symlog(raw, threshold)
-            else:
-                sym_values = values
-                sym_raw = raw
-
-            y_min = np.nanmin([sym_values.min(), y_min])
-            y_max = np.nanmax([sym_values.max(), y_max])
-
-            trace_dict["lines"]["lines"]["x"] += list(locs) + [None]  # type: ignore
-            trace_dict["lines"]["lines"]["y"] += list(sym_values) + [None]  # type: ignore
-
-            for anomaly_group in self.lines_anomalies:  # type: ignore
-                channels = np.array(
-                    [a.parent.data_entity.name for a in anomaly_group.anomalies]
-                )
-                group_name = anomaly_group.property_group.name
-                color = property_groups[group_name]["color"]
-                peaks = anomaly_group.get_list_attr("peak")
-                query = np.where(np.array(channels) == channel_dict["name"])[0]
-                if len(query) == 0:
+            for channel_dict in list(active_channels.values()):
+                if "values" not in channel_dict:
                     continue
 
-                i = query[0]
-                start = anomaly_group.start
-                end = anomaly_group.end
+                values = np.array(channel_dict["values"])[line_indices[ind]]
+                values, raw = lines_position.resample_values(values)
+                all_values += list(values.flatten())
 
-                if group_name not in trace_dict["property_groups"]:  # type: ignore
-                    trace_dict["property_groups"][group_name] = {  # type: ignore
-                        "x": [None],
-                        "y": [None],
-                        "customdata": [None],
-                        "mode": "lines",
-                        "line_color": color,
-                        "name": group_name,
-                        "hovertemplate": (
-                            "<b>x</b>: %{x:,.2f} <br>" + "<b>y</b>: %{customdata:,.2e}"
-                        ),
-                    }
-                trace_dict["property_groups"][group_name]["x"] += list(  # type: ignore
-                    locs[start:end]
-                ) + [None]
-                trace_dict["property_groups"][group_name]["y"] += list(  # type: ignore
-                    sym_values[start:end]
-                ) + [None]
-                trace_dict["property_groups"][group_name]["customdata"] += list(  # type: ignore
-                    values[start:end]
-                ) + [
-                    None
-                ]
-
-                if anomaly_group.azimuth < 180:  # type: ignore
-                    ori = "right"
+                if log:
+                    sym_values = symlog(values, threshold)
+                    sym_raw = symlog(raw, threshold)
                 else:
-                    ori = "left"
+                    sym_values = values
+                    sym_raw = raw
 
-                # Add markers
-                if i == 0:
-                    if ori + "_azimuth" not in trace_dict["markers"]:  # type: ignore
-                        trace_dict["markers"][ori + "_azimuth"] = {  # type: ignore
-                            "x": [None],
-                            "y": [None],
-                            "customdata": [None],
-                            "mode": "markers",
-                            "marker_color": "black",
-                            "marker_symbol": "arrow-" + ori,
-                            "marker_size": 8,
-                            "name": "peaks start",
-                            "legendgroup": "markers",
-                            "showlegend": False,
-                            "visible": "legendonly",
-                            "hovertemplate": (
-                                "<b>x</b>: %{x:,.2f} <br>"
-                                + "<b>y</b>: %{customdata:,.2e}"
-                            ),
-                        }
-                    trace_dict["markers"][ori + "_azimuth"]["x"] += [  # type: ignore
-                        locs[peaks[i]]
-                    ]
-                    trace_dict["markers"][ori + "_azimuth"]["y"] += [  # type: ignore
-                        sym_values[peaks[i]]
-                    ]
-                    trace_dict["markers"][ori + "_azimuth"]["customdata"] += [  # type: ignore
-                        values[peaks[i]]
-                    ]
+                y_min = np.nanmin([sym_values.min(), y_min])
+                y_max = np.nanmax([sym_values.max(), y_max])
 
-                peak_markers_x += [locs[peaks[i]]]
-                peak_markers_y += [sym_values[peaks[i]]]
-                peak_markers_customdata += [values[peaks[i]]]
-                peak_markers_c += [color]
-                start_markers_x += [locs[anomaly_group.anomalies[i].start]]
-                start_markers_y += [sym_values[anomaly_group.anomalies[i].start]]
-                start_markers_customdata += [values[anomaly_group.anomalies[i].start]]
-                end_markers_x += [locs[anomaly_group.anomalies[i].end]]
-                end_markers_y += [sym_values[anomaly_group.anomalies[i].end]]
-                end_markers_customdata += [values[anomaly_group.anomalies[i].end]]
-                up_markers_x += [locs[anomaly_group.anomalies[i].inflect_up]]
-                up_markers_y += [sym_values[anomaly_group.anomalies[i].inflect_up]]
-                up_markers_customdata += [values[anomaly_group.anomalies[i].inflect_up]]
-                dwn_markers_x += [locs[anomaly_group.anomalies[i].inflect_down]]
-                dwn_markers_y += [sym_values[anomaly_group.anomalies[i].inflect_down]]
-                dwn_markers_customdata += [
-                    values[anomaly_group.anomalies[i].inflect_down]
-                ]
+                trace_dict["lines"]["lines"]["x"] += list(locs) + [None]  # type: ignore
+                trace_dict["lines"]["lines"]["y"] += list(sym_values) + [None]  # type: ignore
 
-            fig_data = PeakFinder.add_residuals(
-                fig_data,
-                sym_values,
-                sym_raw,
-                locs,
-            )
+                for anomaly_group in anomalies[ind]:  # type: ignore
+                    for subgroup in anomaly_group.subgroups:
+                        channels = np.array(
+                            [a.parent.data_entity.name for a in subgroup.anomalies]
+                        )
+                        group_name = subgroup.property_group.name
+                        color = property_groups[group_name]["color"]
+                        peaks = subgroup.get_list_attr("peak")
+                        query = np.where(np.array(channels) == channel_dict["name"])[0]
+                        if len(query) == 0:
+                            continue
+
+                        i = query[0]
+                        start = subgroup.start
+                        end = subgroup.end
+
+                        if group_name not in trace_dict["property_groups"]:  # type: ignore
+                            trace_dict["property_groups"][group_name] = {  # type: ignore
+                                "x": [None],
+                                "y": [None],
+                                "customdata": [None],
+                                "mode": "lines",
+                                "line_color": color,
+                                "name": group_name,
+                                "hovertemplate": (
+                                    "<b>x</b>: %{x:,.2f} <br>"
+                                    + "<b>y</b>: %{customdata:,.2e}"
+                                ),
+                            }
+                        trace_dict["property_groups"][group_name]["x"] += list(  # type: ignore
+                            locs[start:end]
+                        ) + [
+                            None
+                        ]
+                        trace_dict["property_groups"][group_name][  # type: ignore
+                            "y"
+                        ] += list(sym_values[start:end]) + [None]
+                        trace_dict["property_groups"][group_name][  # type: ignore
+                            "customdata"
+                        ] += list(values[start:end]) + [None]
+
+                        if subgroup.azimuth < 180:  # type: ignore
+                            ori = "right"
+                        else:
+                            ori = "left"
+
+                        # Add markers
+                        if i == 0:
+                            if ori + "_azimuth" not in trace_dict["markers"]:  # type: ignore
+                                trace_dict["markers"][ori + "_azimuth"] = {  # type: ignore
+                                    "x": [None],
+                                    "y": [None],
+                                    "customdata": [None],
+                                    "mode": "markers",
+                                    "marker_color": "black",
+                                    "marker_symbol": "arrow-" + ori,
+                                    "marker_size": 8,
+                                    "name": "peaks start",
+                                    "legendgroup": "markers",
+                                    "showlegend": False,
+                                    "visible": "legendonly",
+                                    "hovertemplate": (
+                                        "<b>x</b>: %{x:,.2f} <br>"
+                                        + "<b>y</b>: %{customdata:,.2e}"
+                                    ),
+                                }
+                            trace_dict["markers"][ori + "_azimuth"]["x"] += [  # type: ignore
+                                locs[peaks[i]]
+                            ]
+                            trace_dict["markers"][ori + "_azimuth"]["y"] += [  # type: ignore
+                                sym_values[peaks[i]]
+                            ]
+                            trace_dict["markers"][ori + "_azimuth"][  # type: ignore
+                                "customdata"
+                            ] += [values[peaks[i]]]
+
+                        peak_markers_x += [locs[peaks[i]]]
+                        peak_markers_y += [sym_values[peaks[i]]]
+                        peak_markers_customdata += [values[peaks[i]]]
+                        peak_markers_c += [color]
+                        start_markers_x += [locs[subgroup.anomalies[i].start]]
+                        start_markers_y += [sym_values[subgroup.anomalies[i].start]]
+                        start_markers_customdata += [
+                            values[subgroup.anomalies[i].start]
+                        ]
+                        end_markers_x += [locs[subgroup.anomalies[i].end]]
+                        end_markers_y += [sym_values[subgroup.anomalies[i].end]]
+                        end_markers_customdata += [values[subgroup.anomalies[i].end]]
+                        up_markers_x += [locs[subgroup.anomalies[i].inflect_up]]
+                        up_markers_y += [sym_values[subgroup.anomalies[i].inflect_up]]
+                        up_markers_customdata += [
+                            values[subgroup.anomalies[i].inflect_up]
+                        ]
+                        dwn_markers_x += [locs[subgroup.anomalies[i].inflect_down]]
+                        dwn_markers_y += [
+                            sym_values[subgroup.anomalies[i].inflect_down]
+                        ]
+                        dwn_markers_customdata += [
+                            values[subgroup.anomalies[i].inflect_down]
+                        ]
+
+                    fig_data = PeakFinder.add_residuals(
+                        fig_data,
+                        sym_values,
+                        sym_raw,
+                        locs,
+                    )
 
         if np.isinf(y_min):
             return fig_data, None, None, None, None, None, None, None, None
@@ -1213,25 +1325,16 @@ class PeakFinder(BaseDashApplication):
             thresh_ticks,
         )
 
-    def update_full_lines_figure(  # pylint: disable=too-many-arguments, too-many-locals
+    def update_full_lines_figure(  # pylint: disable=too-many-arguments, too-many-locals, too-many-branches
         self,
-        figure,
-        line_click_data,
-        full_lines_click_data,
-        n_lines: int,
-        line_id_options,
-        objects,
-        property_groups,
-        smoothing,
-        max_migration,
-        min_channels,
-        min_amplitude,
-        min_value,
-        min_width,
-        n_groups,
-        max_separation,
-        line_field,
-        line_id,
+        figure: dict | None,
+        line_click_data: dict | None,
+        full_lines_click_data: dict | None,
+        line_id_options: list[dict[str, str]],
+        property_groups: dict,
+        line_id: int,
+        line_ids: list[int],
+        update_line,
     ):
         """
         Update the full lines figure.
@@ -1239,30 +1342,23 @@ class PeakFinder(BaseDashApplication):
         :param figure: Figure dictionary.
         :param line_click_data: Line figure click data.
         :param full_lines_click_data: Full lines figure click data.
-        :param n_lines: Number of lines to display.
         :param line_id_options: Line id options.
-        :param objects: Input object.
         :param property_groups: Property groups dictionary.
-        :param smoothing: Smoothing.
-        :param max_migration: Maximum migration.
-        :param min_channels: Minimum number of channels.
-        :param min_amplitude: Minimum amplitude.
-        :param min_value: Minimum value.
-        :param min_width: Minimum width.
-        :param line_field: Line field.
         :param line_id: Line id.
+        :param line_ids: Line ids.
+        :param update_line: Trigger for line computation.
         """
         triggers = [t["prop_id"].split(".")[0] for t in callback_context.triggered]
         if figure is not None:
             if (
                 line_click_data is not None
                 and "line_figure" in triggers
-                and self.lines_position is not None
+                and self.lines is not None
             ):
-                x_locs = self.lines_position.x_locations
+                x_locs = self.lines[line_id]["position"][0].x_locations
                 x_val = x_locs[0] + line_click_data["points"][0]["x"]  # type: ignore
                 ind = (np.abs(x_locs - x_val)).argmin()
-                y_val = self.lines_position.y_locations[ind]  # type: ignore
+                y_val = self.lines[line_id]["position"][0].y_locations[ind]  # type: ignore
                 figure["data"][-1]["x"] = [x_val]
                 figure["data"][-1]["y"] = [y_val]
                 return figure
@@ -1274,11 +1370,10 @@ class PeakFinder(BaseDashApplication):
                 return figure
 
         figure = go.Figure()
-        if n_lines is None:
+        if line_ids is None or self.lines is None:
             return figure
 
-        min_ind = max(0, line_id - n_lines)
-        max_ind = min(len(line_id_options), line_id + n_lines + 1)
+        line_ids_labels = {line["value"]: line["label"] for line in line_id_options}
 
         anomaly_traces = {}
         for key, value in property_groups.items():
@@ -1290,60 +1385,60 @@ class PeakFinder(BaseDashApplication):
                 "name": key,
             }
 
-        for line in line_id_options[min_ind:max_ind]:
-            position, anomalies = self.line_update(
-                objects,
-                property_groups,
-                smoothing,
-                max_migration,
-                min_channels,
-                min_amplitude,
-                min_value,
-                min_width,
-                n_groups,
-                max_separation,
-                line_field,
-                line["value"],
-            )
-            if position is not None:
-                if line["value"] == line_id:
-                    figure.add_trace(
-                        go.Scatter(
-                            x=position.x_locations,
-                            y=position.y_locations,
-                            name=line["label"],
-                            line_color="black",
-                        )
-                    )
-                else:
-                    figure.add_trace(
-                        go.Scatter(
-                            x=position.x_locations,
-                            y=position.y_locations,
-                            name=line["label"],
-                        )
-                    )
+        marker_x = None
+        marker_y = None
 
-            if anomalies is not None:
-                for anom in anomalies:
-                    anomaly_traces[anom.property_group.name]["x"].append(
-                        anom.group_center[0]
-                    )
-                    anomaly_traces[anom.property_group.name]["y"].append(
-                        anom.group_center[1]
-                    )
+        line_dict = {}
+        for line in self.lines:  # type: ignore  # pylint: disable=C0206
+            line_position = self.lines[line]["position"]
+            line_anomalies = self.lines[line]["anomalies"]
+            label = line_ids_labels[int(line)]  # type: ignore
 
-        for trace in list(anomaly_traces.values()):
-            figure.add_trace(
+            line_dict[line] = {
+                "x": [None],
+                "y": [None],
+                "name": label,
+            }
+            if int(line) == line_id:
+                line_dict[line]["line_color"] = "black"
+
+            for ind, position in enumerate(line_position):  # type: ignore
+                anomalies = line_anomalies[ind]
+
+                if position is not None:
+                    if line == line_id:
+                        marker_x = position.x_locations[0]
+                        marker_y = position.y_locations[0]
+                    line_dict[line]["x"] += list(position.x_locations)  # type: ignore
+                    line_dict[line]["y"] += list(position.y_locations)  # type: ignore
+
+                if anomalies is not None:
+                    for anom in anomalies:
+                        anomaly_traces[anom.property_group.name]["x"].append(
+                            anom.group_center[0]
+                        )
+                        anomaly_traces[anom.property_group.name]["y"].append(
+                            anom.group_center[1]
+                        )
+
+        for trace in list(line_dict.values()):
+            figure.add_trace(  # type: ignore
                 go.Scatter(
                     **trace,
                 )
             )
 
-        figure.add_trace(
+        for trace in list(anomaly_traces.values()):
+            figure.add_trace(  # type: ignore
+                go.Scatter(
+                    **trace,
+                )
+            )
+
+        figure.add_trace(  # type: ignore
             go.Scatter(
-                x=[self.lines_position.x_locations[0]],  # type: ignore
-                y=[self.lines_position.y_locations[0]],  # type: ignore
+                x=[marker_x],
+                y=[marker_y],
                 marker_color="black",
                 marker_symbol="star",
                 marker_size=10,
@@ -1352,7 +1447,7 @@ class PeakFinder(BaseDashApplication):
             )
         )
 
-        figure.update_layout(
+        figure.update_layout(  # type: ignore
             xaxis_title="Easting (m)",
             yaxis_title="Northing (m)",
             yaxis_scaleanchor="x",
@@ -1367,6 +1462,7 @@ class PeakFinder(BaseDashApplication):
         objects: str,
         flip_sign: list[bool],
         line_field: str,
+        masking_data: str | None,
         smoothing: float,
         min_amplitude: float,
         min_value: float,
@@ -1389,6 +1485,7 @@ class PeakFinder(BaseDashApplication):
         :param objects: Input object.
         :param flip_sign: Whether to flip the sign of the data.
         :param line_field: Line field.
+        :param masking_data: Masking data.
         :param smoothing: Smoothing factor.
         :param min_amplitude: Minimum amplitude.
         :param min_value: Minimum value.

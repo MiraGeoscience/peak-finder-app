@@ -18,6 +18,8 @@ from peak_finder.anomaly_group import AnomalyGroup
 from peak_finder.line_data import LineData
 from peak_finder.line_position import LinePosition
 
+# pylint: disable=duplicate-code
+
 
 class LineGroup:
     """
@@ -274,17 +276,19 @@ class LineGroup:
                     n_groups = len(group.subgroups) + len(groups[i].subgroups)
                     if n_groups <= self.n_groups:
                         new_group = AnomalyGroup(
-                            self.position,
-                            np.concatenate((group.anomalies, groups[i].anomalies)),
-                            self.property_group,
-                            np.concatenate(
+                            position=self.position,
+                            anomalies=np.concatenate(
+                                (group.anomalies, groups[i].anomalies)
+                            ),
+                            property_group=self.property_group,
+                            full_azimuth=np.concatenate(
                                 (group.full_azimuth, groups[i].full_azimuth)
                             ),
-                            self.channels,
-                            np.concatenate(
+                            channels=self.channels,
+                            full_peak_values=np.concatenate(
                                 (group.full_peak_values, groups[i].full_peak_values)
                             ),
-                            group.subgroups.union(groups[i].subgroups),
+                            subgroups=group.subgroups.union(groups[i].subgroups),
                         )
                         merged.append(new_group)
             groups += merged

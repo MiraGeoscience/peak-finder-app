@@ -5,6 +5,7 @@
 #  All rights reserved.
 #
 
+
 from __future__ import annotations
 
 import numpy as np
@@ -16,7 +17,7 @@ from peak_finder.line_group import LineGroup
 from peak_finder.line_position import LinePosition
 
 
-class LineAnomaly:  # pylint: disable=R0902
+class LineAnomaly:  # pylint: disable=R0902, duplicate-code
     """
     Main class for finding anomalies.
 
@@ -24,6 +25,7 @@ class LineAnomaly:  # pylint: disable=R0902
     """
 
     _entity: Curve
+    _line_id: int
     _line_indices: list[int] | np.ndarray
     _max_migration: float
     _minimal_output: bool
@@ -35,9 +37,10 @@ class LineAnomaly:  # pylint: disable=R0902
     _smoothing: int
     _use_residual: bool
 
-    def __init__(  # pylint: disable=R0913
+    def __init__(  # pylint: disable=R0913, R0914
         self,
         entity,
+        line_id,
         line_indices,
         property_groups,
         max_migration=50.0,
@@ -50,6 +53,7 @@ class LineAnomaly:  # pylint: disable=R0902
         n_groups=1,
         max_separation=100.0,
         use_residual=False,
+        masking_offset=0,
     ):
         """
         :param entity: Survey object.
@@ -64,11 +68,12 @@ class LineAnomaly:  # pylint: disable=R0902
         :param use_residual: Whether to use the residual of the smoothing data.
         :param minimal_output: Whether to return minimal output.
         """
-        self._position: LinePosition | None = None
-        self._anomalies: list[LineGroup] | None = None
-        self._locations: np.ndarray | None = None
+        self._position: LinePosition | None = None  # type: ignore
+        self._anomalies: list[LineGroup] | None = None  # type: ignore
+        self._locations: np.ndarray | None = None  # type: ignore
 
         self.entity = entity
+        self.line_id = line_id
         self.line_indices = line_indices
         self.smoothing = smoothing
         self.min_amplitude = min_amplitude
@@ -81,6 +86,7 @@ class LineAnomaly:  # pylint: disable=R0902
         self.property_groups = property_groups
         self.n_groups = n_groups
         self.max_separation = max_separation
+        self.masking_offset = masking_offset
 
     @property
     def entity(self) -> Curve:
@@ -95,6 +101,17 @@ class LineAnomaly:  # pylint: disable=R0902
             raise TypeError("Entity must be a Curve.")
 
         self._entity = value
+
+    @property
+    def line_id(self) -> int | None:
+        """
+        Line ID.
+        """
+        return self._line_id
+
+    @line_id.setter
+    def line_id(self, value):
+        self._line_id = value
 
     @property
     def line_indices(self) -> list[int] | None:
@@ -252,6 +269,17 @@ class LineAnomaly:  # pylint: disable=R0902
         self._minimal_output = value
 
     @property
+    def masking_offset(self) -> int:
+        """
+        Index for masking offset.
+        """
+        return self._masking_offset
+
+    @masking_offset.setter
+    def masking_offset(self, value):
+        self._masking_offset = value
+
+    @property
     def locations(self) -> np.ndarray | None:
         """
         Survey vertices.
@@ -303,9 +331,8 @@ class LineAnomaly:  # pylint: disable=R0902
         line_dataset = {}
         # Iterate over channels and add to anomalies
         for data in self.channels:
-            if data.values is None:
+            if data is None or data.values is None:
                 continue
-
             # Make LineData with current channel values
             line_data = LineData(
                 data,
@@ -314,6 +341,7 @@ class LineAnomaly:  # pylint: disable=R0902
                 self.min_width,
                 self.max_migration,
                 self.min_value,
+                self.masking_offset,
             )
 
             line_dataset[data.uid] = line_data
