@@ -1655,7 +1655,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
                 return figure
 
         figure = go.Figure()
-        if line_ids is None or self.lines is None:
+        if line_ids is None or self.lines is None or line_id is None:
             return figure
 
         line_ids_labels = {line["value"]: line["label"] for line in line_id_options}
