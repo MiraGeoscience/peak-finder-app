@@ -354,11 +354,15 @@ class LineData:
 
         :return: List of anomalies.
         """
-        if (
+        if (  # pylint: disable=R0916
             self.peaks is None
+            or len(self.peaks) == 0
             or self.lows is None
+            or len(self.lows) == 0
             or self.inflect_up is None
+            or len(self.inflect_up) == 0
             or self.inflect_down is None
+            or len(self.inflect_down) == 0
         ):
             return []
 

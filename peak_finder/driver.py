@@ -66,7 +66,6 @@ class PeakFinderDriver(BaseDriver):
                 line_indices = np.where(
                     (line_field.values == line_id) & (survey.parts == part)
                 )[0]
-
                 indices_dict[str(line_id)] += [line_indices]
 
         return indices_dict
@@ -126,9 +125,10 @@ class PeakFinderDriver(BaseDriver):
                         masking_offset=masking_offset,
                     )
                 ]
+
         return anomalies
 
-    def run(self):  # pylint: disable=R0912, R0914
+    def run(self):  # pylint: disable=R0912, R0914, too-many-statements
         with fetch_active_workspace(self.params.geoh5, mode="r+"):
             survey = self.params.objects
 

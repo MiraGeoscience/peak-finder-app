@@ -31,6 +31,7 @@ from geoapps_utils.application.dash_application import (
 from geoapps_utils.plotting import format_axis, symlog
 from geoh5py import Workspace
 from geoh5py.data import BooleanData, ReferencedData
+from geoh5py.shared.utils import fetch_active_workspace
 from geoh5py.ui_json import InputFile
 from tqdm import tqdm
 
@@ -130,10 +131,10 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         )(self.mask_data)
         self.app.callback(
             Output(component_id="line_ids", component_property="data"),
-            Input(component_id="line_field", component_property="value"),
+            Input(component_id="line_id", component_property="options"),
             Input(component_id="line_id", component_property="value"),
             Input(component_id="n_lines", component_property="value"),
-        )(self.get_line_ids)
+        )(PeakFinder.get_line_ids)
         self.app.callback(
             Output(component_id="line_indices", component_property="data"),
             Input(component_id="objects", component_property="data"),
@@ -419,15 +420,14 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
 
         line_field_obj = self.workspace.get_entity(uuid.UUID(line_field))[0]
         value_map = line_field_obj.value_map.map  # type: ignore
-
         line_vals = np.unique(line_field_obj.values)  # type: ignore
-        value_map = {key: value for key, value in value_map.items() if key in line_vals}
 
         options = []
         for key, value in value_map.items():  # type: ignore
-            options.append({"label": value, "value": key})
+            if key in line_vals:
+                options.append({"label": value, "value": key})
 
-        if line_id not in value_map.keys():
+        if line_id not in line_vals:
             line_id = None
 
         return options, line_id
@@ -513,48 +513,43 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         :return: Line field uid to trigger other callbacks.
         """
         original_workspace = self.params.geoh5
-        survey_obj = self.workspace.get_entity(uuid.UUID(objects))[0]
+        survey_obj = original_workspace.get_entity(uuid.UUID(objects))[0]
         if masking_data is not None and masking_data != "None":
-            with original_workspace:
-                masking_data_obj = original_workspace.get_entity(
-                    uuid.UUID(masking_data)
-                )[0]
-                masking_array = masking_data_obj.values
-
             self.workspace: Workspace = Workspace()
-            self.workspace.open()
-            with original_workspace.open():
+            with fetch_active_workspace(original_workspace):
                 if survey_obj is not None and hasattr(survey_obj, "copy"):
                     survey_obj = survey_obj.copy(parent=self.workspace)
+
             if survey_obj is not None and hasattr(survey_obj, "remove_vertices"):
-                survey_obj.remove_vertices(~masking_array)
+                masking_data_obj = survey_obj.get_data(uuid.UUID(masking_data))[0]
+                masking_array = masking_data_obj.values
+                if masking_array is not None:
+                    survey_obj.remove_vertices(~masking_array)
         else:
             self.workspace = original_workspace
             self.workspace.open()
 
         return objects, line_field
 
+    @staticmethod
     def get_line_ids(
-        self,
-        line_field: str,
+        line_id_options: list[dict],
         line_id: int,
         n_lines: int,
     ) -> np.ndarray:
         """
         Get line IDs to compute for plotting.
 
-        :param line_field: Line field.
+        :param line_id_options: Line ID options.
         :param line_id: Line ID.
         :param n_lines: Number of lines to plot on either side of line_id.
 
         :return: Line IDs.
         """
-        if line_field is None or line_id is None or n_lines is None:
+        if line_id is None or n_lines is None:
             return no_update
-        line_field_obj = self.workspace.get_entity(uuid.UUID(line_field))[0]
-        # Find line_ids to get indices for
-        value_map = line_field_obj.value_map.map  # type: ignore
-        full_line_ids = np.sort(list(value_map.keys()))
+
+        full_line_ids = [val["value"] for val in line_id_options]
         line_id_ind = np.where(np.array(full_line_ids) == line_id)[0][0]
 
         min_ind = max(0, line_id_ind - n_lines)
@@ -671,7 +666,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
             results = compute(line_computation)
 
         # Remove un-needed lines
-        if self.lines is None:
+        if self.lines is None or "n_groups" in triggers:
             self.lines = {}
         else:
             entries_to_remove = [line for line in self.lines if line not in line_ids]
@@ -766,6 +761,10 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
             "markers": {},
         }
         n_parts = len(self.lines[line_id]["position"])
+        if len(line_indices_dict[str(line_id)]) != n_parts:
+            # ****
+            return no_update, no_update, no_update, no_update
+
         for ind in range(n_parts):  # pylint: disable=R1702
             position = self.lines[line_id]["position"][ind]
             anomalies = self.lines[line_id]["anomalies"][ind]
@@ -1013,12 +1012,14 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
             or self.figure is None
         ):
             return no_update
+
         triggers = [t["prop_id"].split(".")[0] for t in callback_context.triggered]
         if (
             "update_from_property_groups" in triggers
             and not update_from_property_groups
         ):
             raise PreventUpdate
+
         if not show_markers:
             self.figure.data[trace_map["markers_legend"]]["visible"] = False
             return update_markers + 1
@@ -1066,69 +1067,65 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
                     sym_values = values
 
                 for anomaly_group in anomalies:
-                    channels = np.array(
-                        [a.parent.data_entity.name for a in anomaly_group.anomalies]
-                    )
-                    group_name = anomaly_group.property_group.name
-                    color = property_groups[group_name]["color"]
-                    peaks = anomaly_group.get_list_attr("peak")
-                    query = np.where(np.array(channels) == channel_dict["name"])[0]
-                    if len(query) == 0:
-                        continue
+                    for subgroup in anomaly_group.subgroups:
+                        channels = np.array(
+                            [a.parent.data_entity.name for a in subgroup.anomalies]
+                        )
+                        group_name = subgroup.property_group.name
+                        color = property_groups[group_name]["color"]
+                        peaks = subgroup.get_list_attr("peak")
+                        query = np.where(np.array(channels) == channel_dict["name"])[0]
+                        if len(query) == 0:
+                            continue
 
-                    i = query[0]
-                    if anomaly_group.azimuth < 180:  # type: ignore
-                        ori = "right"
-                    else:
-                        ori = "left"
+                        i = query[0]
+                        if subgroup.azimuth < 180:  # type: ignore
+                            ori = "right"
+                        else:
+                            ori = "left"
 
-                    # Add markers
-                    if i == 0:
-                        if ori + "_azimuth" not in trace_dict["markers"]:  # type: ignore
-                            trace_dict["markers"][ori + "_azimuth"] = {  # type: ignore
-                                "x": [None],
-                                "y": [None],
-                                "customdata": [None],
-                            }
-                        trace_dict["markers"][ori + "_azimuth"]["x"] += [  # type: ignore
-                            locs[peaks[i]]
-                        ]
-                        trace_dict["markers"][ori + "_azimuth"]["y"] += [  # type: ignore
-                            sym_values[peaks[i]]
-                        ]
-                        trace_dict["markers"][ori + "_azimuth"][  # type: ignore
-                            "customdata"
-                        ] += [values[peaks[i]]]
+                        # Add markers
+                        if i == 0:
+                            if ori + "_azimuth" not in trace_dict["markers"]:  # type: ignore
+                                trace_dict["markers"][ori + "_azimuth"] = {  # type: ignore
+                                    "x": [None],
+                                    "y": [None],
+                                    "customdata": [None],
+                                }
+
+                            trace_dict["markers"][ori + "_azimuth"]["x"] += [  # type: ignore
+                                locs[peaks[i]]
+                            ]
+                            trace_dict["markers"][ori + "_azimuth"]["y"] += [  # type: ignore
+                                sym_values[peaks[i]]
+                            ]
+                            trace_dict["markers"][ori + "_azimuth"][  # type: ignore
+                                "customdata"
+                            ] += [values[peaks[i]]]
 
                         peak_markers_x += [locs[peaks[i]]]
                         peak_markers_y += [sym_values[peaks[i]]]
                         peak_markers_customdata += [values[peaks[i]]]
                         peak_markers_c += [color]
-                        start_markers_x += [locs[anomaly_group.anomalies[i].start]]
-                        start_markers_y += [
-                            sym_values[anomaly_group.anomalies[i].start]
-                        ]
+                        start_markers_x += [locs[subgroup.anomalies[i].start]]
+                        start_markers_y += [sym_values[subgroup.anomalies[i].start]]
                         start_markers_customdata += [
-                            values[anomaly_group.anomalies[i].start]
+                            values[subgroup.anomalies[i].start]
                         ]
-                        end_markers_x += [locs[anomaly_group.anomalies[i].end]]
-                        end_markers_y += [sym_values[anomaly_group.anomalies[i].end]]
-                        end_markers_customdata += [
-                            values[anomaly_group.anomalies[i].end]
-                        ]
-                        up_markers_x += [locs[anomaly_group.anomalies[i].inflect_up]]
-                        up_markers_y += [
-                            sym_values[anomaly_group.anomalies[i].inflect_up]
-                        ]
+                        end_markers_x += [locs[subgroup.anomalies[i].end]]
+                        end_markers_y += [sym_values[subgroup.anomalies[i].end]]
+                        end_markers_customdata += [values[subgroup.anomalies[i].end]]
+                        up_markers_x += [locs[subgroup.anomalies[i].inflect_up]]
+                        up_markers_y += [sym_values[subgroup.anomalies[i].inflect_up]]
                         up_markers_customdata += [
-                            values[anomaly_group.anomalies[i].inflect_up]
+                            values[subgroup.anomalies[i].inflect_up]
                         ]
-                        dwn_markers_x += [locs[anomaly_group.anomalies[i].inflect_down]]
+                        dwn_markers_x += [locs[subgroup.anomalies[i].inflect_down]]
                         dwn_markers_y += [
-                            sym_values[anomaly_group.anomalies[i].inflect_down]
+                            sym_values[subgroup.anomalies[i].inflect_down]
                         ]
                         dwn_markers_customdata += [
-                            values[anomaly_group.anomalies[i].inflect_down]
+                            values[subgroup.anomalies[i].inflect_down]
                         ]
 
         # Add markers to trace_dict
