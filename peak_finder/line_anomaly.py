@@ -5,6 +5,7 @@
 #  All rights reserved.
 #
 
+
 from __future__ import annotations
 
 import numpy as np
@@ -16,7 +17,7 @@ from peak_finder.line_group import LineGroup
 from peak_finder.line_position import LinePosition
 
 
-class LineAnomaly:  # pylint: disable=R0902
+class LineAnomaly:  # pylint: disable=R0902, duplicate-code
     """
     Main class for finding anomalies.
 

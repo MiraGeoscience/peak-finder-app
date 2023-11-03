@@ -2,10 +2,9 @@
 
 #  Copyright (c) 2023 Mira Geoscience Ltd.
 #
-#  This file is part of geoapps.
+#  This file is part of peak-finder-app.
 #
-#  geoapps is distributed under the terms and conditions of the MIT License
-#  (see LICENSE file at the root of this source code package).
+#  All rights reserved.
 
 """
 Creates cross-platform lock files for each python version and per-platform conda environment files.
@@ -244,11 +243,12 @@ def delete_per_platform_lock_files() -> None:
 
 def recreate_per_platform_lock_files() -> None:
     delete_per_platform_lock_files()
+    extras = ["dash"]
     with print_execution_time("create_per_platform_lock"):
         for py_ver in _python_versions:
-            per_platform_env(py_ver, ["core", "apps"], dev=False)
+            per_platform_env(py_ver, extras, dev=False)
             finalize_per_platform_envs(py_ver, dev=False)
-            per_platform_env(py_ver, ["core", "apps"], dev=True)
+            per_platform_env(py_ver, extras, dev=True)
             finalize_per_platform_envs(py_ver, dev=True)
 
 
