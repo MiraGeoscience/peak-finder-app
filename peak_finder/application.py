@@ -643,7 +643,11 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
 
         triggers = [t["prop_id"].split(".")[0] for t in callback_context.triggered]
         line_ids_subset = line_ids
-        if "line_ids" in triggers and self.lines is not None:
+        if (
+            "line_ids" in triggers
+            and self.lines is not None
+            and "objects" not in triggers
+        ):
             line_ids_subset = [line for line in line_ids if line not in self.lines]
 
         line_computation = PeakFinderDriver.compute_lines(
@@ -761,7 +765,6 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         }
         n_parts = len(self.lines[line_id]["position"])
         if len(line_indices_dict[str(line_id)]) != n_parts:
-            # ****
             return no_update, no_update, no_update, no_update
 
         for ind in range(n_parts):  # pylint: disable=R1702
@@ -1021,6 +1024,18 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
 
         if not show_markers:
             self.figure.data[trace_map["markers_legend"]]["visible"] = False
+            for trace_name in [
+                "peaks",
+                "start_markers",
+                "end_markers",
+                "up_markers",
+                "down_markers",
+                "left_azimuth",
+                "right_azimuth",
+            ]:
+                if trace_name in trace_map:
+                    self.figure.data[trace_map[trace_name]]["x"] = []
+                    self.figure.data[trace_map[trace_name]]["y"] = []
             return update_markers + 1
         self.figure.data[trace_map["markers_legend"]]["visible"] = True
 
