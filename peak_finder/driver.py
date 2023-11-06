@@ -170,15 +170,17 @@ class PeakFinderDriver(BaseDriver):
             else:
                 line_field_obj = self.params.line_field
 
-            line_indices = self.get_line_indices(
-                survey=survey_obj,
-                line_field=line_field_obj,
-                line_ids=[self.params.line_id],
-            )
+            line_indices = {}
+            value_map = line_field_obj.value_map.map
+            for key in value_map:
+                indices = np.where(line_field_obj.values == key)
+                if len(indices[0]) > 0:
+                    line_indices[str(key)] = indices
+
             anomalies = PeakFinderDriver.compute_lines(
                 survey=survey_obj,
                 line_indices=line_indices,
-                line_ids=[self.params.line_id],
+                line_ids=[int(line_id) for line_id in line_indices],
                 property_groups=property_groups,
                 smoothing=self.params.smoothing,
                 min_amplitude=self.params.min_amplitude,
