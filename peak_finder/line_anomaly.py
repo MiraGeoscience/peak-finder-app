@@ -57,6 +57,7 @@ class LineAnomaly:  # pylint: disable=R0902, duplicate-code
     ):
         """
         :param entity: Survey object.
+        :param line_id: Line ID.
         :param line_indices: Indices of vertices for line profile.
         :param property_groups: Property groups to use for grouping anomalies.
         :param smoothing: Smoothing factor.
@@ -110,7 +111,7 @@ class LineAnomaly:  # pylint: disable=R0902, duplicate-code
         return self._line_id
 
     @line_id.setter
-    def line_id(self, value):
+    def line_id(self, value: int):
         self._line_id = value
 
     @property

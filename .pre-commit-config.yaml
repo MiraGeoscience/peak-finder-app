@@ -61,7 +61,7 @@ repos:
         language: python
         files: (^LICENSE|README.rst|\.py|\.pyi)$
         types: [text]
-        exclude: (^setup.py$|^\.|\b(docs|peak_finder-assets)/)
+        exclude: (^setup.py$|^\.|\b(docs|peak_finder_assets)/)
 -   repo: https://github.com/codespell-project/codespell
     rev: v2.2.6
     hooks:
