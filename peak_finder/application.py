@@ -480,13 +480,33 @@ class PeakFinder(BaseDashApplication):
         survey_obj = self.workspace.get_entity(uuid.UUID(survey))[0]
         line_field_obj = self.workspace.get_entity(uuid.UUID(line_field))[0]
 
-        line_indices = PeakFinderDriver.get_line_indices(
-            survey_obj,  # type: ignore
-            line_field_obj,  # type: ignore
-            line_ids,
-        )
+        if (
+            line_field_obj is None
+            or survey_obj is None
+            or not hasattr(line_field_obj, "values")
+            or not hasattr(survey_obj, "parts")
+        ):
+            return no_update
 
-        return line_indices
+        indices_dict: dict[str, np.ndarray] = {}
+        for line_id in line_ids:
+            indices_dict[str(line_id)] = []
+
+            line_bool = line_field_obj.values == line_id
+            full_line_indices = np.where(line_bool)[0]
+            if len(full_line_indices) < 2:
+                continue
+
+            parts = np.unique(survey_obj.parts[full_line_indices])
+
+            for part in parts:
+                line_indices = np.where(
+                    (line_field_obj.values == line_id) & (survey_obj.parts == part)
+                )[0]
+
+                indices_dict[str(line_id)] += [line_indices]
+
+        return indices_dict
 
     def compute_line(  # pylint: disable=too-many-arguments, too-many-locals
         self,
