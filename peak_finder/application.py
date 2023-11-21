@@ -427,7 +427,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
                 options.append({"label": value, "value": key})
 
         if line_id not in line_vals:
-            line_id = None
+            line_id = options[0]["value"]
 
         return options, line_id
 
@@ -1863,6 +1863,9 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
             for key, value in property_groups.items():
                 param_dict[f"group_{value['param']}_data"] = p_g_new[key]
                 param_dict[f"group_{value['param']}_color"] = value["color"]
+
+            if masking_data == "None":
+                param_dict["masking_data"] = None
 
             # Write output uijson.
             new_params = PeakFinderParams(**param_dict)
