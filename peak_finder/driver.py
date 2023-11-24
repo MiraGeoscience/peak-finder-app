@@ -18,7 +18,6 @@ from geoapps_utils.conversions import hex_to_rgb
 from geoapps_utils.driver.driver import BaseDriver
 from geoapps_utils.formatters import string_name
 from geoh5py import Workspace
-from geoh5py.data import ReferencedData
 from geoh5py.groups import ContainerGroup, PropertyGroup
 from geoh5py.objects import Curve, Points
 from geoh5py.shared.utils import fetch_active_workspace
@@ -36,40 +35,6 @@ class PeakFinderDriver(BaseDriver):
     def __init__(self, params: PeakFinderParams):
         super().__init__(params)
         self.params: PeakFinderParams = params
-
-    @staticmethod
-    def get_line_indices(  # pylint: disable=R0914
-        survey: Curve,
-        line_field: ReferencedData,
-        line_ids: list[int],
-    ) -> dict:
-        """
-        Get line indices for a list of line ids.
-
-        :param survey: Survey object.
-        :param line_field: Line field.
-        :param line_ids: List of line ids.
-
-        :return: Dictionary of line indices with line IDs as keys.
-        """
-        indices_dict: dict[str, np.ndarray] = {}
-        for line_id in line_ids:
-            indices_dict[str(line_id)] = []
-
-            line_bool = line_field.values == line_id
-            full_line_indices = np.where(line_bool)[0]
-            if len(full_line_indices) < 2:
-                continue
-
-            parts = np.unique(survey.parts[full_line_indices])
-
-            for part in parts:
-                line_indices = np.where(
-                    (line_field.values == line_id) & (survey.parts == part)
-                )[0]
-                indices_dict[str(line_id)] += [line_indices]
-
-        return indices_dict
 
     @staticmethod
     def compute_lines(  # pylint: disable=R0913, R0914
@@ -129,7 +94,7 @@ class PeakFinderDriver(BaseDriver):
 
         return anomalies
 
-    def run(self):  # pylint: disable=R0912, R0914, too-many-statements
+    def run(self):  # noqa  # pylint: disable=R0912, R0914, too-many-statements
         with fetch_active_workspace(self.params.geoh5, mode="r+"):
             survey = self.params.objects
 
@@ -168,15 +133,17 @@ class PeakFinderDriver(BaseDriver):
             else:
                 line_field_obj = self.params.line_field
 
-            line_indices = self.get_line_indices(
-                survey=survey_obj,
-                line_field=line_field_obj,
-                line_ids=[self.params.line_id],
-            )
+            line_indices = {}
+            value_map = line_field_obj.value_map.map
+            for key in value_map:
+                indices = np.where(line_field_obj.values == key)
+                if len(indices[0]) > 0:
+                    line_indices[str(key)] = indices
+
             anomalies = PeakFinderDriver.compute_lines(
                 survey=survey_obj,
                 line_indices=line_indices,
-                line_ids=[self.params.line_id],
+                line_ids=[int(line_id) for line_id in line_indices],
                 property_groups=property_groups,
                 smoothing=self.params.smoothing,
                 min_amplitude=self.params.min_amplitude,
