@@ -22,7 +22,7 @@ from dash.exceptions import PreventUpdate
 from dask import compute
 from dask.diagnostics import ProgressBar
 from flask import Flask
-from geoapps_utils.application.application import get_output_workspace
+from geoapps_utils.workspace import get_output_workspace
 from geoapps_utils.application.dash_application import (
     BaseDashApplication,
     ObjectSelection,
@@ -64,16 +64,15 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         :param ui_json_data: Data from ui.json file.
         :param params: Peak finder params.
         """
+
         super().__init__(ui_json, ui_json_data, params)
+        self._app = None
+
 
         # Start flask server
-        external_stylesheets = ["https://codepen.io/chriddyp/pen/bWLwgP.css"]
-        server = Flask(__name__)
-        self.app = Dash(
-            server=server,
-            url_base_pathname=os.environ.get("JUPYTERHUB_SERVICE_PREFIX", "/"),
-            external_stylesheets=external_stylesheets,
-        )
+        self.external_stylesheets = ["https://codepen.io/chriddyp/pen/bWLwgP.css"]
+        self.server = Flask(__name__)
+
 
         # Getting app layout
         self.set_initialized_layout()
@@ -256,6 +255,19 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
             State(component_id="monitoring_directory", component_property="value"),
             prevent_initial_call=True,
         )(self.trigger_click)
+
+
+    @property
+    def app(self) -> Dash:
+        """Dash app"""
+        if self._app is None:
+            self._app = Dash(
+                server=self.server,
+                url_base_pathname=os.environ.get("JUPYTERHUB_SERVICE_PREFIX", "/"),
+                external_stylesheets=self.external_stylesheets,
+            )
+
+        return self._app
 
     @property
     def lines(self) -> dict | None:
