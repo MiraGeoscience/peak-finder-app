@@ -22,12 +22,12 @@ from dash.exceptions import PreventUpdate
 from dask import compute
 from dask.diagnostics import ProgressBar
 from flask import Flask
-from geoapps_utils.workspace import get_output_workspace
 from geoapps_utils.application.dash_application import (
     BaseDashApplication,
     ObjectSelection,
 )
 from geoapps_utils.plotting import format_axis, symlog
+from geoapps_utils.workspace import get_output_workspace
 from geoh5py import Workspace
 from geoh5py.data import BooleanData, ReferencedData
 from geoh5py.shared.utils import fetch_active_workspace
@@ -68,11 +68,9 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         super().__init__(ui_json, ui_json_data, params)
         self._app = None
 
-
         # Start flask server
         self.external_stylesheets = ["https://codepen.io/chriddyp/pen/bWLwgP.css"]
         self.server = Flask(__name__)
-
 
         # Getting app layout
         self.set_initialized_layout()
@@ -255,7 +253,6 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
             State(component_id="monitoring_directory", component_property="value"),
             prevent_initial_call=True,
         )(self.trigger_click)
-
 
     @property
     def app(self) -> Dash:
@@ -701,7 +698,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
             results = compute(line_computation)
 
         # Remove un-needed lines
-        if self.lines is None or "n_groups" in triggers:
+        if self.lines is None or "line_ids" not in triggers:
             self.lines = {}
         else:
             entries_to_remove = [line for line in self.lines if line not in line_ids]
