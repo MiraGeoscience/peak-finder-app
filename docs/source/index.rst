@@ -13,3 +13,4 @@ Peak Finder
    getting_started
    usage
    parameters
+   api

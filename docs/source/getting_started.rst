@@ -1,3 +1,4 @@
+.. _getting_started:
 
 Getting Started
 ===============
@@ -38,7 +39,7 @@ Preferably uncheck that box if you already have Python 3 installed on your syste
     and is thus not affected by the Anaconda Terms of Service.
 
 Download the latest peak-finder
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Follow this link to `download from the GitHub repository <https://github.com/MiraGeoscience/peak-finder-app/archive/refs/heads/main.zip>`_.
 
@@ -92,53 +93,38 @@ by drag-and-drop:
 or by Python menu dropdown by placing a **ui.json** file
 in the Python scripts folder.
 
+**1.**
+
 .. figure:: /images/getting_started/python_scripts_folder.png
     :align: center
     :width: 75%
+
+**2.**
 
 .. figure:: /images/getting_started/python_menu_uijson.png
     :align: center
     :width: 75%
 
+**3.**
+
 .. figure:: /images/getting_started/dropdown_scripts.png
     :align: center
     :width: 75%
 
-Run ``Start_Applications.bat``
 
-.. figure:: ../images/run_applications.png
+Using the interface vs. running from ui.json parameters
+-------------------------------------------------------
+
+There are two ways to run the application via ui.json:
+
+1. Using the interface (recommended):
+
+.. figure:: /images/getting_started/using_interface.png
     :align: center
-    :width: 50%
+    :width: 75%
 
-You should see the index page displayed in your default browser.
+2. Running from ui.json parameters:
 
-.. figure:: ../images/index_page.png
+.. figure:: /images/getting_started/uijson_parameters.png
     :align: center
-    :width: 100%
-
-.. note:: Applications run best with either Chrome or Firefox.
-
-
-From PyPI
----------
-
-The **peak-finder** can also be installed directly from PyPI without its dependencies::
-
-    $ pip install peak-finder
-
-To install the latest development version of **peak-finder**, you can use ``pip`` with the
-latest GitHub ``development`` branch::
-
-    $ pip install git+https://github.com/MiraGeoscience/peak-finder.git
-
-To work with **peak-finder** source code in development, install from GitHub::
-
-    $ git clone --recursive https://github.com/MiraGeoscience/peak-finder.git
-    $ cd peak-finder
-    $ python setup.py install
-
-.. note:: The Jupyter-Notebook applications can be `downloaded from source <https://github.com/MiraGeoscience/peak-finder/archive/develop.zip>`_ :
-
-    .. figure:: ../images/download.png
-        :align: center
-        :width: 200
+    :width: 75%
