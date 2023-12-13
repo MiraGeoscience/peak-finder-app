@@ -22,12 +22,12 @@ from dash.exceptions import PreventUpdate
 from dask import compute
 from dask.diagnostics import ProgressBar
 from flask import Flask
-from geoapps_utils.workspace import get_output_workspace
 from geoapps_utils.application.dash_application import (
     BaseDashApplication,
     ObjectSelection,
 )
 from geoapps_utils.plotting import format_axis, symlog
+from geoapps_utils.workspace import get_output_workspace
 from geoh5py import Workspace
 from geoh5py.data import BooleanData, ReferencedData
 from geoh5py.shared.utils import fetch_active_workspace
@@ -68,11 +68,9 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         super().__init__(ui_json, ui_json_data, params)
         self._app = None
 
-
         # Start flask server
         self.external_stylesheets = ["https://codepen.io/chriddyp/pen/bWLwgP.css"]
         self.server = Flask(__name__)
-
 
         # Getting app layout
         self.set_initialized_layout()
@@ -208,6 +206,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
             Input(component_id="line_figure", component_property="clickData"),
             Input(component_id="full_lines_figure", component_property="clickData"),
             Input(component_id="line_id", component_property="value"),
+            Input(component_id="update_computation", component_property="data"),
         )(self.update_click_data)
         self.app.callback(
             Output(component_id="line_figure", component_property="figure"),
@@ -255,7 +254,6 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
             State(component_id="monitoring_directory", component_property="value"),
             prevent_initial_call=True,
         )(self.trigger_click)
-
 
     @property
     def app(self) -> Dash:
@@ -1088,7 +1086,6 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         trace_dict: dict[str, dict] = {
             "markers": {},
         }
-
         n_parts = len(self.lines[line_id]["position"])
         for ind in range(n_parts):  # pylint: disable=R1702
             position = self.lines[line_id]["position"][ind]
@@ -1375,6 +1372,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         line_click_data: dict | None,
         full_lines_click_data: dict | None,
         line_id: int,
+        update_computation: int,
     ) -> int:
         """
         Update the markers on the single line figure from clicking on either figure.
@@ -1383,24 +1381,32 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         :param line_click_data: Click data from the single line figure.
         :param full_lines_click_data: Click data from the full lines figure.
         :param line_id: Line ID.
+        :param update_computation: Trigger for recomputation of line.
 
         :return: Trigger for updating the click data.
         """
-        if self.figure is None:
+        if (
+            self.figure is None
+            or self.figure.layout.shapes is None
+            or self.lines is None
+        ):
             return no_update
 
         if len(self.figure.layout.shapes) == 0:
             self.figure.add_vline(x=0)
 
         triggers = [t["prop_id"].split(".")[0] for t in callback_context.triggered]
-        if line_click_data is not None and "line_figure" in triggers:
+
+        if (
+            "update_computation" in triggers
+            and "line_id" in triggers
+            and line_id in self.lines
+        ):
+            self.figure.update_shapes({"x0": 0, "x1": 0})
+        elif line_click_data is not None and "line_figure" in triggers:
             x_val = line_click_data["points"][0]["x"]
             self.figure.update_shapes({"x0": x_val, "x1": x_val})
-        if (
-            full_lines_click_data is not None
-            and "full_lines_figure" in triggers
-            and self.lines is not None
-        ):
+        elif full_lines_click_data is not None and "full_lines_figure" in triggers:
             x_min = np.min(
                 np.concatenate(
                     tuple(pos.x_locations for pos in self.lines[line_id]["position"])
@@ -1641,6 +1647,8 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         for ind, (key, trace) in enumerate(all_traces.items()):
             self.figure.add_trace(go.Scatter(**trace))
             trace_map[key] = ind
+
+        self.figure.add_vline(x=None)
         return trace_map
 
     def update_full_lines_figure(  # pylint: disable=too-many-arguments, too-many-locals, too-many-branches
@@ -1718,11 +1726,11 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
 
         marker_x = None
         marker_y = None
-
         line_dict = {}
         for line in self.lines:  # type: ignore  # pylint: disable=C0206
             line_position = self.lines[line]["position"]
             line_anomalies = self.lines[line]["anomalies"]
+
             label = line_ids_labels[int(line)]  # type: ignore
             n_parts = len(line_position)
 
@@ -1738,20 +1746,26 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
                 position = line_position[ind]
                 anomalies = line_anomalies[ind]
 
-                if position is not None:
+                if position is not None and position.locations_resampled is not None:
+                    x_locs = position.x_locations
+                    y_locs = position.y_locations
                     if line == line_id:
-                        marker_x = position.x_locations[0]
-                        marker_y = position.y_locations[0]
-                    line_dict[line]["x"] += list(position.x_locations)  # type: ignore
-                    line_dict[line]["y"] += list(position.y_locations)  # type: ignore
+                        marker_x = x_locs[0]
+                        marker_y = y_locs[0]
+                    line_dict[line]["x"] += list(x_locs)  # type: ignore
+                    line_dict[line]["y"] += list(y_locs)  # type: ignore
 
+                x_min = np.min(position.x_locations)
                 if anomalies is not None:
                     for anom in anomalies:
+                        peak = position.locations[anom.peaks[0]]
+                        x_val = x_min + peak
+                        ind = (np.abs(x_locs - x_val)).argmin()
                         anomaly_traces[anom.property_group.name]["x"].append(
-                            anom.group_center[0]
+                            x_locs[ind]
                         )
                         anomaly_traces[anom.property_group.name]["y"].append(
-                            anom.group_center[1]
+                            y_locs[ind]
                         )
 
         for trace in list(line_dict.values()):
