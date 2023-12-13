@@ -190,7 +190,9 @@ class PeakFinderParams(BaseParams):  # pylint: disable=R0902, R0904
     @property
     def min_width(self) -> float | None:
         """
-        Minimum width of anomaly.
+        Ignore anomalies narrower than `min_width`.
+
+        :return: Minimum anomaly width.
         """
         return self._min_width
 
