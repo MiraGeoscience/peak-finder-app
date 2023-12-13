@@ -22,12 +22,12 @@ from dash.exceptions import PreventUpdate
 from dask import compute
 from dask.diagnostics import ProgressBar
 from flask import Flask
-from geoapps_utils.workspace import get_output_workspace
 from geoapps_utils.application.dash_application import (
     BaseDashApplication,
     ObjectSelection,
 )
 from geoapps_utils.plotting import format_axis, symlog
+from geoapps_utils.workspace import get_output_workspace
 from geoh5py import Workspace
 from geoh5py.data import BooleanData, ReferencedData
 from geoh5py.shared.utils import fetch_active_workspace
@@ -68,11 +68,9 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         super().__init__(ui_json, ui_json_data, params)
         self._app = None
 
-
         # Start flask server
         self.external_stylesheets = ["https://codepen.io/chriddyp/pen/bWLwgP.css"]
         self.server = Flask(__name__)
-
 
         # Getting app layout
         self.set_initialized_layout()
@@ -255,7 +253,6 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
             State(component_id="monitoring_directory", component_property="value"),
             prevent_initial_call=True,
         )(self.trigger_click)
-
 
     @property
     def app(self) -> Dash:
@@ -960,10 +957,10 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
                 "customdata": [None],
                 "marker_color": ["black"],
             }
-        trace_dict["markers"]["peaks"]["x"] += peak_markers_x
-        trace_dict["markers"]["peaks"]["y"] += peak_markers_y
-        trace_dict["markers"]["peaks"]["customdata"] += peak_markers_customdata
-        trace_dict["markers"]["peaks"]["marker_color"] += peak_markers_c
+        trace_dict["markers"]["peaks"]["x"] = peak_markers_x
+        trace_dict["markers"]["peaks"]["y"] = peak_markers_y
+        trace_dict["markers"]["peaks"]["customdata"] = peak_markers_customdata
+        trace_dict["markers"]["peaks"]["marker_color"] = peak_markers_c
 
         if "start_markers" not in trace_dict["markers"]:
             trace_dict["markers"]["start_markers"] = {
@@ -971,9 +968,9 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
                 "y": [None],
                 "customdata": [None],
             }
-        trace_dict["markers"]["start_markers"]["x"] += start_markers_x
-        trace_dict["markers"]["start_markers"]["y"] += start_markers_y
-        trace_dict["markers"]["start_markers"]["customdata"] += start_markers_customdata
+        trace_dict["markers"]["start_markers"]["x"] = start_markers_x
+        trace_dict["markers"]["start_markers"]["y"] = start_markers_y
+        trace_dict["markers"]["start_markers"]["customdata"] = start_markers_customdata
 
         if "end_markers" not in trace_dict["markers"]:
             trace_dict["markers"]["end_markers"] = {
@@ -981,9 +978,9 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
                 "y": [None],
                 "customdata": [None],
             }
-        trace_dict["markers"]["end_markers"]["x"] += end_markers_x
-        trace_dict["markers"]["end_markers"]["y"] += end_markers_y
-        trace_dict["markers"]["end_markers"]["customdata"] += end_markers_customdata
+        trace_dict["markers"]["end_markers"]["x"] = end_markers_x
+        trace_dict["markers"]["end_markers"]["y"] = end_markers_y
+        trace_dict["markers"]["end_markers"]["customdata"] = end_markers_customdata
 
         if "up_markers" not in trace_dict["markers"]:
             trace_dict["markers"]["up_markers"] = {
@@ -991,9 +988,9 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
                 "y": [None],
                 "customdata": [None],
             }
-        trace_dict["markers"]["up_markers"]["x"] += up_markers_x
-        trace_dict["markers"]["up_markers"]["y"] += up_markers_y
-        trace_dict["markers"]["up_markers"]["customdata"] += up_markers_customdata
+        trace_dict["markers"]["up_markers"]["x"] = up_markers_x
+        trace_dict["markers"]["up_markers"]["y"] = up_markers_y
+        trace_dict["markers"]["up_markers"]["customdata"] = up_markers_customdata
 
         if "down_markers" not in trace_dict["markers"]:
             trace_dict["markers"]["down_markers"] = {
@@ -1001,9 +998,9 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
                 "y": [None],
                 "customdata": [None],
             }
-        trace_dict["markers"]["down_markers"]["x"] += dwn_markers_x
-        trace_dict["markers"]["down_markers"]["y"] += dwn_markers_y
-        trace_dict["markers"]["down_markers"]["customdata"] += dwn_markers_customdata
+        trace_dict["markers"]["down_markers"]["x"] = dwn_markers_x
+        trace_dict["markers"]["down_markers"]["y"] = dwn_markers_y
+        trace_dict["markers"]["down_markers"]["customdata"] = dwn_markers_customdata
 
         return trace_dict
 
@@ -1086,7 +1083,18 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         dwn_markers_x, dwn_markers_y, dwn_markers_customdata = [], [], []
 
         trace_dict: dict[str, dict] = {
-            "markers": {},
+            "markers": {
+                "left_azimuth": {
+                    "x": [None],
+                    "y": [None],
+                    "customdata": [None],
+                },
+                "right_azimuth": {
+                    "x": [None],
+                    "y": [None],
+                    "customdata": [None],
+                },
+            },
         }
 
         n_parts = len(self.lines[line_id]["position"])
@@ -1132,13 +1140,6 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
 
                         # Add markers
                         if i == 0:
-                            if ori + "_azimuth" not in trace_dict["markers"]:  # type: ignore
-                                trace_dict["markers"][ori + "_azimuth"] = {  # type: ignore
-                                    "x": [None],
-                                    "y": [None],
-                                    "customdata": [None],
-                                }
-
                             trace_dict["markers"][ori + "_azimuth"]["x"] += [  # type: ignore
                                 locs[peaks[i]]
                             ]
