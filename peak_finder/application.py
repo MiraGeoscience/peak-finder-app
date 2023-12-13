@@ -699,7 +699,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
             results = compute(line_computation)
 
         # Remove un-needed lines
-        if self.lines is None or "n_groups" in triggers:
+        if self.lines is None or "line_ids" not in triggers:
             self.lines = {}
         else:
             entries_to_remove = [line for line in self.lines if line not in line_ids]
@@ -1313,12 +1313,18 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
             or self.figure is None
         ):
             return no_update
-        if not show_residuals:
-            self.figure.data[trace_map["pos_residuals_legend"]]["visible"] = False
-            self.figure.data[trace_map["neg_residuals_legend"]]["visible"] = False
+
+        triggers = [t["prop_id"].split(".")[0] for t in callback_context.triggered]
+        if "update_computation" in triggers or (
+            "show_residuals" in triggers and not show_residuals
+        ):
             for ind in range(len(trace_map), len(self.figure.data)):
                 self.figure.data[ind]["x"] = []
                 self.figure.data[ind]["y"] = []
+
+        if not show_residuals:
+            self.figure.data[trace_map["pos_residuals_legend"]]["visible"] = False
+            self.figure.data[trace_map["neg_residuals_legend"]]["visible"] = False
             return update_residuals + 1
 
         self.figure.data[trace_map["pos_residuals_legend"]]["visible"] = True
