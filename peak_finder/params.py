@@ -11,7 +11,7 @@ import string
 from copy import deepcopy
 
 from geoapps_utils.driver.params import BaseParams
-from geoh5py.data import ReferencedData
+from geoh5py.data import Data
 from geoh5py.groups import PropertyGroup
 from geoh5py.objects import ObjectBase
 from geoh5py.ui_json import InputFile
@@ -111,7 +111,7 @@ class PeakFinderParams(BaseParams):  # pylint: disable=R0902, R0904
         self.setter_validator("ga_group_name", val)
 
     @property
-    def line_field(self) -> ReferencedData | None:
+    def line_field(self) -> Data | None:
         """
         Object containing line ids and associated names.
         """
