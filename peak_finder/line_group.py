@@ -354,6 +354,7 @@ class LineGroup:
             # Make AnomalyGroup
             near_anomalies = np.array(full_anomalies)[near]
             near_values = np.array(full_peak_values)[near]
+
             group = AnomalyGroup(
                 self.position,
                 near_anomalies,
