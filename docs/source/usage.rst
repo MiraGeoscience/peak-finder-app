@@ -8,12 +8,17 @@ ui.json interface
 
 The ui.json interface has two sections:
 
-1. A list of general parameters that must be set before running the application.
+**1. General Parameters**
+
+The general parameters must be set before running the application.  They often
+consist of data selectors for the geoh5 objects the application operates on.
 
 .. figure:: /images/usage/general_parameters.png
     :scale: 40%
 
-2. A list of optional parameters that are not necessay to run the application.
+**2. Optional Parameters**
+
+These parameters are not necessary to run the application.
 
 .. figure:: /images/usage/optional_parameters.png
     :scale: 40%

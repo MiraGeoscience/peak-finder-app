@@ -111,9 +111,9 @@ class PeakFinderParams(BaseParams):  # pylint: disable=R0902, R0904
         self.setter_validator("ga_group_name", val)
 
     @property
-    def line_field(self) -> Data | None:
+    def line_field(self) -> ReferencedData | None:
         """
-        Line data.
+        Object containing line ids and associated names.
         """
         return self._line_field
 
@@ -135,7 +135,7 @@ class PeakFinderParams(BaseParams):  # pylint: disable=R0902, R0904
     @property
     def line_id(self) -> int | None:
         """
-        Line id to use for line profile.
+        index of the currently selected line.
         """
         return self._line_id
 
