@@ -801,7 +801,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
 
             for ind in range(
                 len(line_indices_dict[str(line_id)])
-            ):  # pylint: disable=R1702
+            ):  # pylint: disable=too-many-nested-blocks
                 position = self.lines[line_id]["position"][ind]
                 anomalies = self.lines[line_id]["anomalies"][ind]
                 indices = line_indices_dict[str(line_id)][ind]
