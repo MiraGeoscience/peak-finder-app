@@ -876,7 +876,6 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
             trace_dict["property_groups"].keys()
         )
         for trace in remaining_traces:
-            print(trace_map[trace])
             self.figure.data[trace_map[trace]]["x"] = [None]
             self.figure.data[trace_map[trace]]["y"] = [None]
             if "customdata" in self.figure.data[trace_map[trace]]:
