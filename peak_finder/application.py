@@ -735,7 +735,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         """
         return self.figure
 
-    def update_lines(  # pylint: disable=too-many-arguments, too-many-locals, too-many-branches
+    def update_lines(  # pylint: disable=too-many-arguments, too-many-locals, too-many-branches  # noqa: C901
         self,
         update_computation: int,
         line_id: int,
@@ -783,7 +783,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         threshold = np.float_power(10, linear_threshold)
         all_values = []
 
-        trace_dict = {
+        trace_dict: dict[str, dict[str, dict]] = {
             "lines": {
                 "lines": {
                     "x": [None],
