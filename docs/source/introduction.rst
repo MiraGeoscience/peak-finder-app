@@ -1,7 +1,7 @@
 .. _introduction:
 
-This is peak-finder
-===================
+About
+=====
 
 Peak-finder has been designed for the detection and grouping of time-domain
 electromagnetic (TEM) anomalies measured along flight lines. Anomaly markers
