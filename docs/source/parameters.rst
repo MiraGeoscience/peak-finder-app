@@ -3,12 +3,12 @@
 Parameters
 ==========
 
-In this section we will look at all the controls in the Peak Finder user
-interface.  The parameters exposed in the interface are divided into three
+In this section, we look at all the controls of the user interface.  
+The parameters exposed in the interface are divided into three
 sections: Visual Parameters, Data Selection, and Detection Parameters.
 Each parameter will expose the docstring of the underlying parameter where
-applicable and include a description of the parameters effect on the
-visualization and peak finding process.
+applicable and include a description of the parameters' effect on the
+visualization and peak-finding process.
 
 Visual Parameters
 ~~~~~~~~~~~~~~~~~
