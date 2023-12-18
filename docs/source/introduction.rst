@@ -21,5 +21,8 @@ While initially designed for TEM data, the same application can be used for
 characterization of anomalies of mixed data types (eg. magnetics, gravity,
 topography, etc..).
 
-New user? Visit the :ref:`getting_started` page.
+New user? 
+---------
+
+Visit the :ref:`getting_started` page.
 
