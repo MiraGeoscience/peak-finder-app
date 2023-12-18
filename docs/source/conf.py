@@ -7,8 +7,6 @@
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
 project = 'peak-finder'
-copyright = '2023, Dominique Fournier'
-author = 'Dominique Fournier'
 release = '0.2.0'
 
 # -- General configuration ---------------------------------------------------
