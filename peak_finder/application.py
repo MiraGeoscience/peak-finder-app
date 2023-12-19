@@ -794,14 +794,14 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
             "markers": {},
         }
 
-        for channel_dict in list(active_channels.values()):
+        for channel_dict in list(  # pylint: disable=too-many-nested-blocks
+            active_channels.values()
+        ):
             if "values" not in channel_dict:
                 continue
             full_values = np.array(channel_dict["values"])
 
-            for ind in range(
-                len(line_indices_dict[str(line_id)])
-            ):  # pylint: disable=too-many-nested-blocks
+            for ind in range(len(line_indices_dict[str(line_id)])):
                 position = self.lines[line_id]["position"][ind]
                 anomalies = self.lines[line_id]["anomalies"][ind]
                 indices = line_indices_dict[str(line_id)][ind]
@@ -827,38 +827,34 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
                 trace_dict["lines"]["lines"]["y"] += list(sym_values) + [None]  # type: ignore
 
                 for anomaly_group in anomalies:
-                    channels = np.array(
-                        [a.parent.data_entity.name for a in anomaly_group.anomalies]
-                    )
-                    group_name = anomaly_group.property_group.name
-                    query = np.where(np.array(channels) == channel_dict["name"])[0]
-                    if len(query) == 0:
-                        continue
+                    for subgroup in anomaly_group.subgroups:
+                        channels = np.array(
+                            [a.parent.data_entity.name for a in subgroup.anomalies]
+                        )
+                        group_name = subgroup.property_group.name
+                        query = np.where(np.array(channels) == channel_dict["name"])[0]
+                        if len(query) == 0:
+                            continue
 
-                    start = anomaly_group.start
-                    end = anomaly_group.end
+                        for i in query:
+                            start = subgroup.anomalies[i].start
+                            end = subgroup.anomalies[i].end
 
-                    if group_name not in trace_dict["property_groups"]:  # type: ignore
-                        trace_dict["property_groups"][group_name] = {  # type: ignore
-                            "x": [None],
-                            "y": [None],
-                            "customdata": [None],
-                        }
-                    trace_dict["property_groups"][group_name]["x"] += list(  # type: ignore
-                        locs[start:end]
-                    ) + [
-                        None
-                    ]
-                    trace_dict["property_groups"][group_name]["y"] += list(  # type: ignore
-                        sym_values[start:end]
-                    ) + [
-                        None
-                    ]
-                    trace_dict["property_groups"][group_name]["customdata"] += list(  # type: ignore
-                        values[start:end]
-                    ) + [
-                        None
-                    ]
+                            if group_name not in trace_dict["property_groups"]:  # type: ignore
+                                trace_dict["property_groups"][group_name] = {  # type: ignore
+                                    "x": [None],
+                                    "y": [None],
+                                    "customdata": [None],
+                                }
+                            trace_dict["property_groups"][group_name]["x"] += list(
+                                locs[start:end]
+                            ) + [None]
+                            trace_dict["property_groups"][group_name]["y"] += list(
+                                sym_values[start:end]
+                            ) + [None]
+                            trace_dict["property_groups"][group_name][
+                                "customdata"
+                            ] += list(values[start:end]) + [None]
 
         if np.isinf(y_min):
             return None, None, None, None
@@ -1138,7 +1134,6 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
                         )
                         group_name = subgroup.property_group.name
                         color = property_groups[group_name]["color"]
-                        peaks = subgroup.get_list_attr("peak")
                         query = np.where(np.array(channels) == channel_dict["name"])[0]
                         if len(query) == 0:
                             continue
@@ -1149,21 +1144,22 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
                         else:
                             ori = "left"
 
+                        peak = subgroup.peaks[i]
                         # Add markers
                         if i == 0:
                             trace_dict["markers"][ori + "_azimuth"]["x"] += [  # type: ignore
-                                locs[peaks[i]]
+                                locs[peak]
                             ]
                             trace_dict["markers"][ori + "_azimuth"]["y"] += [  # type: ignore
-                                sym_values[peaks[i]]
+                                sym_values[peak]
                             ]
                             trace_dict["markers"][ori + "_azimuth"][  # type: ignore
                                 "customdata"
-                            ] += [values[peaks[i]]]
+                            ] += [values[peak]]
 
-                        peak_markers_x += [locs[peaks[i]]]
-                        peak_markers_y += [sym_values[peaks[i]]]
-                        peak_markers_customdata += [values[peaks[i]]]
+                        peak_markers_x += [locs[peak]]
+                        peak_markers_y += [sym_values[peak]]
+                        peak_markers_customdata += [values[peak]]
                         peak_markers_c += [color]
                         start_markers_x += [locs[subgroup.anomalies[i].start]]
                         start_markers_y += [sym_values[subgroup.anomalies[i].start]]
@@ -1635,7 +1631,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
                     "customdata": [None],
                     "mode": "markers",
                     "marker_color": "black",
-                    "marker_symbol": "y-down-open",
+                    "marker_symbol": "y-up-open",
                     "marker_size": 6,
                     "name": "up markers",
                     "legendgroup": "markers",
@@ -1651,7 +1647,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
                     "customdata": [None],
                     "mode": "markers",
                     "marker_color": "black",
-                    "marker_symbol": "y-up-open",
+                    "marker_symbol": "y-down-open",
                     "marker_size": 6,
                     "name": "down markers",
                     "legendgroup": "markers",
