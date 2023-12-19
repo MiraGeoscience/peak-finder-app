@@ -12,5 +12,6 @@ Peak Finder
    introduction
    getting_started
    usage
-   parameters
-   api
+   methodology
+   interactive_application
+   standalone_application

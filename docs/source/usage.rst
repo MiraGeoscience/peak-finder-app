@@ -3,53 +3,65 @@
 Basic usage
 ===========
 
+The ui.json for the peak-finder application can operate in two modes:
+
+ - :ref:`Interactive <interactive_application>`
+ - :ref:`Standalone <standalone_application>`
+
+If the *run interactive app* checkbox is selected, the ui.json parameters will be
+used to initialize an interactive application.  In this mode, any changes made
+through the ui will override the values set in the ui.json.  Without the
+*run interactive app* checkbox selected, the application will be run in a terminal
+with the parameters set in the ui.json.
+
 ui.json interface
 ~~~~~~~~~~~~~~~~~
 
 The ui.json interface has two sections:
 
-**1. General Parameters**
+.. _General Parameters:
 
-The general parameters must be set before running the application.  They often
-consist of data selectors for the geoh5 objects the application operates on.
+1. General Parameters
+_____________________
+
+The general parameters must be set before running the application, regardless of
+the mode of operation.
 
 .. figure:: /images/usage/general_parameters.png
     :scale: 40%
 
-**2. Optional Parameters**
+The *Object* parameter is required to provide the geoh5 object containing the data.
+The object must contain a *Line Field* referenced data, and at least one
+*Property Group* group that must be selected here.  The *Color* property of the
+property group may be altered here, but a default value is provided that will
+suffice in most cases.
 
-These parameters are not necessary to run the application.
+2. Optional Parameters
+______________________
+
+
+These parameters are generally not necessary to run the application in interactive mode.
 
 .. figure:: /images/usage/optional_parameters.png
     :scale: 40%
 
-The ui.json for the peak-finder application behaves different than other applications.
-If the *run interactive app* checkbox is selected the optional parameters will be
-used to initialize the application, but any changes made through the ui will override
-the values set in the optional parameters tab.
+Note that the group parameters have no equivalent in the interactive application,
+and must be set in the optional parameters tab.  If a user wishes to find peaks in more
+than one group of time channels, say, they must add the groups here.
 
-Note that the group parameters have no equivalent in the ui, and must be set in the
-optional parameters tab.
+.. _grouping parameters:
 
 .. figure:: /images/usage/groups.png
-    :scale: 40%
+   :scale: 40%
 
-If you are using **peak-finder** through the interface you will see a window with
-visualizations and ui controls.  The visualization contains botha section of data
-along a single line and a plan view to locate the chosen and adjacent lines and
-anomaly picks in cartesian space.
+   Groups can be added by checking the box to enable and selecting a property group and
+   color representation.
 
-.. figure:: /images/usage/visualizations.png
-    :scale: 40%
+To learn more about the algorithm and its parameters, see the :ref:`methodology <methodology>`
+section.  To see how the parameters are exposed in each of the application modes visit the
+:ref:`interactive <interactive_application>` and :ref:`standalone <standalone_application>`
+pages
 
-The ui controls section is divided into three subsections: visualization parameters,
-data selection, and detection parameters.
-
-.. figure:: /images/usage/ui_controls.png
-    :scale: 40%
-
-To learn more about the different ui controls and how they affect the visualization,
-data selection and detection process see the :ref:`parameters` section.
 
 
 

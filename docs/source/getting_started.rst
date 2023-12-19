@@ -111,20 +111,7 @@ in the Python scripts folder.
     :align: center
     :width: 75%
 
-
-Using the interface vs. running from ui.json parameters
--------------------------------------------------------
-
-There are two ways to run the application via ui.json:
-
-1. Using the interface (recommended):
-
-.. figure:: /images/getting_started/using_interface.png
-    :align: center
-    :width: 75%
-
-2. Running from ui.json parameters:
-
-.. figure:: /images/getting_started/uijson_parameters.png
-    :align: center
-    :width: 75%
+Either operation will result in the rendering of a ui.json file within the
+Geoscience ANALYST viewport.  To learn about the ui.json interface and how
+to run the application in one of two modes, proceed to the
+:ref:`Basic Usage <usage>` section.

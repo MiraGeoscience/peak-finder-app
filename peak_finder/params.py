@@ -124,7 +124,7 @@ class PeakFinderParams(BaseParams):  # pylint: disable=R0902, R0904
     @property
     def masking_data(self) -> Data | None:
         """
-        Masking data.
+        Mask object to focus peak finding within an area of interest.
         """
         return self._masking_data
 
@@ -146,7 +146,7 @@ class PeakFinderParams(BaseParams):  # pylint: disable=R0902, R0904
     @property
     def max_migration(self) -> float | None:
         """
-        Maximum migration of anomaly.
+        Threshold on the lateral shift (m) of peaks within a grouping of anomalies.
         """
         return self._max_migration
 
@@ -157,7 +157,7 @@ class PeakFinderParams(BaseParams):  # pylint: disable=R0902, R0904
     @property
     def min_amplitude(self) -> int | None:
         """
-        Minimum amplitude of anomaly as percent.
+        Minimum amplitude expressed as percent of anomaly height scaled by its minimum.
         """
         return self._min_amplitude
 
@@ -168,7 +168,7 @@ class PeakFinderParams(BaseParams):  # pylint: disable=R0902, R0904
     @property
     def min_channels(self) -> int | None:
         """
-        Minimum number of channels in anomaly.
+        Minimum number of data channels required to form a group.
         """
         return self._min_channels
 
@@ -179,7 +179,7 @@ class PeakFinderParams(BaseParams):  # pylint: disable=R0902, R0904
     @property
     def min_value(self) -> float | None:
         """
-        Minimum data value of anomaly.
+        Minimum absolute data value to be considered for anomaly detection.
         """
         return self._min_value
 
@@ -190,9 +190,7 @@ class PeakFinderParams(BaseParams):  # pylint: disable=R0902, R0904
     @property
     def min_width(self) -> float | None:
         """
-        Ignore anomalies narrower than `min_width`.
-
-        :return: Minimum anomaly width.
+        Minimum anomaly width (m) measured between start and end of bounding minima.
         """
         return self._min_width
 
@@ -233,7 +231,7 @@ class PeakFinderParams(BaseParams):  # pylint: disable=R0902, R0904
     @property
     def smoothing(self) -> int | None:
         """
-        Smoothing factor.
+        Number of neighbors used in running mean smoothing.
         """
         return self._smoothing
 
@@ -244,7 +242,7 @@ class PeakFinderParams(BaseParams):  # pylint: disable=R0902, R0904
     @property
     def n_groups(self) -> int | None:
         """
-        Number of consecutive peaks to group together.
+        Number of consecutive peaks to merge into a single anomaly.
         """
         return self._n_groups
 
@@ -255,7 +253,7 @@ class PeakFinderParams(BaseParams):  # pylint: disable=R0902, R0904
     @property
     def max_separation(self) -> float | None:
         """
-        Maximum separation between peaks to group together.
+        Maximum separation between peaks to merge into single anomaly.
         """
         return self._max_separation
 

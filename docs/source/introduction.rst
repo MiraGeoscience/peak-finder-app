@@ -26,3 +26,11 @@ New user?
 
 Visit the :ref:`getting_started` page.
 
+Advanced user?
+--------------
+
+Check out the :ref:`methodology` page to learn about the algorithm and it's
+parameters, or see :ref:`interactive_application` and :ref:`standalone_application`
+pages for information on how the application parameters may be set in an
+interactive mode or through the ui.json directly.
+
