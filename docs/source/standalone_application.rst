@@ -16,29 +16,14 @@ standalone application.
 
    Detection parameters section of the peak finder ui.json.
 
-:ref:`Smoothing window <Smoothing>`
-___________________________________
-
-:ref:`Minimum Amplitude (%) <Minimum Amplitude>`
-________________________________________________
-
-:ref:`Minimum Value <Minimum Data Value>`
-_________________________________________
-
-:ref:`Minimum Width (m) <Minimum Width>`
-________________________________________
-
-:ref:`Max Peak Migration (m) <Maximum Peak Migration>`
-______________________________________________________
-
-:ref:`Minimum # Channels <Minimum number of channels>`
-______________________________________________________
-
-:ref:`Merge # Peaks <Merge N Peaks>`
-____________________________________
-
-:ref:`Max Separation <Max Group Separation>`
-____________________________________________
+ - :ref:`Smoothing window <Smoothing>`
+ - :ref:`Minimum Amplitude (%) <Minimum Amplitude>`
+ - :ref:`Minimum Value <Minimum Data Value>`
+ - :ref:`Minimum Width (m) <Minimum Width>`
+ - :ref:`Max Peak Migration (m) <Maximum Peak Migration>`
+ - :ref:`Minimum # Channels <Minimum number of channels>`
+ - :ref:`Merge # Peaks <Merge N Peaks>`
+ - :ref:`Max Separation <Max Group Separation>`
 
 Masking Data
 ____________
