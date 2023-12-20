@@ -162,14 +162,13 @@ class PeakFinderDriver(BaseDriver):
                 azimuth,
                 group_center,
                 amplitude,
-                anom_locs,
                 inflect_up,
                 inflect_down,
                 start,
                 end,
                 skew,
                 peaks,
-            ) = ([], [], [], [], [], [], [], [], [], [], [], [], [])
+            ) = ([], [], [], [], [], [], [], [], [], [], [], [])
 
             print("Processing and collecting results:")
             with ProgressBar():
@@ -194,14 +193,6 @@ class PeakFinderDriver(BaseDriver):
                             skew.append(group.skew)
                             group_center.append(group.group_center)
                             for anom in group.anomalies:
-                                anom_locs.append(
-                                    np.vstack(
-                                        [
-                                            getattr(group.position, f"{k}_locations")
-                                            for k in "xyz"
-                                        ]
-                                    ).T[anom.peak]
-                                )
                                 inflect_down.append(anom.inflect_down)
                                 inflect_up.append(anom.inflect_up)
                                 start.append(anom.start)
@@ -258,24 +249,6 @@ class PeakFinderDriver(BaseDriver):
 
                 # Add structural markers
                 if self.params.structural_markers:
-                    anom_pts = Points.create(
-                        self.params.geoh5,
-                        name="test",
-                        vertices=np.vstack(anom_locs),
-                        parent=output_group,
-                    )
-
-                    anom_pts.add_data(
-                        {
-                            "start": {
-                                "values": np.vstack(start).flatten().astype(np.int32)
-                            },
-                            "end": {
-                                "values": np.vstack(end).flatten().astype(np.int32)
-                            },
-                        }
-                    )
-
                     inflect_pts = Points.create(
                         self.params.geoh5,
                         name="Inflections_Up",
