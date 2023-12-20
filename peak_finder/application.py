@@ -124,6 +124,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
             Input(component_id="line_field", component_property="value"),
             Input(component_id="masking_data", component_property="value"),
             Input(component_id="objects", component_property="data"),
+            Input(component_id="active_channels", component_property="data"),
         )(self.mask_data)
         self.app.callback(
             Output(component_id="line_ids", component_property="data"),
@@ -511,6 +512,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         line_field: str,
         masking_data: str,
         objects: str,
+        active_channels: dict,
     ) -> tuple[str, str]:
         """
         Apply masking to survey object.
@@ -518,6 +520,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         :param line_field: Line field.
         :param masking_data: Masking data.
         :param objects: Input object.
+        :param active_channels: Trigger mask_data if active_channels is updated.
 
         :return: Object uid to trigger other callbacks.
         :return: Line field uid to trigger other callbacks.
