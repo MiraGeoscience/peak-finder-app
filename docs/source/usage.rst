@@ -3,6 +3,11 @@
 Basic usage
 ===========
 
+The main entry point is the ui.json (stored under peak_finded-assets) for the peak-finder application that can be rendered by Geoscience ANALYST. The interface has two sections:
+
+ - :ref:`General Parameters <General Parameters>` (required)
+ - :ref:`Optional Parameters <Optional Parameters>`
+
 The ui.json for the peak-finder application can operate in two modes:
 
  - :ref:`Interactive <interactive_application>`
@@ -33,11 +38,13 @@ the mode of operation.
 
 - *Object*: Curve entity containing the data and line ID information.
 - *Line Field*: Referenced data defining the line identifier
-- *Property Group*: Property group data to be used in the detection and grouping.  
+- *Property Group*: Property group data to be used in the detection and grouping.
 - *Color*: Hex color code used to label the peaks identified. A default value is provided that will
   suffice in most cases.
 - *Run interactive app*: If checked, the application will be run in interactive mode.  If unchecked,
   the application will be run in standalone mode.
+
+.. _Optional Parameters:
 
 2. Optional Parameters
 ______________________
