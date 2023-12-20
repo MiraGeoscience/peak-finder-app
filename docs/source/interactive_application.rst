@@ -64,8 +64,7 @@ Plot residuals
 ______________
 
 Switches on and off the residual visualization that shows the difference
-between the raw and smoothed data.  Go :ref:`here <smoothing>` to learn
-about smoothing.
+between the raw and smoothed data.  See the :ref:`Smoothing` section for more details.
 
 .. figure:: /images/parameters/visualization/residuals.png
    :scale: 40%
