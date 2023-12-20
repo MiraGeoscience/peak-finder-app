@@ -3,7 +3,7 @@
 Basic usage
 ===========
 
-The main entry point is the ui.json (stored under peak_finded-assets) for the peak-finder application that can be rendered by Geoscience ANALYST. The interface has two sections:
+The main entry point is the ui.json (stored under peak-finder-assets) for the peak-finder application that can be rendered by Geoscience ANALYST. The interface has two sections:
 
  - :ref:`General Parameters <General Parameters>` (required)
  - :ref:`Optional Parameters <Optional Parameters>`
