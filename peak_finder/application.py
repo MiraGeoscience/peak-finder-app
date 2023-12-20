@@ -167,6 +167,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
             Input(component_id="y_scale", component_property="value"),
             Input(component_id="linear_threshold", component_property="value"),
             Input(component_id="active_channels", component_property="data"),
+            Input(component_id="property_groups", component_property="data"),
             Input(component_id="trace_map", component_property="data"),
             Input(component_id="min_value", component_property="value"),
             Input(component_id="x_label", component_property="value"),
@@ -611,9 +612,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
                 line_indices = np.where(
                     (line_field_obj.values == line_id) & (survey_obj.parts == part)
                 )[0]
-
-                indices_dict[str(line_id)] += [line_indices]
-
+                indices_dict[str(line_id)].append(line_indices)
         return indices_dict
 
     def compute_line(  # pylint: disable=too-many-arguments, too-many-locals
@@ -709,23 +708,22 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         # Add new lines
         for result in tqdm(results):
             for line_anomaly in result:
-                if line_anomaly.line_id not in self.lines:
-                    self.lines[line_anomaly.line_id] = {
-                        "position": [],
-                        "anomalies": [],
-                    }
-                # Add position to self.lines
-                self.lines[line_anomaly.line_id]["position"].append(
-                    line_anomaly.position
-                )
-
                 # Add anomalies to self.lines
                 line_groups = line_anomaly.anomalies
                 line_anomalies: list[AnomalyGroup] = []
                 if line_groups is not None:
                     for line_group in line_groups:
                         line_anomalies += line_group.groups  # type: ignore
+                if line_anomaly.line_id not in self.lines:
+                    self.lines[line_anomaly.line_id] = {
+                        "position": [],
+                        "anomalies": [],
+                    }
                 self.lines[line_anomaly.line_id]["anomalies"].append(line_anomalies)
+                # Add position to self.lines
+                self.lines[line_anomaly.line_id]["position"].append(
+                    line_anomaly.position
+                )
 
         return update_computation + 1
 
@@ -737,7 +735,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         """
         return self.figure
 
-    def update_lines(  # pylint: disable=too-many-arguments, too-many-locals, too-many-branches
+    def update_lines(  # pylint: disable=too-many-arguments, too-many-locals, too-many-branches  # noqa: C901
         self,
         update_computation: int,
         line_id: int,
@@ -745,6 +743,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         y_scale: str,
         linear_threshold: float,
         active_channels: dict,
+        property_groups_dict: dict,
         trace_map: dict,
         min_value: float,
         x_label: str,
@@ -759,6 +758,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         :param y_scale: Whether y-axis ticks are linear or symlog.
         :param linear_threshold: Linear threshold.
         :param active_channels: Active channels.
+        :param property_groups_dict: Property groups dictionary.
         :param trace_map: Dict mapping trace names to indices.
         :param min_value: Minimum value for figure.
         :param x_label: Label for x-axis.
@@ -783,7 +783,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         threshold = np.float_power(10, linear_threshold)
         all_values = []
 
-        trace_dict = {
+        trace_dict: dict[str, dict[str, dict]] = {
             "lines": {
                 "lines": {
                     "x": [None],
@@ -793,24 +793,25 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
             "property_groups": {},
             "markers": {},
         }
-        n_parts = len(self.lines[line_id]["position"])
-        if len(line_indices_dict[str(line_id)]) != n_parts:
-            return no_update, no_update, no_update, no_update
 
-        for ind in range(n_parts):  # pylint: disable=R1702
-            position = self.lines[line_id]["position"][ind]
-            anomalies = self.lines[line_id]["anomalies"][ind]
-            indices = line_indices_dict[str(line_id)][ind]
-
-            if len(indices) < 2:
+        for channel_dict in list(active_channels.values()):
+            if "values" not in channel_dict:
                 continue
-            locs = position.locations_resampled
+            full_values = np.array(channel_dict["values"])
 
-            for channel_dict in list(active_channels.values()):
-                if "values" not in channel_dict:
+            for ind in range(
+                len(line_indices_dict[str(line_id)])
+            ):  # pylint: disable=too-many-nested-blocks
+                position = self.lines[line_id]["position"][ind]
+                anomalies = self.lines[line_id]["anomalies"][ind]
+                indices = line_indices_dict[str(line_id)][ind]
+
+                if len(indices) < 2:
                     continue
 
-                values = np.array(channel_dict["values"])[indices]
+                locs = position.locations_resampled
+
+                values = full_values[indices]
                 values, _ = position.resample_values(values)
                 all_values += list(values.flatten())
 
@@ -869,6 +870,16 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
             log=log,
             threshold=threshold,
         )
+
+        # Remove traces in trace map but not trace dict from plot
+        remaining_traces = set(property_groups_dict.keys()) - set(
+            trace_dict["property_groups"].keys()
+        )
+        for trace in remaining_traces:
+            self.figure.data[trace_map[trace]]["x"] = [None]
+            self.figure.data[trace_map[trace]]["y"] = [None]
+            if "customdata" in self.figure.data[trace_map[trace]]:
+                self.figure.data[trace_map[trace]]["customdata"] = [None]
 
         # Update data on traces
         for trace_name in ["lines", "property_groups"]:
