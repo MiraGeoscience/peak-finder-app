@@ -13,11 +13,6 @@ The ui.json for the peak-finder application can operate in two modes:
  - :ref:`Interactive <interactive_application>`
  - :ref:`Standalone <standalone_application>`
 
-If the *run interactive app* checkbox is selected, the ui.json parameters will be
-used to initialize an interactive application.  In this mode, any changes made
-through the ui will override the values set in the ui.json.  Without the
-*run interactive app* checkbox selected, the application will be run in a terminal
-with the parameters set in the ui.json.
 
 ui.json interface
 ~~~~~~~~~~~~~~~~~
@@ -41,8 +36,11 @@ the mode of operation.
 - *Property Group*: Property group data to be used in the detection and grouping.
 - *Color*: Hex color code used to label the peaks identified. A default value is provided that will
   suffice in most cases.
-- *Run interactive app*: If checked, the application will be run in interactive mode.  If unchecked,
-  the application will be run in standalone mode.
+- *Run interactive app*: If selected, the ui.json parameters will be
+  used to initialize an interactive application.  In this mode, any changes made
+  through the ui will override the values set in the ui.json.  Without the
+  *run interactive app* checkbox selected, the application will be run in a terminal
+  with the parameters set in the ui.json (standalone mode).
 
 .. _Optional Parameters:
 
