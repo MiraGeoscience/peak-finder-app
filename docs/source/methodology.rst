@@ -42,9 +42,8 @@ proximity:
    - A group must satisfy the `Minimum number of channels`_
 
 
-.. _anomaly:
-
 .. figure:: /images/methodology/peak_finder_params.png
+    :name: anomaly
 
 
 .. _Minimum Amplitude:
