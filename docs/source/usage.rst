@@ -30,10 +30,11 @@ the mode of operation.
 .. figure:: /images/usage/general_parameters.png
     :scale: 40%
 
-The *Object* parameter is required to provide the geoh5 object containing the data.
-The object must contain a *Line Field* referenced data, and at least one
-*Property Group* group that must be selected here.  The *Color* property of the
-property group may be altered here, but a default value is provided that will
+
+- *Object*: Curve entity containing the data and line ID information.
+- *Line Field*: Referenced data defining the line identifier
+- *Property Group*: Property group data to be used in the detection and grouping.  
+- *Color*: Hex color code used to label the peaks identified. A default value is provided that will
 suffice in most cases.
 
 2. Optional Parameters
