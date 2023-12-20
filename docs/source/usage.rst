@@ -61,9 +61,3 @@ To learn more about the algorithm and its parameters, see the :ref:`methodology 
 section.  To see how the parameters are exposed in each of the application modes visit the
 :ref:`interactive <interactive_application>` and :ref:`standalone <standalone_application>`
 pages
-
-
-
-
-
-

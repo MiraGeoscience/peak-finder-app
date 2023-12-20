@@ -165,7 +165,7 @@ Smoothing
 
 .. autoproperty:: peak_finder.params.PeakFinderParams.smoothing
 
-The running mean replaces each data by the average of it's `N` neighbours:
+The running mean replaces each data by the average of it's ``N`` neighbours:
 
 .. math::
    d_i = \frac{1}{N}\sum_{j=-\frac{N}{2}}^{\frac{N}{2}}d_{i+j}
@@ -191,4 +191,3 @@ Masking Data
 ~~~~~~~~~~~~
 
 .. autoproperty:: peak_finder.params.PeakFinderParams.masking_data
-

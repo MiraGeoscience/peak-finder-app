@@ -33,7 +33,7 @@ Preferably uncheck that box if you already have Python 3 installed on your syste
 
 .. note:: We recommend installing **Miniforge**: beyond being smaller,
     it also installs packages from the conda-forge repository by default,
-    which has no restriction for commercial use, while both Miniconda and Anaconda distributions use 
+    which has no restriction for commercial use, while both Miniconda and Anaconda distributions use
     the Anaconda repository by default: see `Anaconda Terms of Service <https://www.anaconda.com/terms-of-service>`_ for details.
     In any case, the installation of **peak-finder** forces the usage of the conda-forge repository,
     and is thus not affected by the Anaconda Terms of Service.
