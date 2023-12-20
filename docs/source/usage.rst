@@ -48,7 +48,7 @@ the mode of operation.
 ______________________
 
 
-These parameters are generally not necessary to run the application in interactive mode.
+These parameters are required to run in :ref:`Standalone <standalone_application>`, but not necessary to run the application in :ref:`Interactive <interactive_application>` mode.
 
 .. figure:: /images/usage/optional_parameters.png
     :scale: 40%
