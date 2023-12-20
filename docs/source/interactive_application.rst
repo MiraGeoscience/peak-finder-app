@@ -148,29 +148,14 @@ the links for detailed descriptions of each parameter.
    :align: left
 
 
-:ref:`Smoothing`
-________________
-
-:ref:`Minimum Amplitude (%) <Minimum Amplitude>`
-________________________________________________
-
-:ref:`Minimum Data Value`
-_________________________
-
-:ref:`Minimum Width (m) <Minimum Width>`
-________________________________________
-
-:ref:`Max Peak Migration <Maximum Peak Migration>`
-__________________________________________________
-
-:ref:`Minimum # Channels <Minimum number of channels>`
-______________________________________________________
-
-:ref:`Merge N Peaks`
-____________________
-
-:ref:`Max Group Separation`
-____________________________
+- :ref:`Smoothing window <Smoothing>`
+- :ref:`Minimum Amplitude (%) <Minimum Amplitude>`
+- :ref:`Minimum Value <Minimum Data Value>`
+- :ref:`Minimum Width (m) <Minimum Width>`
+- :ref:`Max Peak Migration (m) <Maximum Peak Migration>`
+- :ref:`Minimum # Channels <Minimum number of channels>`
+- :ref:`Merge # Peaks <Merge N Peaks>`
+- :ref:`Max Separation <Max Group Separation>`
 
 
 Save as
