@@ -135,7 +135,7 @@ class PeakFinderParams(BaseParams):  # pylint: disable=R0902, R0904
     @property
     def line_id(self) -> int | None:
         """
-        index of the currently selected line.
+        Index of the currently selected line.
         """
         return self._line_id
 
