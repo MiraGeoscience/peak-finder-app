@@ -8,8 +8,9 @@ detection of 1D anomalies.
 
 Anomalies are identified from the detection of maximum, minimum and inflection
 points calculated from the first and second order derivatives of individual
-data channels. The algorithm relies on the :ref:`Numpy.fft <https://numpy.org/doc/stable/reference/routines.fft.html>` routine for the
-calculation of derivatives in the Fourier domain.
+data channels. The algorithm relies on the
+`Numpy.fft <https://numpy.org/doc/stable/reference/routines.fft.html>`_
+routine for the calculation of derivatives in the Fourier domain.
 
 Detection parameters are available for filtering and grouping co-located
 anomalies. The selection process is done in the following order:
