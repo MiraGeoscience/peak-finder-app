@@ -35,7 +35,9 @@ the mode of operation.
 - *Line Field*: Referenced data defining the line identifier
 - *Property Group*: Property group data to be used in the detection and grouping.  
 - *Color*: Hex color code used to label the peaks identified. A default value is provided that will
-suffice in most cases.
+  suffice in most cases.
+- *Run interactive app*: If checked, the application will be run in interactive mode.  If unchecked,
+  the application will be run in standalone mode.
 
 2. Optional Parameters
 ______________________
