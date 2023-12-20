@@ -603,8 +603,6 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
 
             line_bool = line_field_obj.values == line_id
             full_line_indices = np.where(line_bool)[0]
-            if len(full_line_indices) < 2:
-                continue
 
             parts = np.unique(survey_obj.parts[full_line_indices])
 
@@ -698,12 +696,12 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
             results = compute(line_computation)
 
         # Remove un-needed lines
-        if self.lines is None or "line_ids" not in triggers:
-            self.lines = {}
-        else:
+        if self.lines is not None and len(triggers) == 1 and "line_ids" in triggers:
             entries_to_remove = [line for line in self.lines if line not in line_ids]
             for key in entries_to_remove:
                 self.lines.pop(key, None)
+        else:
+            self.lines = {}
 
         # Add new lines
         for result in tqdm(results):
@@ -805,11 +803,10 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
                 position = self.lines[line_id]["position"][ind]
                 anomalies = self.lines[line_id]["anomalies"][ind]
                 indices = line_indices_dict[str(line_id)][ind]
-
-                if len(indices) < 2:
-                    continue
-
                 locs = position.locations_resampled
+
+                if len(indices) < 2 or locs is None:
+                    continue
 
                 values = full_values[indices]
                 values, _ = position.resample_values(values)
@@ -857,7 +854,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
                             ] += list(values[start:end]) + [None]
 
         if np.isinf(y_min):
-            return None, None, None, None
+            return no_update, None, None, None
 
         all_values = np.array(all_values)
         _, y_label, y_tickvals, y_ticktext = format_axis(
@@ -871,6 +868,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         remaining_traces = set(property_groups_dict.keys()) - set(
             trace_dict["property_groups"].keys()
         )
+
         for trace in remaining_traces:
             self.figure.data[trace_map[trace]]["x"] = [None]
             self.figure.data[trace_map[trace]]["y"] = [None]
