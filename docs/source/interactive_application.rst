@@ -25,6 +25,8 @@ The ui controls section is divided into three subsections:
 Visual Parameters
 ~~~~~~~~~~~~~~~~~
 
+This section controls the appearance of the plotting area.
+
 .. figure:: /images/parameters/visual_parameters.png
    :align: left
 
