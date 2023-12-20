@@ -75,7 +75,7 @@ Minimum Data Value
 
 .. autoproperty:: peak_finder.params.PeakFinderParams.min_value
 
-The :ref:`minimum data <anomaly>` threshold (:math:`\delta_d`) can be defined by:
+The minimum data threshold (:math:`\delta_d`) (see :ref:`Figure <anomaly>`) can be defined by:
 
 .. math::
 
