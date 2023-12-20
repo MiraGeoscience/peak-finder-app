@@ -11,7 +11,7 @@ points calculated from the first and second order derivatives of individual
 data channels. The algorithm relies on the :ref:`Numpy.fft <https://numpy.org/doc/stable/reference/routines.fft.html>` routine for the
 calculation of derivatives in the Fourier domain.
 
-Detection Parameters are available for filtering and grouping co-located
+Detection parameters are available for filtering and grouping co-located
 anomalies. The selection process is done in the following order:
 
 Primary detection
