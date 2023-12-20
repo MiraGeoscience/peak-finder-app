@@ -41,8 +41,6 @@ proximity:
 
    - A group must satisfy the `Minimum number of channels`_
 
-#. For TEM data, an ID gets assigned based on the largest overlap between the
-   labeled data channels and the pre-defined Channel Groups.
 
 .. _anomaly:
 
