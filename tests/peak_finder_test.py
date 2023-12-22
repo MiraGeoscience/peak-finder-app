@@ -119,7 +119,6 @@ def test_peak_finder_app(tmp_path: Path):  # pylint: disable=too-many-locals
         max_separation=100.0,
         line_id=1,
         property_groups=property_groups,
-        structural_markers=[],
         ga_group_name="peak_finder",
         live_link=[],
         monitoring_directory=str(tmp_path),
@@ -127,7 +126,7 @@ def test_peak_finder_app(tmp_path: Path):  # pylint: disable=too-many-locals
 
     filename = next(tmp_path.glob("peak_finder*.geoh5"))
     with Workspace(filename) as out_ws:
-        anomalies_obj = out_ws.get_entity("PointMarkers")[0]
+        anomalies_obj = out_ws.get_entity("Anomaly Groups")[0]
         amplitudes = anomalies_obj.get_data("amplitude")[0].values
         assert len(amplitudes) == 13, f"Expected 13 groups. Found {len(amplitudes)}"
         channel_groups = anomalies_obj.get_data("channel_group")[0].values
@@ -244,7 +243,6 @@ def test_merging_peaks(tmp_path: Path):  # pylint: disable=too-many-locals
             max_separation=max_separation_list[ind],
             line_id=1,
             property_groups=property_groups,
-            structural_markers=[],
             ga_group_name="peak_finder_" + str(ind),
             live_link=[],
             monitoring_directory=str(tmp_path),
@@ -352,7 +350,6 @@ def test_masking_peaks(tmp_path: Path):  # pylint: disable=too-many-locals
         max_separation=350,
         line_id=1,
         property_groups=property_groups,
-        structural_markers=[],
         ga_group_name="peak_finder_masking",
         live_link=[],
         monitoring_directory=str(tmp_path),

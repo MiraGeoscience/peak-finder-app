@@ -47,6 +47,7 @@ class LinePosition:  # pylint: disable=R0902
         self.x_locations = None
         self.y_locations = None
         self.z_locations = None
+        self._map_locations = None
         self.locations = locations
         self._interpolation = interpolation
         self._smoothing = smoothing
@@ -141,6 +142,19 @@ class LinePosition:  # pylint: disable=R0902
             self._locations_resampled = np.linspace(
                 self._locations[0], self._locations[-1], self.sampling_width
             )
+
+    @property
+    def map_locations(self) -> np.ndarray:
+        """
+        A list where the indices are the resampled locations indices and the values are the
+        original locations indices.
+        """
+        if self._map_locations is None:
+            locs = self.locations
+            locs_resampled = self.locations_resampled
+            indices = abs(locs_resampled[:, None] - locs).argmin(axis=1)
+            self._map_locations = indices
+        return self._map_locations
 
     @property
     def locations_resampled(self) -> np.ndarray:
