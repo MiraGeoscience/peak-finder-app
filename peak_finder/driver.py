@@ -271,26 +271,29 @@ class PeakFinderDriver(BaseDriver):
                     "values": color_map,
                 }
 
-            anom_points = Points.create(
-                self.params.geoh5,
-                name="Anomalies",
-                vertices=np.vstack(anom_locs),
-                parent=output_group,
-            )
-            anom_points.add_data(
-                {
-                    "start": {
-                        "values": np.vstack(anom_start).flatten().astype(np.int32)
-                    },
-                    "end": {"values": np.vstack(anom_end).flatten().astype(np.int32)},
-                    "upward inflection": {
-                        "values": np.vstack(inflect_up).flatten().astype(np.int32)
-                    },
-                    "downward inflection": {
-                        "values": np.vstack(inflect_down).flatten().astype(np.int32)
-                    },
-                }
-            )
+            if anom_locs:
+                anom_points = Points.create(
+                    self.params.geoh5,
+                    name="Anomalies",
+                    vertices=np.vstack(anom_locs),
+                    parent=output_group,
+                )
+                anom_points.add_data(
+                    {
+                        "start": {
+                            "values": np.vstack(anom_start).flatten().astype(np.int32)
+                        },
+                        "end": {
+                            "values": np.vstack(anom_end).flatten().astype(np.int32)
+                        },
+                        "upward inflection": {
+                            "values": np.vstack(inflect_up).flatten().astype(np.int32)
+                        },
+                        "downward inflection": {
+                            "values": np.vstack(inflect_down).flatten().astype(np.int32)
+                        },
+                    }
+                )
 
             self.update_monitoring_directory(output_group)
 

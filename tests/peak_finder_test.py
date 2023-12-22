@@ -152,7 +152,7 @@ def test_peak_finder_driver(tmp_path: Path):
     driver = PeakFinderDriver.start(str(uijson_path / json_file))
 
     with driver.params.geoh5.open(mode="r"):
-        results = driver.params.geoh5.get_entity("PointMarkers")
+        results = driver.params.geoh5.get_entity("Anomaly Groups")
         compare_entities(results[0], results[1], ignore=["_uid"])
 
 
@@ -250,7 +250,7 @@ def test_merging_peaks(tmp_path: Path):  # pylint: disable=too-many-locals
 
         filename = next(tmp_path.glob(f"peak_finder_{ind}*.geoh5"))
         with Workspace(filename) as out_ws:
-            anomalies_obj = out_ws.get_entity("PointMarkers")[0]
+            anomalies_obj = out_ws.get_entity("Anomaly Groups")[0]
             if len(expected_peaks[ind]) == 0:  # type: ignore
                 assert anomalies_obj is None
                 continue
@@ -357,7 +357,7 @@ def test_masking_peaks(tmp_path: Path):  # pylint: disable=too-many-locals
 
     filename = next(tmp_path.glob("peak_finder_masking*.geoh5"))
     with Workspace(filename) as out_ws:
-        anomalies_obj = out_ws.get_entity("PointMarkers")[0]
+        anomalies_obj = out_ws.get_entity("Anomaly Groups")[0]
         vertices = anomalies_obj.vertices[:, 0]
         assert np.all((vertices < 650) | (vertices > 850))
         assert len(vertices) == 2
