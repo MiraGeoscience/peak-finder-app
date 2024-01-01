@@ -50,7 +50,7 @@ jobs:
           python devtools/create_application_env_files.py $REF_TYPE $REF --url $GITHUB_SERVER_URL/$GITHUB_REPOSITORY
           echo "full_env_file=conda-py-${{ env.python_ver }}-win-64-peak-finder-app.lock.yml" >> $GITHUB_OUTPUT
           echo "simpeg_env_file=conda-py-${{ env.python_ver }}-win-64-peak-finder-app-simpeg.lock.yml" >> $GITHUB_OUTPUT
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: ${{ env.ARTIFACT_NAME }}.${{ steps.git-info.outputs.git_ref_suffix }}
           path: ${{ env.CONDA_ENV_FILE_GLOB_PATTERN }}
