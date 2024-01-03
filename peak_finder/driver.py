@@ -1,4 +1,4 @@
-#  Copyright (c) 2023 Mira Geoscience Ltd.
+#  Copyright (c) 2024 Mira Geoscience Ltd.
 #
 #  This file is part of peak-finder-app project.
 #
@@ -159,8 +159,6 @@ class PeakFinderDriver(BaseDriver):
             (
                 channel_group,
                 tau,
-                migration,
-                azimuth,
                 amplitude,
                 group_center,
                 group_start,
@@ -170,9 +168,8 @@ class PeakFinderDriver(BaseDriver):
                 inflect_down,
                 anom_start,
                 anom_end,
-                skew,
                 peaks,
-            ) = ([], [], [], [], [], [], [], [], [], [], [], [], [], [], [])
+            ) = ([], [], [], [], [], [], [], [], [], [], [], [])
 
             print("Processing and collecting results:")
             with ProgressBar():
@@ -191,10 +188,7 @@ class PeakFinderDriver(BaseDriver):
                             channel_group.append(
                                 property_groups.index(group.property_group) + 1
                             )
-                            migration.append(group.migration)
                             amplitude.append(group.amplitude)
-                            azimuth.append(group.azimuth)
-                            skew.append(group.skew)
 
                             locs = np.vstack(
                                 [
@@ -239,16 +233,10 @@ class PeakFinderDriver(BaseDriver):
                 )
 
                 group_points.entity_type.name = self.params.ga_group_name
-                migration = np.hstack(migration)
-                dip = migration / migration.max()
-                dip = np.rad2deg(np.arccos(dip))
-                skew = np.hstack(skew)
-                azimuth = np.hstack(azimuth)
                 amplitude = np.hstack(amplitude)
                 group_points.add_data(
                     {
                         "amplitude": {"values": amplitude},
-                        "skew": {"values": skew},
                         "start": {
                             "values": np.vstack(group_start).flatten().astype(np.int32)
                         },

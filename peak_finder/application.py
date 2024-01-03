@@ -1,4 +1,4 @@
-#  Copyright (c) 2023 Mira Geoscience Ltd.
+#  Copyright (c) 2024 Mira Geoscience Ltd.
 #
 #  This file is part of peak-finder-app.
 #
@@ -670,7 +670,6 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
             for name in property_groups_dict
         ]
 
-        triggers = [t["prop_id"].split(".")[0] for t in callback_context.triggered]
         line_ids_subset = line_ids
         if (
             "line_ids" in triggers
