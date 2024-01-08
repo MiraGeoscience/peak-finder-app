@@ -1,4 +1,4 @@
-#  Copyright (c) 2023 Mira Geoscience Ltd.
+#  Copyright (c) 2024 Mira Geoscience Ltd.
 #
 #  This file is part of peak-finder-app project.
 #
@@ -303,9 +303,21 @@ class LineAnomaly:  # pylint: disable=R0902, duplicate-code
         """
         Line position and interpolation.
         """
-        if self._position is None and self.locations is not None:
+        if (
+            self._position is None
+            and self.locations is not None
+            and self.entity.cells is not None
+            and self.line_indices is not None
+        ):
+            locs = self.locations[self.line_indices]
+
+            sorting = [
+                np.where(self.entity.cells[:, 0] == ind)[0] for ind in self.line_indices
+            ]
+
             self._position = LinePosition(
-                locations=self.locations[self.line_indices],
+                locations=locs,
+                sorting=sorting,
                 smoothing=self.smoothing,
                 residual=self.use_residual,
             )

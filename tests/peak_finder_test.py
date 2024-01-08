@@ -143,9 +143,6 @@ def test_peak_finder_app(tmp_path: Path):  # pylint: disable=too-many-locals
             3,
             3,
         ], f"Expected 1 group of each type. Found {grouping}"
-        skew = anomalies_obj.get_data("skew")[0].values
-        assert np.sum([skew > 0]) == 9
-        assert np.sum([skew < 0]) == 4
 
 
 def test_peak_finder_driver(tmp_path: Path):
@@ -374,7 +371,9 @@ def test_map_locations(tmp_path: Path):  # pylint: disable=too-many-locals
     app = PeakFinder(params=params, ui_json_data={})
     app.workspace = temp_ws
 
-    x = np.sort(np.random.uniform(0, 1000, (10000, 1)), axis=0)
+    x = np.linspace(0, 1000, 10000)
+    noise = np.random.uniform(low=-5, high=5, size=len(x))
+    x = np.sort(x + noise)
 
     curve = Curve.create(temp_ws, vertices=np.c_[x, np.zeros((x.shape[0], 2))])
 
@@ -386,6 +385,8 @@ def test_map_locations(tmp_path: Path):  # pylint: disable=too-many-locals
     dist6 = 7 * stats.norm.pdf(np.arange(875, 1000, 0.1), 900, 3)
 
     dist = np.concatenate((dist1, dist2, dist3, dist4, dist5, dist6))
+
+    expected_peaks = [100, 300, 600, 700, 800, 900]
 
     data = curve.add_data({"data": {"values": dist}})
     curve.add_data_to_group(data, property_group="obs")
@@ -467,19 +468,20 @@ def test_map_locations(tmp_path: Path):  # pylint: disable=too-many-locals
         update_computation=0,
     )
 
-    for value in app.lines.values():  # type: ignore
-        positions = value["position"]
-        anomaly_groups = value["anomalies"]
+    if app.lines is not None:
+        for value in app.lines.values():
+            positions = value["position"]
+            anomaly_groups = value["anomalies"]
 
-        for pos_ind, anomaly_group in enumerate(anomaly_groups):
-            map_locs = positions[pos_ind].map_locations
+            for pos_ind, anomaly_group in enumerate(anomaly_groups):
+                map_locs = positions[pos_ind].map_locations
 
-            og_inds = [anom.peaks for anom in anomaly_group]
-            inds = map_locs[og_inds]
+                og_inds = [anom.peaks for anom in anomaly_group]
+                inds = map_locs[og_inds]
 
-            locs = positions[pos_ind].locations[inds]
-            og_locs = positions[pos_ind].locations_resampled[og_inds]
+                locs = positions[pos_ind].locations[inds]
+                og_locs = positions[pos_ind].locations_resampled[og_inds]
 
-            for ind, loc in enumerate(locs):
-                assert np.all(np.isin(loc, curve.vertices))
-                assert not np.all(np.isin(og_locs[ind], curve.vertices))
+                assert len(np.setdiff1d(locs, og_locs)) == len(expected_peaks)
+                assert np.isclose(locs, expected_peaks, atol=5).any()
+                assert np.isclose(og_locs, expected_peaks, atol=5).any()

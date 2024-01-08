@@ -1,4 +1,4 @@
-#  Copyright (c) 2023 Mira Geoscience Ltd.
+#  Copyright (c) 2024 Mira Geoscience Ltd.
 #
 #  This file is part of peak-finder-app project.
 #
@@ -8,7 +8,7 @@
 from __future__ import annotations
 
 import numpy as np
-from geoapps_utils.numerical import running_mean, traveling_salesman
+from geoapps_utils.numerical import running_mean
 from scipy.interpolate import interp1d
 
 
@@ -35,6 +35,7 @@ class LinePosition:  # pylint: disable=R0902
     def __init__(  # pylint: disable=R0913
         self,
         locations: np.ndarray | None = None,
+        sorting: np.ndarray | None = None,
         epsilon: float | None = None,
         interpolation: str = "gaussian",
         smoothing: int = 0,
@@ -43,12 +44,13 @@ class LinePosition:  # pylint: disable=R0902
         **kwargs,
     ):
         self._locations_resampled = None
-        self._epsilon = epsilon
         self.x_locations = None
         self.y_locations = None
         self.z_locations = None
         self._map_locations = None
+        self.sorting = sorting
         self.locations = locations
+        self._epsilon = epsilon
         self._interpolation = interpolation
         self._smoothing = smoothing
         self._residual = residual
@@ -98,13 +100,13 @@ class LinePosition:  # pylint: disable=R0902
         self.x_locations = None
         self.y_locations = None
         self.z_locations = None
-        self.sorting = None
         self._locations_resampled = None
+        self._map_locations = None
 
         if locations is not None and len(locations) > 0:
-            self.sorting = traveling_salesman(locations)
             if np.all(np.diff(self.sorting) < 0):
                 self.sorting = np.flip(self.sorting)
+
             if locations.ndim > 1:
                 if np.std(locations[:, 1]) > np.std(locations[:, 0]):
                     start = np.argmin(locations[:, 1])
@@ -142,6 +144,17 @@ class LinePosition:  # pylint: disable=R0902
             self._locations_resampled = np.linspace(
                 self._locations[0], self._locations[-1], self.sampling_width
             )
+
+    @property
+    def sorting(self) -> np.ndarray:
+        """
+        Locations sorting order.
+        """
+        return self._sorting
+
+    @sorting.setter
+    def sorting(self, value):
+        self._sorting = value
 
     @property
     def map_locations(self) -> np.ndarray:
