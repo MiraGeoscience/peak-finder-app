@@ -136,10 +136,13 @@ class PeakFinderDriver(BaseDriver):
 
             line_indices = {}
             value_map = line_field_obj.value_map.map
+            line_length = len(line_field_obj.values)
             for key in value_map:
-                indices = np.where(line_field_obj.values == key)
-                if len(indices[0]) > 0:
-                    line_indices[str(key)] = indices
+                active_indices = np.where(line_field_obj.values == key)
+                if len(active_indices[0]) > 0:
+                    indices = np.zeros(line_length, dtype=bool)
+                    indices[active_indices] = True
+                    line_indices[str(key)] = [indices]
 
             anomalies = PeakFinderDriver.compute_lines(
                 survey=survey_obj,

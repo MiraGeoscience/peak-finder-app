@@ -598,6 +598,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
             or not hasattr(survey_obj, "parts")
         ):
             return no_update
+        line_length = len(line_field_obj.values)
 
         indices_dict: dict[str, np.ndarray] = {}
         for line_id in line_ids:
@@ -609,10 +610,16 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
             parts = np.unique(survey_obj.parts[full_line_indices])
 
             for part in parts:
-                line_indices = np.where(
+                active_indices = np.where(
                     (line_field_obj.values == line_id) & (survey_obj.parts == part)
                 )[0]
+                line_indices = np.zeros(line_length, dtype=bool)
+                line_indices[active_indices] = True
+
                 indices_dict[str(line_id)].append(line_indices)
+                print(line_id)
+                print(len(indices_dict[str(line_id)]))
+                print("\n")
         return indices_dict
 
     def compute_line(  # pylint: disable=too-many-arguments, too-many-locals

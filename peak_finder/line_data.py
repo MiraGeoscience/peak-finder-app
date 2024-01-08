@@ -54,7 +54,7 @@ class LineData:
         if self._values is None:
             if self.data_entity is not None and self.position.sorting is not None:
                 self._values = self.data_entity.values[  # type: ignore
-                    self.masking_offset + self.position.sorting
+                    self.position.sorting
                 ]
 
             if self._values is not None and len(self._values) != len(

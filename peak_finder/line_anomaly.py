@@ -310,10 +310,10 @@ class LineAnomaly:  # pylint: disable=R0902, duplicate-code
             and self.line_indices is not None
         ):
             locs = self.locations[self.line_indices]
+            bool_cells = np.all(self.line_indices[self.entity.cells], axis=1)
 
-            sorting = []
-            for ind in self.line_indices:
-                sorting += list(np.where(self.entity.cells[:, 0] == ind)[0])
+            active_cells = self.entity.cells[bool_cells]
+            sorting = np.concatenate((active_cells[:, 0], [active_cells[-1, 1]]))
 
             self._position = LinePosition(
                 locations=locs,
