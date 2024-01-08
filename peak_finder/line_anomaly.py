@@ -311,9 +311,9 @@ class LineAnomaly:  # pylint: disable=R0902, duplicate-code
         ):
             locs = self.locations[self.line_indices]
 
-            sorting = [
-                np.where(self.entity.cells[:, 0] == ind)[0] for ind in self.line_indices
-            ]
+            sorting = []
+            for ind in self.line_indices:
+                sorting += list(np.where(self.entity.cells[:, 0] == ind)[0])
 
             self._position = LinePosition(
                 locations=locs,
