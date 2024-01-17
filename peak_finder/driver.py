@@ -21,6 +21,7 @@ from geoh5py import Workspace
 from geoh5py.groups import ContainerGroup, PropertyGroup
 from geoh5py.objects import Curve, Points
 from geoh5py.shared.utils import fetch_active_workspace
+from scipy.spatial import KDTree
 from tqdm import tqdm
 
 from peak_finder.constants import validations
@@ -39,7 +40,7 @@ class PeakFinderDriver(BaseDriver):
     @staticmethod
     def compute_lines(  # pylint: disable=R0913, R0914
         survey: Curve,
-        line_indices: list[int] | np.ndarray,
+        line_indices: dict[str, list[np.ndarray]],
         line_ids: list[int] | np.ndarray,
         property_groups: list[PropertyGroup],
         smoothing: float,
@@ -72,7 +73,6 @@ class PeakFinderDriver(BaseDriver):
         anomalies = []
         for line_id in tqdm(list(line_ids)):
             for indices in line_indices[str(line_id)]:  # type: ignore
-                masking_offset = np.min(indices)
                 anomalies += [
                     line_computation(
                         entity=survey,
@@ -88,7 +88,6 @@ class PeakFinderDriver(BaseDriver):
                         n_groups=n_groups,
                         max_separation=max_separation,
                         minimal_output=True,
-                        masking_offset=masking_offset,
                     )
                 ]
 
@@ -128,17 +127,22 @@ class PeakFinderDriver(BaseDriver):
 
                 workspace = Workspace()
                 survey_obj = survey_obj.copy(parent=workspace)
-                survey_obj.remove_vertices(~masking_array)
+
+                if False in masking_array:
+                    survey_obj.remove_vertices(~masking_array)
                 line_field_obj = survey_obj.get_data(self.params.line_field.uid)[0]
             else:
                 line_field_obj = self.params.line_field
 
             line_indices = {}
             value_map = line_field_obj.value_map.map
+            line_length = len(line_field_obj.values)
             for key in value_map:
-                indices = np.where(line_field_obj.values == key)
-                if len(indices[0]) > 0:
-                    line_indices[str(key)] = indices
+                active_indices = np.where(line_field_obj.values == key)
+                if len(active_indices[0]) > 0:
+                    indices = np.zeros(line_length, dtype=bool)
+                    indices[active_indices] = True
+                    line_indices[str(key)] = [indices]
 
             anomalies = PeakFinderDriver.compute_lines(
                 survey=survey_obj,
@@ -158,15 +162,15 @@ class PeakFinderDriver(BaseDriver):
             (
                 channel_group,
                 tau,
-                migration,
-                azimuth,
-                group_center,
                 amplitude,
+                group_center,
+                group_start,
+                group_end,
+                anom_locs,
                 inflect_up,
                 inflect_down,
-                start,
-                end,
-                skew,
+                anom_start,
+                anom_end,
                 peaks,
             ) = ([], [], [], [], [], [], [], [], [], [], [], [])
 
@@ -187,17 +191,28 @@ class PeakFinderDriver(BaseDriver):
                             channel_group.append(
                                 property_groups.index(group.property_group) + 1
                             )
-                            migration.append(group.migration)
                             amplitude.append(group.amplitude)
-                            azimuth.append(group.azimuth)
-                            skew.append(group.skew)
-                            group_center.append(group.group_center)
+
+                            locs = np.vstack(
+                                [
+                                    getattr(group.position, f"{k}_locations")
+                                    for k in "xyz"
+                                ]
+                            ).T
+
+                            _, ind = KDTree(locs).query(group.group_center)
+                            group_center.append(locs[ind])
+                            group_start.append(group.start)
+                            group_end.append(group.end)
+
+                            inds_map = group.position.map_locations
                             for anom in group.anomalies:
-                                inflect_down.append(anom.inflect_down)
-                                inflect_up.append(anom.inflect_up)
-                                start.append(anom.start)
-                                end.append(anom.end)
-                                peaks.append(anom.peak)
+                                anom_locs.append(locs[inds_map[anom.peak]])
+                                inflect_down.append(inds_map[anom.inflect_down])
+                                inflect_up.append(inds_map[anom.inflect_up])
+                                anom_start.append(inds_map[anom.start])
+                                anom_end.append(inds_map[anom.end])
+                                peaks.append(inds_map[anom.peak])
 
             print("Exporting . . .")
             if group_center:
@@ -213,27 +228,27 @@ class PeakFinderDriver(BaseDriver):
                     np.vstack(color_map).T,
                     names=["Value", "Red", "Green", "Blue", "Alpha"],
                 )
-                points = Points.create(
+                group_points = Points.create(
                     self.params.geoh5,
-                    name="PointMarkers",
+                    name="Anomaly Groups",
                     vertices=np.vstack(group_center),
                     parent=output_group,
                 )
-                points.entity_type.name = self.params.ga_group_name
-                migration = np.hstack(migration)
-                dip = migration / migration.max()
-                dip = np.rad2deg(np.arccos(dip))
-                skew = np.hstack(skew)
-                azimuth = np.hstack(azimuth)
+
+                group_points.entity_type.name = self.params.ga_group_name
                 amplitude = np.hstack(amplitude)
-                points.add_data(
+                group_points.add_data(
                     {
                         "amplitude": {"values": amplitude},
-                        "skew": {"values": skew},
+                        "start": {
+                            "values": np.vstack(group_start).flatten().astype(np.int32)
+                        },
+                        "end": {
+                            "values": np.vstack(group_end).flatten().astype(np.int32)
+                        },
                     }
                 )
-
-                channel_group_data = points.add_data(
+                channel_group_data = group_points.add_data(
                     {
                         "channel_group": {
                             "type": "referenced",
@@ -247,60 +262,30 @@ class PeakFinderDriver(BaseDriver):
                     "values": color_map,
                 }
 
-                # Add structural markers
-                if self.params.structural_markers:
-                    inflect_pts = Points.create(
-                        self.params.geoh5,
-                        name="Inflections_Up",
-                        vertices=np.vstack(inflect_up),
-                        parent=output_group,
-                    )
-                    channel_group_data = inflect_pts.add_data(
-                        {
-                            "channel_group": {
-                                "type": "referenced",
-                                "values": np.repeat(
-                                    np.hstack(channel_group),
-                                    [i.shape[0] for i in inflect_up],
-                                ),
-                                "value_map": group_map,
-                            }
-                        }
-                    )
-                    channel_group_data.entity_type.color_map = {
-                        "name": "Time Groups",
-                        "values": color_map,
+            if anom_locs:
+                anom_points = Points.create(
+                    self.params.geoh5,
+                    name="Anomalies",
+                    vertices=np.vstack(anom_locs),
+                    parent=output_group,
+                )
+                anom_points.add_data(
+                    {
+                        "start": {
+                            "values": np.vstack(anom_start).flatten().astype(np.int32)
+                        },
+                        "end": {
+                            "values": np.vstack(anom_end).flatten().astype(np.int32)
+                        },
+                        "upward inflection": {
+                            "values": np.vstack(inflect_up).flatten().astype(np.int32)
+                        },
+                        "downward inflection": {
+                            "values": np.vstack(inflect_down).flatten().astype(np.int32)
+                        },
                     }
-                    inflect_pts = Points.create(
-                        self.params.geoh5,
-                        name="Inflections_Down",
-                        vertices=np.vstack(inflect_down),
-                        parent=output_group,
-                    )
-                    channel_group_data.copy(parent=inflect_pts)
+                )
 
-                    start_pts = Points.create(
-                        self.params.geoh5,
-                        name="Starts",
-                        vertices=np.vstack(start),
-                        parent=output_group,
-                    )
-                    channel_group_data.copy(parent=start_pts)
-
-                    end_pts = Points.create(
-                        self.params.geoh5,
-                        name="Ends",
-                        vertices=np.vstack(end),
-                        parent=output_group,
-                    )
-                    channel_group_data.copy(parent=end_pts)
-
-                    Points.create(
-                        self.params.geoh5,
-                        name="Peaks",
-                        vertices=np.vstack(peaks),
-                        parent=output_group,
-                    )
             self.update_monitoring_directory(output_group)
 
 

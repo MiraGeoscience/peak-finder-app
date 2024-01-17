@@ -53,7 +53,6 @@ class LineAnomaly:  # pylint: disable=R0902, duplicate-code
         n_groups=1,
         max_separation=100.0,
         use_residual=False,
-        masking_offset=0,
     ):
         """
         :param entity: Survey object.
@@ -87,7 +86,6 @@ class LineAnomaly:  # pylint: disable=R0902, duplicate-code
         self.property_groups = property_groups
         self.n_groups = n_groups
         self.max_separation = max_separation
-        self.masking_offset = masking_offset
 
     @property
     def entity(self) -> Curve:
@@ -123,8 +121,8 @@ class LineAnomaly:  # pylint: disable=R0902, duplicate-code
 
     @line_indices.setter
     def line_indices(self, value):
-        if not isinstance(value, (list, np.ndarray)):
-            raise TypeError("Line indices must be a list or numpy array.")
+        if not isinstance(value, np.ndarray):
+            raise TypeError("Line indices must be a numpy array.")
 
         self._line_indices = value
 
@@ -270,17 +268,6 @@ class LineAnomaly:  # pylint: disable=R0902, duplicate-code
         self._minimal_output = value
 
     @property
-    def masking_offset(self) -> int:
-        """
-        Index for masking offset.
-        """
-        return self._masking_offset
-
-    @masking_offset.setter
-    def masking_offset(self, value):
-        self._masking_offset = value
-
-    @property
     def locations(self) -> np.ndarray | None:
         """
         Survey vertices.
@@ -303,9 +290,21 @@ class LineAnomaly:  # pylint: disable=R0902, duplicate-code
         """
         Line position and interpolation.
         """
-        if self._position is None and self.locations is not None:
+        if (
+            self._position is None
+            and self.locations is not None
+            and self.entity.cells is not None
+            and self.line_indices is not None
+        ):
+            bool_cells = np.all(self.line_indices[self.entity.cells], axis=1)
+
+            active_cells = self.entity.cells[bool_cells]
+            sorting = np.concatenate((active_cells[:, 0], [active_cells[-1, 1]]))
+
             self._position = LinePosition(
-                locations=self.locations[self.line_indices],
+                locations=self.locations,
+                line_indices=self.line_indices,
+                sorting=sorting,
                 smoothing=self.smoothing,
                 residual=self.use_residual,
             )
@@ -342,7 +341,6 @@ class LineAnomaly:  # pylint: disable=R0902, duplicate-code
                 self.min_width,
                 self.max_migration,
                 self.min_value,
-                self.masking_offset,
             )
 
             line_dataset[data.uid] = line_data

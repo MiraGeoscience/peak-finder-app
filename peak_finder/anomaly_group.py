@@ -28,7 +28,6 @@ class AnomalyGroup:  # pylint: disable=too-many-public-methods
     _channels: dict
     _full_peak_values: np.ndarray
     _linear_fit: list | None = None
-    _skew: float | None = None
     _amplitude: float | None = None
     _migration: float | None = None
     _azimuth: float | None = None
@@ -113,23 +112,6 @@ class AnomalyGroup:  # pylint: disable=too-many-public-methods
         return self._group_center_sort
 
     @property
-    def migration(self) -> float | None:
-        """
-        Distance migrated from anomaly.
-        """
-        if (
-            self._migration is None
-            and self.group_center_sort is not None
-            and self.peaks is not None
-        ):
-            locs = self.position.locations_resampled
-            self._migration = np.abs(
-                locs[self.peaks[self.group_center_sort[-1]]]
-                - locs[self.peaks[self.group_center_sort[0]]]
-            )
-        return self._migration
-
-    @property
     def amplitude(self) -> float | None:
         """
         Amplitude of anomalies.
@@ -146,15 +128,6 @@ class AnomalyGroup:  # pylint: disable=too-many-public-methods
         if self._linear_fit is None:
             self._linear_fit = self.compute_linear_fit()
         return self._linear_fit
-
-    @property
-    def skew(self) -> float | None:
-        """
-        Skew.
-        """
-        if self._skew is None:
-            self._skew = self.compute_skew()
-        return self._skew
 
     @property
     def property_group(self) -> PropertyGroup:
@@ -285,47 +258,6 @@ class AnomalyGroup:  # pylint: disable=too-many-public-methods
             dip_direction = (dip_direction + 180) % 360.0
 
         return dip_direction
-
-    def compute_skew(
-        self,
-    ) -> float | None:
-        """
-        Compute skew factor for an anomaly group.
-
-        :return: Skew.
-        """
-        if (
-            self.group_center is None
-            or self.group_center_sort is None
-            or self.full_azimuth is None
-            or self.peaks is None
-        ):
-            return None
-
-        locs = self.position.locations_resampled
-        azimuth_near = self.full_azimuth[self.peaks]
-
-        inflect_up = self.get_list_attr("inflect_up")
-        inflect_down = self.get_list_attr("inflect_down")
-
-        skew = (
-            locs[self.peaks][self.group_center_sort[0]]
-            - locs[inflect_up][self.group_center_sort]
-        ) / (
-            locs[inflect_down][self.group_center_sort]
-            - locs[self.peaks][self.group_center_sort[0]]
-            + 1e-8
-        )
-        skew[azimuth_near[self.group_center_sort] > 180] = 1.0 / (
-            skew[azimuth_near[self.group_center_sort] > 180] + 1e-2
-        )
-        # Change skew factor from [-100, 1]
-        flip_skew = skew < 1
-        skew[flip_skew] = 1.0 / (skew[flip_skew] + 1e-2)
-        skew = 1.0 - skew
-        skew[flip_skew] *= -1
-
-        return np.mean(skew)
 
     def compute_linear_fit(
         self,

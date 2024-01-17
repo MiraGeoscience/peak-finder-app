@@ -11,6 +11,8 @@ import string
 from pathlib import Path
 
 import numpy as np
+from dash._callback_context import context_value
+from dash._utils import AttributeDict
 from geoh5py.objects import Curve
 from geoh5py.shared.utils import compare_entities
 from geoh5py.workspace import Workspace
@@ -119,7 +121,6 @@ def test_peak_finder_app(tmp_path: Path):  # pylint: disable=too-many-locals
         max_separation=100.0,
         line_id=1,
         property_groups=property_groups,
-        structural_markers=[],
         ga_group_name="peak_finder",
         live_link=[],
         monitoring_directory=str(tmp_path),
@@ -127,7 +128,7 @@ def test_peak_finder_app(tmp_path: Path):  # pylint: disable=too-many-locals
 
     filename = next(tmp_path.glob("peak_finder*.geoh5"))
     with Workspace(filename) as out_ws:
-        anomalies_obj = out_ws.get_entity("PointMarkers")[0]
+        anomalies_obj = out_ws.get_entity("Anomaly Groups")[0]
         amplitudes = anomalies_obj.get_data("amplitude")[0].values
         assert len(amplitudes) == 13, f"Expected 13 groups. Found {len(amplitudes)}"
         channel_groups = anomalies_obj.get_data("channel_group")[0].values
@@ -142,9 +143,6 @@ def test_peak_finder_app(tmp_path: Path):  # pylint: disable=too-many-locals
             3,
             3,
         ], f"Expected 1 group of each type. Found {grouping}"
-        skew = anomalies_obj.get_data("skew")[0].values
-        assert np.sum([skew > 0]) == 9
-        assert np.sum([skew < 0]) == 4
 
 
 def test_peak_finder_driver(tmp_path: Path):
@@ -153,7 +151,7 @@ def test_peak_finder_driver(tmp_path: Path):
     driver = PeakFinderDriver.start(str(uijson_path / json_file))
 
     with driver.params.geoh5.open(mode="r"):
-        results = driver.params.geoh5.get_entity("PointMarkers")
+        results = driver.params.geoh5.get_entity("Anomaly Groups")
         compare_entities(results[0], results[1], ignore=["_uid"])
 
 
@@ -244,7 +242,6 @@ def test_merging_peaks(tmp_path: Path):  # pylint: disable=too-many-locals
             max_separation=max_separation_list[ind],
             line_id=1,
             property_groups=property_groups,
-            structural_markers=[],
             ga_group_name="peak_finder_" + str(ind),
             live_link=[],
             monitoring_directory=str(tmp_path),
@@ -252,7 +249,7 @@ def test_merging_peaks(tmp_path: Path):  # pylint: disable=too-many-locals
 
         filename = next(tmp_path.glob(f"peak_finder_{ind}*.geoh5"))
         with Workspace(filename) as out_ws:
-            anomalies_obj = out_ws.get_entity("PointMarkers")[0]
+            anomalies_obj = out_ws.get_entity("Anomaly Groups")[0]
             if len(expected_peaks[ind]) == 0:  # type: ignore
                 assert anomalies_obj is None
                 continue
@@ -352,7 +349,6 @@ def test_masking_peaks(tmp_path: Path):  # pylint: disable=too-many-locals
         max_separation=350,
         line_id=1,
         property_groups=property_groups,
-        structural_markers=[],
         ga_group_name="peak_finder_masking",
         live_link=[],
         monitoring_directory=str(tmp_path),
@@ -360,7 +356,132 @@ def test_masking_peaks(tmp_path: Path):  # pylint: disable=too-many-locals
 
     filename = next(tmp_path.glob("peak_finder_masking*.geoh5"))
     with Workspace(filename) as out_ws:
-        anomalies_obj = out_ws.get_entity("PointMarkers")[0]
+        anomalies_obj = out_ws.get_entity("Anomaly Groups")[0]
         vertices = anomalies_obj.vertices[:, 0]
         assert np.all((vertices < 650) | (vertices > 850))
         assert len(vertices) == 2
+
+
+def test_map_locations(tmp_path: Path):  # pylint: disable=too-many-locals
+    h5file_path = tmp_path / r"testPeakFinder.geoh5"
+    # Create temp workspace
+    temp_ws = Workspace(h5file_path)
+
+    params = PeakFinderParams(geoh5=str(h5file_path))
+    app = PeakFinder(params=params, ui_json_data={})
+    app.workspace = temp_ws
+
+    x = np.linspace(0, 1000, 10000)
+    noise = np.random.uniform(low=-5, high=5, size=len(x))
+    x = np.sort(x + noise)
+
+    curve = Curve.create(temp_ws, vertices=np.c_[x, np.zeros((x.shape[0], 2))])
+
+    dist1 = 10 * stats.norm.pdf(np.arange(0, 200, 0.1), 100, 1.5)
+    dist2 = 3 * stats.norm.pdf(np.arange(200, 450, 0.1), 300, 25)
+    dist3 = 5 * stats.norm.pdf(np.arange(450, 650, 0.1), 600, 1)
+    dist4 = 7 * stats.norm.pdf(np.arange(650, 725, 0.1), 700, 1.75)
+    dist5 = 1000 * stats.norm.pdf(np.arange(725, 875, 0.1), 800, 3)
+    dist6 = 7 * stats.norm.pdf(np.arange(875, 1000, 0.1), 900, 3)
+
+    dist = np.concatenate((dist1, dist2, dist3, dist4, dist5, dist6))
+
+    expected_peaks = [100, 300, 600, 700, 800, 900]
+
+    data = curve.add_data({"data": {"values": dist}})
+    curve.add_data_to_group(data, property_group="obs")
+
+    line = curve.add_data(
+        {
+            "line_id": {
+                "values": np.ones_like(x),
+                "value_map": {1: "1", 2: "2", 3: "3"},
+                "type": "referenced",
+            }
+        }
+    )
+    curve.add_data_to_group(line, property_group="Line")
+
+    prop_group = curve.find_or_create_property_group(
+        name="prop group", properties=[data.uid]
+    )
+
+    property_groups = {
+        "obs": {
+            "param": "a",
+            "data": str(prop_group.uid),
+            "color": "#000000",
+            "label": [0],
+            "properties": [str(p) for p in prop_group.properties],
+        }
+    }
+
+    survey = "{" + str(curve.uid) + "}"
+    smoothing = 6
+    max_migration = 1.0
+    min_channels = 1
+    min_amplitude = 0
+    min_value = -1.4
+    min_width = 1.0
+    line_field = "{" + str(line.uid) + "}"
+
+    # Test merging peaks
+    n_groups = 1
+    max_separation = 100
+
+    context_value.set(
+        AttributeDict(
+            **{"triggered_inputs": [{"prop_id": "line_ids.value", "value": [1]}]}
+        )
+    )
+
+    indices_dict = app.get_line_indices(
+        survey,
+        line_field,
+        line_ids=[1],
+    )
+
+    context_value.set(
+        AttributeDict(
+            **{
+                "triggered_inputs": [
+                    {"prop_id": "line_indices.data", "data": indices_dict["1"]}  # type: ignore
+                ]
+            }
+        )
+    )
+
+    app.compute_line(
+        line_indices=indices_dict,  # type: ignore
+        line_ids=[1],
+        objects=survey,
+        property_groups_dict=property_groups,
+        smoothing=smoothing,
+        max_migration=max_migration,
+        min_channels=min_channels,
+        min_amplitude=min_amplitude,
+        min_value=min_value,
+        min_width=min_width,
+        n_groups=n_groups,
+        max_separation=max_separation,
+        update_from_property_groups=False,
+        update_computation=0,
+    )
+
+    if app.lines is not None:
+        for value in app.lines.values():
+            positions = value["position"]
+            anomaly_groups = value["anomalies"]
+
+            for pos_ind, anomaly_group in enumerate(anomaly_groups):
+                map_locs = positions[pos_ind].map_locations
+
+                og_inds = [anom.peaks for anom in anomaly_group]
+                inds = map_locs[og_inds]
+
+                locs = positions[pos_ind].locations[inds]
+                og_locs = positions[pos_ind].locations_resampled[og_inds]
+
+                assert len(np.setdiff1d(locs, og_locs)) == len(expected_peaks)
+                assert np.isclose(locs, expected_peaks, atol=5).any()
+                assert np.isclose(og_locs, expected_peaks, atol=5).any()
