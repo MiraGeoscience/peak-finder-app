@@ -127,7 +127,9 @@ class PeakFinderDriver(BaseDriver):
 
                 workspace = Workspace()
                 survey_obj = survey_obj.copy(parent=workspace)
-                survey_obj.remove_vertices(~masking_array)
+
+                if False in masking_array:
+                    survey_obj.remove_vertices(~masking_array)
                 line_field_obj = survey_obj.get_data(self.params.line_field.uid)[0]
             else:
                 line_field_obj = self.params.line_field
