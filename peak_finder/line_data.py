@@ -27,7 +27,6 @@ class LineData:
         min_width: float,
         max_migration: float,
         min_value: float = -np.inf,
-        masking_offset: int = 0,
     ):
         self._data_entity = data
         self._position = position
@@ -36,7 +35,6 @@ class LineData:
         self._max_migration = max_migration
         self._min_value = min_value
         self._min_value = min_value
-        self._masking_offset = masking_offset
         self._values = None
         self._peaks = None
         self._lows = None
@@ -54,7 +52,7 @@ class LineData:
         if self._values is None:
             if self.data_entity is not None and self.position.sorting is not None:
                 self._values = self.data_entity.values[  # type: ignore
-                    self.masking_offset + self.position.sorting
+                    self.position.sorting
                 ]
 
             if self._values is not None and len(self._values) != len(
@@ -152,17 +150,6 @@ class LineData:
     @position.setter
     def position(self, value):
         self._position = value
-
-    @property
-    def masking_offset(self) -> int:
-        """
-        Index offset for masking.
-        """
-        return self._masking_offset
-
-    @masking_offset.setter
-    def masking_offset(self, value):
-        self._masking_offset = value
 
     @property
     def anomalies(self) -> list[Anomaly]:

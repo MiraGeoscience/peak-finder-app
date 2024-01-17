@@ -113,6 +113,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
             Output(component_id="active_channels", component_property="data"),
             Output(component_id="min_value", component_property="value"),
             Input(component_id="flip_sign", component_property="value"),
+            Input(component_id="line_field", component_property="value"),
             Input(component_id="property_groups", component_property="data"),
             Input(
                 component_id="update_from_property_groups", component_property="data"
@@ -124,7 +125,6 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
             Input(component_id="line_field", component_property="value"),
             Input(component_id="masking_data", component_property="value"),
             Input(component_id="objects", component_property="data"),
-            Input(component_id="active_channels", component_property="data"),
         )(self.mask_data)
         self.app.callback(
             Output(component_id="line_ids", component_property="data"),
@@ -250,7 +250,6 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
             State(component_id="max_separation", component_property="value"),
             State(component_id="line_id", component_property="value"),
             State(component_id="property_groups", component_property="data"),
-            State(component_id="structural_markers", component_property="value"),
             State(component_id="ga_group_name", component_property="value"),
             State(component_id="live_link", component_property="value"),
             State(component_id="monitoring_directory", component_property="value"),
@@ -443,9 +442,10 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
 
         return options, line_id
 
-    def update_active_channels(
+    def update_active_channels(  # pylint: disable=too-many-locals
         self,
         flip_sign_bool: list[bool],
+        line_field: str,
         property_groups_dict: dict,
         update_from_property_groups: bool,
     ) -> tuple[dict, float]:
@@ -453,6 +453,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         Update active channels from property groups.
 
         :param flip_sign_bool: Whether to flip the sign of the data.
+        :param line_field: Trigger update if masking data is changed.
         :param property_groups_dict: Property groups dictionary.
         :param update_from_property_groups: Whether to update if property groups is triggered.
 
@@ -512,7 +513,6 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         line_field: str,
         masking_data: str,
         objects: str,
-        active_channels: dict,
     ) -> tuple[str, str]:
         """
         Apply masking to survey object.
@@ -520,7 +520,6 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         :param line_field: Line field.
         :param masking_data: Masking data.
         :param objects: Input object.
-        :param active_channels: Trigger mask_data if active_channels is updated.
 
         :return: Object uid to trigger other callbacks.
         :return: Line field uid to trigger other callbacks.
@@ -599,6 +598,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
             or not hasattr(survey_obj, "parts")
         ):
             return no_update
+        line_length = len(line_field_obj.values)
 
         indices_dict: dict[str, np.ndarray] = {}
         for line_id in line_ids:
@@ -610,9 +610,12 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
             parts = np.unique(survey_obj.parts[full_line_indices])
 
             for part in parts:
-                line_indices = np.where(
+                active_indices = np.where(
                     (line_field_obj.values == line_id) & (survey_obj.parts == part)
                 )[0]
+                line_indices = np.zeros(line_length, dtype=bool)
+                line_indices[active_indices] = True
+
                 indices_dict[str(line_id)].append(line_indices)
         return indices_dict
 
@@ -671,7 +674,6 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
             for name in property_groups_dict
         ]
 
-        triggers = [t["prop_id"].split(".")[0] for t in callback_context.triggered]
         line_ids_subset = line_ids
         if (
             "line_ids" in triggers
@@ -679,6 +681,11 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
             and "objects" not in triggers
         ):
             line_ids_subset = [line for line in line_ids if line not in self.lines]
+
+        # Dash converts np arrays to lists when it passes through callbacks
+        # Converting back to np arrays
+        for line_id, full_indices in line_indices.items():
+            line_indices[line_id] = [np.array(inds) for inds in full_indices]
 
         line_computation = PeakFinderDriver.compute_lines(
             survey=obj,  # type: ignore
@@ -1838,7 +1845,6 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         max_separation: float,
         line_id: int,
         property_groups: dict,
-        structural_markers: list[bool],
         ga_group_name: str,
         live_link: list[bool],
         monitoring_directory: str,
