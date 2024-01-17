@@ -40,7 +40,7 @@ class PeakFinderDriver(BaseDriver):
     @staticmethod
     def compute_lines(  # pylint: disable=R0913, R0914
         survey: Curve,
-        line_indices: list[int] | np.ndarray,
+        line_indices: dict[str, list[np.ndarray]],
         line_ids: list[int] | np.ndarray,
         property_groups: list[PropertyGroup],
         smoothing: float,
@@ -73,7 +73,6 @@ class PeakFinderDriver(BaseDriver):
         anomalies = []
         for line_id in tqdm(list(line_ids)):
             for indices in line_indices[str(line_id)]:  # type: ignore
-                masking_offset = np.min(indices)
                 anomalies += [
                     line_computation(
                         entity=survey,
@@ -89,7 +88,6 @@ class PeakFinderDriver(BaseDriver):
                         n_groups=n_groups,
                         max_separation=max_separation,
                         minimal_output=True,
-                        masking_offset=masking_offset,
                     )
                 ]
 

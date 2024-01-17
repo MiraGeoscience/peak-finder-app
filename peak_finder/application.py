@@ -113,6 +113,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
             Output(component_id="active_channels", component_property="data"),
             Output(component_id="min_value", component_property="value"),
             Input(component_id="flip_sign", component_property="value"),
+            Input(component_id="line_field", component_property="value"),
             Input(component_id="property_groups", component_property="data"),
             Input(
                 component_id="update_from_property_groups", component_property="data"
@@ -124,7 +125,6 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
             Input(component_id="line_field", component_property="value"),
             Input(component_id="masking_data", component_property="value"),
             Input(component_id="objects", component_property="data"),
-            Input(component_id="active_channels", component_property="data"),
         )(self.mask_data)
         self.app.callback(
             Output(component_id="line_ids", component_property="data"),
@@ -442,9 +442,10 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
 
         return options, line_id
 
-    def update_active_channels(
+    def update_active_channels(  # pylint: disable=too-many-locals
         self,
         flip_sign_bool: list[bool],
+        line_field: str,
         property_groups_dict: dict,
         update_from_property_groups: bool,
     ) -> tuple[dict, float]:
@@ -452,6 +453,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         Update active channels from property groups.
 
         :param flip_sign_bool: Whether to flip the sign of the data.
+        :param line_field: Trigger update if masking data is changed.
         :param property_groups_dict: Property groups dictionary.
         :param update_from_property_groups: Whether to update if property groups is triggered.
 
@@ -511,7 +513,6 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         line_field: str,
         masking_data: str,
         objects: str,
-        active_channels: dict,
     ) -> tuple[str, str]:
         """
         Apply masking to survey object.
@@ -519,7 +520,6 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         :param line_field: Line field.
         :param masking_data: Masking data.
         :param objects: Input object.
-        :param active_channels: Trigger mask_data if active_channels is updated.
 
         :return: Object uid to trigger other callbacks.
         :return: Line field uid to trigger other callbacks.
@@ -617,9 +617,6 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
                 line_indices[active_indices] = True
 
                 indices_dict[str(line_id)].append(line_indices)
-                print(line_id)
-                print(len(indices_dict[str(line_id)]))
-                print("\n")
         return indices_dict
 
     def compute_line(  # pylint: disable=too-many-arguments, too-many-locals
@@ -684,6 +681,11 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
             and "objects" not in triggers
         ):
             line_ids_subset = [line for line in line_ids if line not in self.lines]
+
+        # Dash converts np arrays to lists when it passes through callbacks
+        # Converting back to np arrays
+        for line_id, full_indices in line_indices.items():
+            line_indices[line_id] = [np.array(inds) for inds in full_indices]
 
         line_computation = PeakFinderDriver.compute_lines(
             survey=obj,  # type: ignore
