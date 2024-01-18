@@ -602,10 +602,22 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
 
         indices_dict: dict[str, np.ndarray] = {}
         for line_id in line_ids:
-            indices_dict[str(line_id)] = []
-
             line_bool = line_field_obj.values == line_id
             full_line_indices = np.where(line_bool)[0]
+
+            # Get line start
+            line_start = None
+            locs = survey_obj.vertices
+
+            if locs.ndim > 1:
+                if np.std(locs[full_line_indices, 1]) > np.std(
+                    locs[full_line_indices, 0]
+                ):
+                    line_start = np.argmin(locs[full_line_indices, 1])
+                else:
+                    line_start = np.argmin(locs[full_line_indices, 0])
+
+            indices_dict[str(line_id)] = {"line_start": line_start, "line_indices": []}
 
             parts = np.unique(survey_obj.parts[full_line_indices])
 
@@ -616,7 +628,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
                 line_indices = np.zeros(line_length, dtype=bool)
                 line_indices[active_indices] = True
 
-                indices_dict[str(line_id)].append(line_indices)
+                indices_dict[str(line_id)]["line_indices"].append(line_indices)
         return indices_dict
 
     def compute_line(  # pylint: disable=too-many-arguments, too-many-locals
@@ -685,11 +697,13 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         # Dash converts np arrays to lists when it passes through callbacks
         # Converting back to np arrays
         for line_id, full_indices in line_indices.items():
-            line_indices[line_id] = [np.array(inds) for inds in full_indices]
+            line_indices[line_id]["line_indices"] = [
+                np.array(inds) for inds in full_indices["line_indices"]
+            ]
 
         line_computation = PeakFinderDriver.compute_lines(
             survey=obj,  # type: ignore
-            line_indices=line_indices,
+            line_indices_dict=line_indices,
             line_ids=line_ids_subset,
             property_groups=property_groups,
             smoothing=smoothing,
@@ -809,10 +823,11 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
                 continue
             full_values = np.array(channel_dict["values"])
 
-            for ind in range(len(line_indices_dict[str(line_id)])):
+            line_indices = line_indices_dict[str(line_id)]["line_indices"]
+            for ind in range(len(line_indices)):
                 position = self.lines[line_id]["position"][ind]
                 anomalies = self.lines[line_id]["anomalies"][ind]
-                indices = line_indices_dict[str(line_id)][ind]
+                indices = line_indices[ind]
                 locs = position.locations_resampled
 
                 if len(indices) < 2 or locs is None:

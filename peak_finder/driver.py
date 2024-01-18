@@ -40,7 +40,7 @@ class PeakFinderDriver(BaseDriver):
     @staticmethod
     def compute_lines(  # pylint: disable=R0913, R0914
         survey: Curve,
-        line_indices: dict[str, list[np.ndarray]],
+        line_indices_dict: dict[str, dict],
         line_ids: list[int] | np.ndarray,
         property_groups: list[PropertyGroup],
         smoothing: float,
@@ -56,7 +56,7 @@ class PeakFinderDriver(BaseDriver):
         Compute anomalies for a list of line ids.
 
         :param survey: Survey object.
-        :param line_indices: List of line indices.
+        :param line_indices_dict: Dict of line indices.
         :param line_ids: List of line ids.
         :param property_groups: Property groups to use for grouping anomalies.
         :param smoothing: Smoothing factor.
@@ -72,12 +72,14 @@ class PeakFinderDriver(BaseDriver):
 
         anomalies = []
         for line_id in tqdm(list(line_ids)):
-            for indices in line_indices[str(line_id)]:  # type: ignore
+            line_start = line_indices_dict[str(line_id)]["line_start"]
+            for indices in line_indices_dict[str(line_id)]["line_indices"]:  # type: ignore
                 anomalies += [
                     line_computation(
                         entity=survey,
                         line_id=line_id,
                         line_indices=indices,
+                        line_start=line_start,
                         property_groups=property_groups,
                         smoothing=smoothing,
                         min_amplitude=min_amplitude,

@@ -9,7 +9,7 @@
         "main": true
     },
     "monitoring_directory": "",
-    "conda_environment": "peak-finder-app",
+    "conda_environment": "peak_finder",
     "conda_environment_boolean": false,
     "workspace": "",
     "version": "0.1.0",
