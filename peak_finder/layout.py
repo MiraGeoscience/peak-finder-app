@@ -8,11 +8,10 @@ from __future__ import annotations
 
 import dash_daq as daq
 from dash import dcc, html
-from geoapps_utils.application.layout import export_layout
 
 data_selection_layout = html.Div(
-    [
-        dcc.Markdown(children="**Data Selection**", style={"margin-bottom": "20px"}),
+    id="data_selection",
+    children=[
         html.Div(
             [
                 dcc.Markdown(
@@ -102,13 +101,43 @@ data_selection_layout = html.Div(
             id="flip_sign",
             options=[{"label": "Flip Y (-1x)", "value": True}],
         ),
-        dcc.Checklist(
-            id="group_settings_visibility",
-            options=[{"label": "Select group colours", "value": True}],
+        html.Div(
+            [
+                dcc.Markdown(
+                    "Save as", style={"width": "25%", "display": "inline-block"}
+                ),
+                dcc.Input(
+                    id="ga_group_name",
+                    style={"width": "25%", "display": "inline-block"},
+                ),
+            ]
         ),
+        html.Div(
+            [
+                dcc.Markdown(
+                    children="Output path",
+                    style={"width": "25%", "display": "inline-block"},
+                ),
+                dcc.Input(
+                    id="monitoring_directory",
+                    style={
+                        "width": "50%",
+                        "display": "inline-block",
+                        "margin_bottom": "20px",
+                    },
+                ),
+            ]
+        ),
+        dcc.Checklist(
+            id="live_link",
+            options=[{"label": "Geoscience ANALYST Pro - Live link", "value": True}],
+            value=[],
+            style={"margin_bottom": "20px"},
+        ),
+        html.Button("Export", id="export"),
+        dcc.Markdown(id="output_message"),
     ],
     style={
-        "width": "45%",
         "display": "inline-block",
         "vertical-align": "top",
         "margin-bottom": "20px",
@@ -124,8 +153,6 @@ group_settings_layout = html.Div(
                     style={
                         "width": "30%",
                         "display": "inline-block",
-                        "vertical-align": "middle",
-                        "horizontal-align": "right",
                     },
                 ),
                 dcc.Dropdown(
@@ -133,8 +160,6 @@ group_settings_layout = html.Div(
                     style={
                         "width": "70%",
                         "display": "inline-block",
-                        "vertical-align": "middle",
-                        "margin-bottom": "5px",
                     },
                 ),
                 daq.ColorPicker(  # pylint: disable=not-callable
@@ -149,14 +174,12 @@ group_settings_layout = html.Div(
         ),
     ],
     style={
-        "width": "45%",
         "vertical-align": "top",
-        "display": "inline-block",
     },
 )
 
 figure_layout = html.Div(
-    [
+    children=[
         dcc.Loading(
             id="line_loading",
             type="default",
@@ -171,8 +194,8 @@ figure_layout = html.Div(
 )
 
 visual_params_layout = html.Div(
-    [
-        dcc.Markdown(children="**Visual Parameters**", style={"margin-bottom": "20px"}),
+    id="visual_params",
+    children=[
         html.Div(
             [
                 dcc.Markdown(
@@ -255,20 +278,22 @@ visual_params_layout = html.Div(
             id="structural_markers",
             options=[{"label": "Plot markers", "value": True}],
         ),
+        dcc.Checklist(
+            id="group_settings_visibility",
+            options=[{"label": "Select group colours", "value": True}],
+            style={"width": "100%"},
+        ),
+        group_settings_layout,
     ],
     style={
-        "width": "45%",
         "display": "inline-block",
         "vertical-align": "top",
-        "margin-right": "5%",
     },
 )
 
 detection_params_layout = html.Div(
-    [
-        dcc.Markdown(
-            children="**Detection Parameters**", style={"margin-bottom": "20px"}
-        ),
+    id="detection_params",
+    children=[
         dcc.Markdown(
             children="Smoothing",
             style={"width": "30%", "display": "inline-block", "vertical-align": "top"},
@@ -429,6 +454,7 @@ detection_params_layout = html.Div(
                     id="n_groups",
                     value=1,
                     type="number",
+                    debounce=True,
                     style={
                         "width": "70%",
                         "display": "inline-block",
@@ -454,26 +480,13 @@ detection_params_layout = html.Div(
         ),
     ],
     style={
-        "width": "45%",
         "display": "inline-block",
         "vertical-align": "top",
-        "margin-right": "5%",
     },
 )
 
-
-peak_finder_layout = html.Div(
+stored_params_layout = html.Div(
     [
-        dcc.Markdown(
-            children="#### Peak Finder",
-            style={"margin-bottom": "20px"},
-        ),
-        figure_layout,
-        visual_params_layout,
-        data_selection_layout,
-        detection_params_layout,
-        group_settings_layout,
-        export_layout,
         dcc.Store(id="objects"),
         dcc.Store(id="active_channels"),
         dcc.Store(id="line_indices"),
@@ -486,5 +499,46 @@ peak_finder_layout = html.Div(
         dcc.Store(id="update_colours", data=0),
         dcc.Store(id="update_click_data", data=0),
         dcc.Store(id="update_from_property_groups"),
+    ]
+)
+
+peak_finder_layout = html.Div(
+    [
+        dcc.Markdown(
+            children="#### Peak Finder",
+            style={"margin-bottom": "20px"},
+        ),
+        html.Div(
+            [
+                dcc.Dropdown(
+                    options=["Line plot", "Survey plot"],
+                    multi=True,
+                    id="plot_selection",
+                    value="Line plot",
+                    style={"width": "70%"},
+                ),
+                figure_layout,
+            ],
+            style={"width": "60%", "display": "inline-block", "vertical-align": "top"},
+        ),
+        html.Div(
+            [
+                dcc.Dropdown(
+                    options=[
+                        "Data selection",
+                        "Visual parameters",
+                        "Detection parameters",
+                    ],
+                    id="widget_selection",
+                    value="Data selection",
+                    style={"width": "70%"},
+                ),
+                data_selection_layout,
+                visual_params_layout,
+                detection_params_layout,
+            ],
+            style={"width": "40%", "display": "inline-block", "vertical-align": "top"},
+        ),
+        stored_params_layout,
     ],
 )

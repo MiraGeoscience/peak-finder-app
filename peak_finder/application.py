@@ -77,6 +77,17 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
 
         # Set up callbacks
         self.app.callback(
+            Output(component_id="line_figure", component_property="style"),
+            Output(component_id="full_lines_figure", component_property="style"),
+            Input(component_id="plot_selection", component_property="value"),
+        )(PeakFinder.update_plot_visibility)
+        self.app.callback(
+            Output(component_id="data_selection", component_property="style"),
+            Output(component_id="visual_params", component_property="style"),
+            Output(component_id="detection_params", component_property="style"),
+            Input(component_id="widget_selection", component_property="value"),
+        )(PeakFinder.update_widget_visibility)
+        self.app.callback(
             Output(component_id="linear_threshold", component_property="disabled"),
             Input(component_id="y_scale", component_property="value"),
         )(PeakFinder.disable_linear_threshold)
@@ -84,6 +95,12 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
             Output(component_id="group_settings", component_property="style"),
             Input(component_id="group_settings_visibility", component_property="value"),
         )(BaseDashApplication.update_visibility_from_checklist)
+        self.app.callback(
+            Output(
+                component_id="group_settings_visibility", component_property="value"
+            ),
+            Input(component_id="widget_selection", component_property="value"),
+        )(PeakFinder.update_group_selection)
         self.app.callback(
             Output(component_id="line_field", component_property="options"),
             Output(component_id="masking_data", component_property="options"),
@@ -309,6 +326,55 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
             dcc.Store(id="property_groups", data=property_groups),
             dcc.Store(id="trace_map", data=trace_map),
         ]
+
+    @staticmethod
+    def update_plot_visibility(plot_selection: list[str]) -> tuple:
+        """
+        Update which plots are visible based on dropdown selection.
+
+        :param plot_selection: Dropdown selection.
+
+        :return: Visibility of line plot and survey plot.
+        """
+        if plot_selection is None:
+            return no_update, no_update
+
+        output = []
+        if "Line plot" in plot_selection:
+            output.append({"display": "block"})
+        else:
+            output.append({"display": "none"})
+        if "Survey plot" in plot_selection:
+            output.append({"display": "block"})
+        else:
+            output.append({"display": "none"})
+        return tuple(output)
+
+    @staticmethod
+    def update_widget_visibility(widget_selection: str) -> tuple:
+        """
+        Update which widgets are visible based on dropdown selection.
+
+        :param widget_selection: Dropdown selection.
+
+        :return: Visibility of data selection widgets.
+        """
+        if widget_selection is None:
+            return no_update, no_update, no_update
+
+        if widget_selection == "Data selection":
+            return {"display": "block"}, {"display": "none"}, {"display": "none"}
+        if widget_selection == "Visual parameters":
+            return {"display": "none"}, {"display": "block"}, {"display": "none"}
+        if widget_selection == "Detection parameters":
+            return {"display": "none"}, {"display": "none"}, {"display": "block"}
+        return no_update, no_update, no_update
+
+    @staticmethod
+    def update_group_selection(widget_selection: str) -> list[bool]:
+        if widget_selection == "Visual parameters":
+            return no_update
+        return []
 
     @staticmethod
     def disable_linear_threshold(y_scale: str) -> bool:
@@ -1717,6 +1783,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
             trace_map[key] = ind
 
         self.figure.add_vline(x=None)
+        self.figure.update_layout(margin={"t": 20, "l": 20, "b": 20, "r": 20})
         return trace_map
 
     def update_full_lines_figure(  # pylint: disable=too-many-arguments, too-many-locals, too-many-branches
@@ -1878,6 +1945,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
             yaxis_title="Northing (m)",
             yaxis_scaleanchor="x",
             yaxis_scaleratio=1,
+            margin={"t": 20, "l": 20, "b": 20, "r": 20},
         )
 
         return figure
