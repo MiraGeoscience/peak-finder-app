@@ -30,6 +30,8 @@ from geoapps_utils.plotting import format_axis, symlog
 from geoapps_utils.workspace import get_output_workspace
 from geoh5py import Workspace
 from geoh5py.data import BooleanData, ReferencedData
+from geoh5py.objects import Curve
+from geoh5py.shared import Entity
 from geoh5py.shared.utils import fetch_active_workspace
 from geoh5py.ui_json import InputFile
 from tqdm import tqdm
@@ -658,49 +660,16 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         line_field_obj = self.workspace.get_entity(uuid.UUID(line_field))[0]
 
         if (
-            line_field_obj is None
-            or survey_obj is None
+            not isinstance(line_field_obj, Entity)
+            or not isinstance(survey_obj, Curve)
             or not hasattr(line_field_obj, "values")
             or not hasattr(survey_obj, "parts")
         ):
             return no_update
-        line_length = len(line_field_obj.values)
 
-        indices_dict: dict = {}
-        for line_id in line_ids:
-            line_bool = line_field_obj.values == line_id
-            full_line_indices = np.where(line_bool)[0]
-
-            indices_dict[str(line_id)] = {"line_indices": []}
-
-            parts = np.unique(survey_obj.parts[full_line_indices])
-
-            for part in parts:
-                active_indices = np.where(
-                    (line_field_obj.values == line_id) & (survey_obj.parts == part)
-                )[0]
-
-                line_indices = np.zeros(line_length, dtype=bool)
-                line_indices[active_indices] = True
-
-                indices_dict[str(line_id)]["line_indices"].append(line_indices)
-
-        # Just on masked parts of line
-        for line_id, indices in indices_dict.items():
-            # Get line start
-            line_start = None
-            if hasattr(survey_obj, "vertices"):
-                locs = survey_obj.vertices
-                line_segment = np.any(indices["line_indices"], axis=0)
-
-                if locs.ndim > 1:
-                    if np.std(locs[line_segment][:, 1]) > np.std(locs[line_segment, 0]):
-                        line_start = np.argmin(locs[line_segment, 1])
-                        line_start = locs[line_segment][line_start]
-                    else:
-                        line_start = np.argmin(locs[line_segment, 0])
-                        line_start = locs[line_segment][line_start]
-            indices["line_start"] = line_start
+        indices_dict = PeakFinderDriver.get_line_indices(
+            survey_obj, line_field_obj, line_ids
+        )
 
         return indices_dict
 

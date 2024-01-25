@@ -20,6 +20,7 @@ from geoapps_utils.formatters import string_name
 from geoh5py import Workspace
 from geoh5py.groups import ContainerGroup, PropertyGroup
 from geoh5py.objects import Curve, Points
+from geoh5py.shared import Entity
 from geoh5py.shared.utils import fetch_active_workspace
 from scipy.spatial import KDTree
 from tqdm import tqdm
@@ -95,6 +96,68 @@ class PeakFinderDriver(BaseDriver):
 
         return anomalies
 
+    @staticmethod
+    def get_line_indices(  # pylint: disable=too-many-locals
+        survey_obj: Curve,
+        line_field_obj: Entity,
+        line_ids: list[int],
+    ) -> dict | None:
+        """
+        Get line indices for plotting.
+
+        :param survey_obj: Survey object.
+        :param line_field_obj: Line field object.
+        :param line_ids: Line IDs.
+
+        :return: Line indices for each line ID given.
+        """
+        if hasattr(line_field_obj, "values") and isinstance(
+            line_field_obj.values, np.ndarray | list
+        ):
+            line_length = len(line_field_obj.values)
+        else:
+            return {}
+
+        indices_dict: dict = {}
+        for line_id in line_ids:
+            line_bool = line_field_obj.values == line_id
+            full_line_indices = np.where(line_bool)[0]
+
+            indices_dict[str(line_id)] = {"line_indices": []}
+
+            parts = np.unique(survey_obj.parts[full_line_indices])
+
+            for part in parts:
+                active_indices = np.where(
+                    (line_field_obj.values == line_id) & (survey_obj.parts == part)
+                )[0]
+
+                line_indices = np.zeros(line_length, dtype=bool)
+                line_indices[active_indices] = True
+
+                indices_dict[str(line_id)]["line_indices"].append(line_indices)
+
+        # Just on masked parts of line
+        for line_id, indices in indices_dict.items():
+            # Get line start
+            line_start = None
+            if hasattr(survey_obj, "vertices") and len(indices["line_indices"]) > 0:
+                locs = survey_obj.vertices
+                line_segment = np.any(indices["line_indices"], axis=0)
+
+                if isinstance(locs, np.ndarray) and locs.shape[1] > 1:
+                    if np.std(locs[line_segment][:, 1]) > np.std(
+                        locs[line_segment][:, 0]
+                    ):
+                        line_start = np.argmin(locs[line_segment, 1])
+                        line_start = locs[line_segment][line_start]
+                    else:
+                        line_start = np.argmin(locs[line_segment, 0])
+                        line_start = locs[line_segment][line_start]
+            indices["line_start"] = line_start
+
+        return indices_dict
+
     def run(self):  # noqa  # pylint: disable=R0912, R0914, too-many-statements
         with fetch_active_workspace(self.params.geoh5, mode="r+"):
             survey = self.params.objects
@@ -136,20 +199,15 @@ class PeakFinderDriver(BaseDriver):
             else:
                 line_field_obj = self.params.line_field
 
-            line_indices = {}
-            value_map = line_field_obj.value_map.map
-            line_length = len(line_field_obj.values)
-            for key in value_map:
-                active_indices = np.where(line_field_obj.values == key)
-                if len(active_indices[0]) > 0:
-                    indices = np.zeros(line_length, dtype=bool)
-                    indices[active_indices] = True
-                    line_indices[str(key)] = [indices]
+            line_ids = line_field_obj.value_map.map.keys()
+            indices_dict = PeakFinderDriver.get_line_indices(
+                survey_obj, line_field_obj, line_ids
+            )
 
             anomalies = PeakFinderDriver.compute_lines(
                 survey=survey_obj,
-                line_indices=line_indices,
-                line_ids=[int(line_id) for line_id in line_indices],
+                line_indices_dict=indices_dict,
+                line_ids=line_ids,
                 property_groups=property_groups,
                 smoothing=self.params.smoothing,
                 min_amplitude=self.params.min_amplitude,
