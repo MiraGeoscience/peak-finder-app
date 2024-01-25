@@ -27,7 +27,7 @@ class LineAnomaly:  # pylint: disable=R0902, duplicate-code
     _entity: Curve
     _line_id: int
     _line_indices: list[int] | np.ndarray
-    _line_start: int
+    _line_start: list[int]
     _max_migration: float
     _minimal_output: bool
     _min_amplitude: int
@@ -60,7 +60,7 @@ class LineAnomaly:  # pylint: disable=R0902, duplicate-code
         :param entity: Survey object.
         :param line_id: Line ID.
         :param line_indices: Indices of vertices for line profile.
-        :param line_start: Index for start of line.
+        :param line_start: Start location of line.
         :param property_groups: Property groups to use for grouping anomalies.
         :param smoothing: Smoothing factor.
         :param min_amplitude: Minimum amplitude of anomaly as percent.
@@ -131,7 +131,7 @@ class LineAnomaly:  # pylint: disable=R0902, duplicate-code
         self._line_indices = value
 
     @property
-    def line_start(self) -> int | None:
+    def line_start(self) -> list[int] | None:
         """
         Index for start of the line.
         """

@@ -570,7 +570,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         line_ids = full_line_ids[min_ind:max_ind]
         return line_ids
 
-    def get_line_indices(
+    def get_line_indices(  # pylint: disable=too-many-locals
         self,
         survey: str,
         line_field: str,
@@ -600,24 +600,12 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
             return no_update
         line_length = len(line_field_obj.values)
 
-        indices_dict: dict[str, np.ndarray] = {}
+        indices_dict: dict = {}
         for line_id in line_ids:
             line_bool = line_field_obj.values == line_id
             full_line_indices = np.where(line_bool)[0]
 
-            # Get line start
-            line_start = None
-            locs = survey_obj.vertices
-
-            if locs.ndim > 1:
-                if np.std(locs[full_line_indices, 1]) > np.std(
-                    locs[full_line_indices, 0]
-                ):
-                    line_start = np.argmin(locs[full_line_indices, 1])
-                else:
-                    line_start = np.argmin(locs[full_line_indices, 0])
-
-            indices_dict[str(line_id)] = {"line_start": line_start, "line_indices": []}
+            indices_dict[str(line_id)] = {"line_indices": []}
 
             parts = np.unique(survey_obj.parts[full_line_indices])
 
@@ -625,10 +613,29 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
                 active_indices = np.where(
                     (line_field_obj.values == line_id) & (survey_obj.parts == part)
                 )[0]
+
                 line_indices = np.zeros(line_length, dtype=bool)
                 line_indices[active_indices] = True
 
                 indices_dict[str(line_id)]["line_indices"].append(line_indices)
+
+        # Just on masked parts of line
+        for line_id, indices in indices_dict.items():
+            # Get line start
+            line_start = None
+            if hasattr(survey_obj, "vertices"):
+                locs = survey_obj.vertices
+                line_segment = np.any(indices["line_indices"], axis=0)
+
+                if locs.ndim > 1:
+                    if np.std(locs[line_segment][:, 1]) > np.std(locs[line_segment, 0]):
+                        line_start = np.argmin(locs[line_segment, 1])
+                        line_start = locs[line_segment][line_start]
+                    else:
+                        line_start = np.argmin(locs[line_segment, 0])
+                        line_start = locs[line_segment][line_start]
+            indices["line_start"] = line_start
+
         return indices_dict
 
     def compute_line(  # pylint: disable=too-many-arguments, too-many-locals
@@ -736,15 +743,22 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
                 if line_groups is not None:
                     for line_group in line_groups:
                         line_anomalies += line_group.groups  # type: ignore
+
                 if line_anomaly.line_id not in self.lines:
                     self.lines[line_anomaly.line_id] = {
                         "position": [],
                         "anomalies": [],
+                        "plot_line_start": np.inf,
                     }
                 self.lines[line_anomaly.line_id]["anomalies"].append(line_anomalies)
                 # Add position to self.lines
                 self.lines[line_anomaly.line_id]["position"].append(
                     line_anomaly.position
+                )
+
+                self.lines[line_anomaly.line_id]["plot_line_start"] = min(
+                    np.min(line_anomaly.position.locations_resampled),
+                    self.lines[line_anomaly.line_id]["plot_line_start"],
                 )
 
         return update_computation + 1
@@ -824,7 +838,9 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
             full_values = np.array(channel_dict["values"])
 
             line_indices = line_indices_dict[str(line_id)]["line_indices"]
-            for ind in range(len(line_indices)):
+
+            inds = range(len(line_indices))
+            for ind in inds:
                 position = self.lines[line_id]["position"][ind]
                 anomalies = self.lines[line_id]["anomalies"][ind]
                 indices = line_indices[ind]
@@ -1131,7 +1147,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         for ind in range(n_parts):  # pylint: disable=R1702
             position = self.lines[line_id]["position"][ind]
             anomalies = self.lines[line_id]["anomalies"][ind]
-            indices = line_indices_dict[str(line_id)][ind]
+            indices = line_indices_dict[str(line_id)]["line_indices"][ind]
 
             if len(indices) < 2:
                 continue
@@ -1447,12 +1463,24 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
             x_val = line_click_data["points"][0]["x"]
             self.figure.update_shapes({"x0": x_val, "x1": x_val})
         elif full_lines_click_data is not None and "full_lines_figure" in triggers:
-            x_min = np.min(
-                np.concatenate(
-                    tuple(pos.x_locations for pos in self.lines[line_id]["position"])
-                )
+            x_locs = np.concatenate(
+                tuple(pos.x_locations for pos in self.lines[line_id]["position"])
             )
-            x_val = full_lines_click_data["points"][0]["x"] - x_min
+            y_locs = np.concatenate(
+                tuple(pos.y_locations for pos in self.lines[line_id]["position"])
+            )
+            min_index = np.argmin(x_locs)
+            x_min = x_locs[min_index]
+            y_min = y_locs[min_index]
+
+            x_val = np.linalg.norm(
+                [
+                    full_lines_click_data["points"][0]["x"] - x_min,
+                    full_lines_click_data["points"][0]["y"] - y_min,
+                ]
+            )
+
+            # x_val = full_lines_click_data["points"][0]["x"] - x_min
             self.figure.update_shapes({"x0": x_val, "x1": x_val})
 
         return update_click_data + 1
@@ -1734,10 +1762,21 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
                 y_locs = np.concatenate(
                     tuple(pos.y_locations for pos in self.lines[line_id]["position"])
                 )
-                x_min = np.min(x_locs)
-                x_val = x_min + line_click_data["points"][0]["x"]  # type: ignore
-                ind = (np.abs(x_locs - x_val)).argmin()
-                y_val = y_locs[ind]
+                # Get start of line
+                start_ind = np.argmin(x_locs)
+                x_min = x_locs[start_ind]
+                y_min = y_locs[start_ind]
+
+                # Get distances along line
+                dists = np.linalg.norm(np.c_[x_locs - x_min, y_locs - y_min], axis=1)
+
+                # Get point closest to this distance along the line
+                click_dist = line_click_data["points"][0]["x"]
+                closest_ind = (np.abs(dists - click_dist)).argmin()
+
+                x_val = x_locs[closest_ind]
+                y_val = y_locs[closest_ind]
+
                 figure["data"][-1]["x"] = [x_val]
                 figure["data"][-1]["y"] = [y_val]
                 return figure
@@ -1764,8 +1803,8 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
                 "name": key,
             }
 
-        marker_x = None
-        marker_y = None
+        marker_x = np.inf
+        marker_y = np.inf
         line_dict = {}
         for line in self.lines:  # type: ignore  # pylint: disable=C0206
             line_position = self.lines[line]["position"]
@@ -1789,11 +1828,11 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
                 if position is not None and position.locations_resampled is not None:
                     x_locs = position.x_locations
                     y_locs = position.y_locations
-                    if line == line_id:
+                    if line == line_id and x_locs[0] < marker_x:
                         marker_x = x_locs[0]
                         marker_y = y_locs[0]
-                    line_dict[line]["x"] += list(x_locs)  # type: ignore
-                    line_dict[line]["y"] += list(y_locs)  # type: ignore
+                    line_dict[line]["x"] += [None] + list(x_locs)  # type: ignore
+                    line_dict[line]["y"] += [None] + list(y_locs)  # type: ignore
 
                 x_min = np.min(position.x_locations)
                 if anomalies is not None:
@@ -1882,7 +1921,6 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         :param max_separation: Maximum separation between peaks to merge.
         :param line_id: Line ID.
         :param property_groups: Property groups dictionary.
-        :param structural_markers: Whether to save structural markers.
         :param ga_group_name: Group name.
         :param live_link: Whether to use live link.
         :param monitoring_directory: Monitoring directory.

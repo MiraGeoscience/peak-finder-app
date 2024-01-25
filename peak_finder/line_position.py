@@ -36,7 +36,7 @@ class LinePosition:  # pylint: disable=R0902
         self,
         locations: np.ndarray | None = None,
         line_indices: np.ndarray | None = None,
-        line_start: int = None,
+        line_start: list[int] | None = None,
         sorting: np.ndarray | None = None,
         epsilon: float | None = None,
         interpolation: str = "gaussian",
@@ -111,16 +111,13 @@ class LinePosition:  # pylint: disable=R0902
             if locations.ndim > 1:
                 self.x_locations = locations[self.sorting, 0]
                 self.y_locations = locations[self.sorting, 1]
-
                 if locations.shape[1] == 3:
                     self.z_locations = locations[self.sorting, 2]
 
                 distances = np.linalg.norm(
                     np.c_[
-                        locations[self.line_indices, 0][self.line_start]
-                        - locations[self.sorting, 0],
-                        locations[self.line_indices, 1][self.line_start]
-                        - locations[self.sorting, 1],
+                        self.line_start[0] - locations[self.sorting, 0],
+                        self.line_start[1] - locations[self.sorting, 1],
                     ],
                     axis=1,
                 )
@@ -129,8 +126,6 @@ class LinePosition:  # pylint: disable=R0902
                 distances = locations[self.sorting]
 
             self._locations = distances
-
-            print(np.min(distances), np.max(distances))
 
             if self._locations[0] == self._locations[-1]:
                 return
@@ -157,7 +152,7 @@ class LinePosition:  # pylint: disable=R0902
         self._line_indices = value
 
     @property
-    def line_start(self) -> int:
+    def line_start(self) -> list[int] | None:
         """
         Start index for current line
         """
