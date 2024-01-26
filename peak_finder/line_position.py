@@ -137,7 +137,7 @@ class LinePosition:  # pylint: disable=R0902
                 (self._locations[-1] - self._locations[0]) / dx
             ).astype(int)
             self._locations_resampled = np.linspace(
-                self._locations[0], self._locations[-1], self.sampling_width
+                self._locations[0], self._locations[-1], np.abs(self.sampling_width)
             )
 
     @property
