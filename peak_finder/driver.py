@@ -18,9 +18,9 @@ from geoapps_utils.conversions import hex_to_rgb
 from geoapps_utils.driver.driver import BaseDriver
 from geoapps_utils.formatters import string_name
 from geoh5py import Workspace
+from geoh5py.data import Data
 from geoh5py.groups import ContainerGroup, PropertyGroup
 from geoh5py.objects import Curve, Points
-from geoh5py.shared import Entity
 from geoh5py.shared.utils import fetch_active_workspace
 from scipy.spatial import KDTree
 from tqdm import tqdm
@@ -99,7 +99,7 @@ class PeakFinderDriver(BaseDriver):
     @staticmethod
     def get_line_indices(  # pylint: disable=too-many-locals
         survey_obj: Curve,
-        line_field_obj: Entity,
+        line_field_obj: Data,
         line_ids: list[int],
     ) -> dict | None:
         """
@@ -111,12 +111,15 @@ class PeakFinderDriver(BaseDriver):
 
         :return: Line indices for each line ID given.
         """
-        if hasattr(line_field_obj, "values") and isinstance(
-            line_field_obj.values, np.ndarray | list
+        if (
+            not isinstance(survey_obj, Curve)
+            or survey_obj.vertices is None
+            or not hasattr(line_field_obj, "values")
+            or not isinstance(line_field_obj.values, np.ndarray | list)
         ):
-            line_length = len(line_field_obj.values)
-        else:
             return {}
+
+        line_length = len(line_field_obj.values)
 
         indices_dict: dict = {}
         for line_id in line_ids:
@@ -141,7 +144,7 @@ class PeakFinderDriver(BaseDriver):
         for line_id, indices in indices_dict.items():
             # Get line start
             line_start = None
-            if hasattr(survey_obj, "vertices") and len(indices["line_indices"]) > 0:
+            if len(indices["line_indices"]) > 0:
                 locs = survey_obj.vertices
                 line_segment = np.any(indices["line_indices"], axis=0)
 
