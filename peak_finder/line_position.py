@@ -133,11 +133,11 @@ class LinePosition:  # pylint: disable=R0902
             dx = np.mean(  # pylint: disable=C0103
                 np.abs(self.locations[1:] - self.locations[:-1])
             )
-            self._sampling_width = np.ceil(
-                (self._locations[-1] - self._locations[0]) / dx
-            ).astype(int)
+            self._sampling_width = np.abs(
+                np.ceil((self._locations[-1] - self._locations[0]) / dx).astype(int)
+            )
             self._locations_resampled = np.linspace(
-                self._locations[0], self._locations[-1], np.abs(self.sampling_width)
+                self._locations[0], self._locations[-1], self.sampling_width
             )
 
     @property
