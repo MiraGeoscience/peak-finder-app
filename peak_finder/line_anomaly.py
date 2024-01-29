@@ -27,6 +27,7 @@ class LineAnomaly:  # pylint: disable=R0902, duplicate-code
     _entity: Curve
     _line_id: int
     _line_indices: list[int] | np.ndarray
+    _line_start: list[int]
     _max_migration: float
     _minimal_output: bool
     _min_amplitude: int
@@ -42,6 +43,7 @@ class LineAnomaly:  # pylint: disable=R0902, duplicate-code
         entity,
         line_id,
         line_indices,
+        line_start,
         property_groups,
         max_migration=50.0,
         minimal_output=False,
@@ -58,6 +60,7 @@ class LineAnomaly:  # pylint: disable=R0902, duplicate-code
         :param entity: Survey object.
         :param line_id: Line ID.
         :param line_indices: Indices of vertices for line profile.
+        :param line_start: Start location of line.
         :param property_groups: Property groups to use for grouping anomalies.
         :param smoothing: Smoothing factor.
         :param min_amplitude: Minimum amplitude of anomaly as percent.
@@ -75,6 +78,7 @@ class LineAnomaly:  # pylint: disable=R0902, duplicate-code
         self.entity = entity
         self.line_id = line_id
         self.line_indices = line_indices
+        self.line_start = line_start
         self.smoothing = smoothing
         self.min_amplitude = min_amplitude
         self.min_value = min_value
@@ -125,6 +129,17 @@ class LineAnomaly:  # pylint: disable=R0902, duplicate-code
             raise TypeError("Line indices must be a numpy array.")
 
         self._line_indices = value
+
+    @property
+    def line_start(self) -> list[int] | None:
+        """
+        Index for start of the line.
+        """
+        return self._line_start
+
+    @line_start.setter
+    def line_start(self, value):
+        self._line_start = value
 
     @property
     def channels(self) -> list:
@@ -304,6 +319,7 @@ class LineAnomaly:  # pylint: disable=R0902, duplicate-code
             self._position = LinePosition(
                 locations=self.locations,
                 line_indices=self.line_indices,
+                line_start=self.line_start,
                 sorting=sorting,
                 smoothing=self.smoothing,
                 residual=self.use_residual,
