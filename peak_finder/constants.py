@@ -68,12 +68,6 @@ default_ui_json.update(
             ],
             "value": None,
         },
-        "flip_sign": {
-            "main": False,
-            "group": "Data",
-            "label": "Flip sign",
-            "value": False,
-        },
         "line_field": {
             "association": "Vertex",
             "dataType": "Referenced",
@@ -82,6 +76,12 @@ default_ui_json.update(
             "label": "Line Field",
             "parent": "objects",
             "value": None,
+        },
+        "flip_sign": {
+            "main": False,
+            "group": "Data",
+            "label": "Flip sign",
+            "value": False,
         },
         "masking_data": {
             "association": "Vertex",
@@ -155,7 +155,7 @@ default_ui_json.update(
             "label": "Export all markers",
             "value": False,
         },
-        "line_id": None,
+        "single_line": None,
         "group_a_data": {
             "main": True,
             "association": "Vertex",

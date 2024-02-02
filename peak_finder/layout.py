@@ -15,27 +15,6 @@ data_selection_layout = html.Div(
         html.Div(
             [
                 dcc.Markdown(
-                    children="Lines Field",
-                    style={
-                        "width": "30%",
-                        "display": "inline-block",
-                        "vertical-align": "middle",
-                    },
-                ),
-                dcc.Dropdown(
-                    id="line_field",
-                    style={
-                        "width": "70%",
-                        "display": "inline-block",
-                        "vertical-align": "middle",
-                    },
-                ),
-            ],
-            style={"margin-bottom": "20px"},
-        ),
-        html.Div(
-            [
-                dcc.Markdown(
                     children="Select Line",
                     style={
                         "width": "30%",
@@ -44,7 +23,7 @@ data_selection_layout = html.Div(
                     },
                 ),
                 dcc.Dropdown(
-                    id="line_id",
+                    id="selected_line",
                     style={
                         "width": "70%",
                         "display": "inline-block",
@@ -146,7 +125,7 @@ data_selection_layout = html.Div(
 group_settings_layout = html.Div(
     [
         html.Div(
-            id="group_settings",
+            id="color_picker_div",
             children=[
                 dcc.Markdown(
                     children="Group Name",
@@ -188,7 +167,7 @@ figure_layout = html.Div(
         dcc.Loading(
             id="full_lines_loading",
             type="default",
-            children=html.Div(dcc.Graph(id="full_lines_figure")),
+            children=html.Div(dcc.Graph(id="survey_figure")),
         ),
     ],
 )
@@ -279,7 +258,7 @@ visual_params_layout = html.Div(
             options=[{"label": "Plot markers", "value": True}],
         ),
         dcc.Checklist(
-            id="group_settings_visibility",
+            id="color_picker_visibility",
             options=[{"label": "Select group colours", "value": True}],
             style={"width": "100%"},
         ),
@@ -487,18 +466,20 @@ detection_params_layout = html.Div(
 
 stored_params_layout = html.Div(
     [
-        dcc.Store(id="objects"),
-        dcc.Store(id="active_channels"),
-        dcc.Store(id="line_indices"),
-        dcc.Store(id="line_ids"),
-        dcc.Store(id="update_computation", data=0),
-        dcc.Store(id="update_layout", data=0),
-        dcc.Store(id="update_lines", data=0),
-        dcc.Store(id="update_markers", data=0),
-        dcc.Store(id="update_residuals", data=0),
-        dcc.Store(id="update_colours", data=0),
-        dcc.Store(id="update_click_data", data=0),
-        dcc.Store(id="update_from_property_groups"),
+        dcc.Store(id=label, data=0)
+        for label in [
+            "survey_trigger",
+            "line_field_trigger",
+            "active_channels_trigger",
+            "line_indices_trigger",
+            "lines_computation_trigger",
+            "figure_lines_trigger",
+            "figure_markers_trigger",
+            "figure_residuals_trigger",
+            "figure_colours_trigger",
+            "figure_click_data_trigger",
+            "update_from_property_groups_trigger",
+        ]
     ]
 )
 
@@ -511,9 +492,9 @@ peak_finder_layout = html.Div(
         html.Div(
             [
                 dcc.Dropdown(
-                    options=["Line plot", "Survey plot"],
+                    options=["Line figure", "Survey figure"],
                     multi=True,
-                    id="plot_selection",
+                    id="figure_selection",
                     value="Line plot",
                     style={"width": "50%"},
                 ),
