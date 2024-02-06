@@ -24,6 +24,7 @@ data_selection_layout = html.Div(
                 ),
                 dcc.Dropdown(
                     id="selected_line",
+                    options=[],
                     style={
                         "width": "70%",
                         "display": "inline-block",
@@ -136,6 +137,7 @@ group_settings_layout = html.Div(
                 ),
                 dcc.Dropdown(
                     id="group_name",
+                    options=[],
                     style={
                         "width": "70%",
                         "display": "inline-block",
@@ -469,16 +471,15 @@ stored_params_layout = html.Div(
         dcc.Store(id=label, data=0)
         for label in [
             "survey_trigger",
-            "line_field_trigger",
-            "active_channels_trigger",
+            #"line_field_trigger",
             "line_indices_trigger",
             "lines_computation_trigger",
+
             "figure_lines_trigger",
             "figure_markers_trigger",
             "figure_residuals_trigger",
             "figure_colours_trigger",
             "figure_click_data_trigger",
-            "update_from_property_groups_trigger",
         ]
     ]
 )
