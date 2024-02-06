@@ -29,7 +29,7 @@ from geoapps_utils.numerical import traveling_salesman
 from geoapps_utils.plotting import format_axis, symlog
 from geoapps_utils.workspace import get_output_workspace
 from geoh5py import Workspace
-from geoh5py.data import BooleanData, ReferencedData
+from geoh5py.data import BooleanData, Data, ReferencedData
 from geoh5py.objects import Curve, ObjectBase
 from geoh5py.shared.utils import fetch_active_workspace, is_uuid
 from geoh5py.ui_json import InputFile
@@ -95,9 +95,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
             Output(component_id="data_selection", component_property="style"),
             Output(component_id="visual_params", component_property="style"),
             Output(component_id="detection_params", component_property="style"),
-            Output(
-                component_id="color_picker_visibility", component_property="value"
-            ),
+            Output(component_id="color_picker_visibility", component_property="value"),
             Input(component_id="widget_selection", component_property="value"),
         )(PeakFinder.update_widget_visibility)
         # Disable linear threshold input if y-axis is symlog.
@@ -281,9 +279,9 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
                 for channel in group["properties"]:
                     chan = self.workspace.get_entity(uuid.UUID(channel))[0]
                     if (
-                            chan is not None
-                            and getattr(chan, "values", None) is not None
-                            and hasattr(chan, "name")
+                        chan is not None
+                        and getattr(chan, "values", None) is not None
+                        and hasattr(chan, "name")
                     ):
                         print(len(chan.values))
                         active_channels[channel] = {
@@ -325,7 +323,10 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
 
     @line_field.setter
     def line_field(self, value):
-        if self._line_field is not None and self._line_field.parent is not self.workspace:
+        if (
+            self._line_field is not None
+            and self._line_field.parent is not self.workspace
+        ):
             self._line_field = self.workspace.get_entity(self.line_field.uid)[0]
         elif is_uuid(value):
             self._line_field = self.workspace.get_entity(uuid.UUID(value))
@@ -394,7 +395,9 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
                 locs.append(mean_locs)
 
             order = traveling_salesman(np.array(locs))
-            self._ordered_survey_lines = {line_ids[ind]: line_labels[ind] for ind in order}
+            self._ordered_survey_lines = {
+                line_ids[ind]: line_labels[ind] for ind in order
+            }
 
         return self._ordered_survey_lines
 
@@ -423,8 +426,12 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
 
         trace_map = self.initialize_line_figure(property_groups)
 
-        self.survey = self.workspace.get_entity(uuid.UUID(self._ui_json_data["objects"]))[0]
-        self.line_field = self.workspace.get_entity(uuid.UUID(self._ui_json_data["line_field"]))[0]
+        self.survey = self.workspace.get_entity(
+            uuid.UUID(self._ui_json_data["objects"])
+        )[0]
+        self.line_field = self.workspace.get_entity(
+            uuid.UUID(self._ui_json_data["line_field"])
+        )[0]
 
         self.property_groups = property_groups
         self.trace_map = trace_map
@@ -434,14 +441,22 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         ]
 
         # Update dropdowns
-        selected_line_options = [{"label": label, "value": id} for id, label in self.ordered_survey_lines.items()]
+        selected_line_options = [
+            {"label": label, "value": id}
+            for id, label in self.ordered_survey_lines.items()
+        ]
 
         specify_values = {
             "selected_line": {"property": "options", "value": selected_line_options},
-            "group_name": {"property": "options", "value": list(self.property_groups.keys())}
+            "group_name": {
+                "property": "options",
+                "value": list(self.property_groups.keys()),
+            },
         }
 
-        BaseDashApplication.init_vals(self.app.layout.children, self._ui_json_data, kwargs=specify_values)
+        BaseDashApplication.init_vals(
+            self.app.layout.children, self._ui_json_data, kwargs=specify_values
+        )
 
     @staticmethod
     def update_plot_visibility(plot_selection: list[str]) -> tuple:
@@ -481,7 +496,12 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         if widget_selection == "Data selection":
             return {"display": "block"}, {"display": "none"}, {"display": "none"}, []
         if widget_selection == "Visual parameters":
-            return {"display": "none"}, {"display": "block"}, {"display": "none"}, no_update
+            return (
+                {"display": "none"},
+                {"display": "block"},
+                {"display": "none"},
+                no_update,
+            )
         if widget_selection == "Detection parameters":
             return {"display": "none"}, {"display": "none"}, {"display": "block"}, []
         return no_update, no_update, no_update, no_update
@@ -545,12 +565,11 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
                     colour_array[colour_array == str(original_colour)] = new_colour
                     self.figure.data[trace_map["peaks"]]["marker_color"] = colour_array
 
-        return (
-            color_picker_out,
-            figure_colours_trigger + 1
-        )
+        return (color_picker_out, figure_colours_trigger + 1)
 
-    def update_data_dropdowns(self, survey_trigger: str) -> tuple[list[dict], list[dict]]:
+    def update_data_dropdowns(
+        self, survey_trigger: str
+    ) -> tuple[list[dict], list[dict]]:
         """
         Initialize data and line field dropdowns from input object.
 
@@ -559,7 +578,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         :return: Masking data dropdown options.
         """
         masking_data_options = [{"label": "None", "value": "None"}]
-        obj = self.survey #self.workspace.get_entity(uuid.UUID(self.objects))[0]
+        obj = self.survey  # self.workspace.get_entity(uuid.UUID(self.objects))[0]
         if obj is None or not hasattr(obj, "children"):
             return no_update, no_update
         for child in obj.children:
@@ -620,7 +639,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
 
         return survey_trigger + 1, min_value
 
-    def get_line_indices(
+    def get_line_indices(  # pylint: disable=too-many-locals
         self,
         line_indices_trigger: int,
         survey_trigger: str,
@@ -637,53 +656,25 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         :return: Line indices for each line ID given.
         """
 
-        if self.survey is None or self.line_field is None or self.ordered_survey_lines is None or selected_line is None:
+        if (
+            self.survey is None
+            or self.line_field is None
+            or self.ordered_survey_lines is None
+            or selected_line is None
+        ):
             return no_update
 
         if (
-            self.line_field is None
-            or self.survey is None
+            not isinstance(self.line_field, Data)
+            or not isinstance(self.survey, Curve)
             or not hasattr(self.line_field, "values")
             or not hasattr(self.survey, "parts")
         ):
             return no_update
 
-        line_length = len(self.line_field.values)
-
-        triggers = [t["prop_id"].split(".")[0] for t in callback_context.triggered]
-
-        survey_line_ids = list(self.ordered_survey_lines.keys())
-        selected_line_ind = survey_line_ids.index(selected_line)
-
-        survey_lines = survey_line_ids[
-            max(0, selected_line_ind - n_lines):
-            min(len(survey_line_ids), selected_line_ind + n_lines)
-        ]
-
-        survey_lines_subset = survey_lines
-        if self.line_indices is None or "survey_trigger" in triggers:
-            self.line_indices = {}
-        else:
-            survey_lines_subset = [line for line in survey_lines if line not in self.line_indices]
-
-        indices_dict: dict[str, np.ndarray] = {}
-        for line_id in survey_lines_subset:
-
-            indices_dict[str(line_id)] = []
-
-            line_bool = self.line_field.values == line_id
-            full_line_indices = np.where(line_bool)[0]
-
-            parts = np.unique(self.survey.parts[full_line_indices])
-
-            for part in parts:
-                active_indices = np.where(
-                    (self.line_field.values == line_id) & (self.survey.parts == part)
-                )[0]
-                single_line_indices = np.zeros(line_length, dtype=bool)
-                single_line_indices[active_indices] = True
-
-                indices_dict[str(line_id)].append(single_line_indices)
+        indices_dict = PeakFinderDriver.get_line_indices(
+            self.survey, self.line_field, line_ids
+        )
 
         self.line_indices = indices_dict
 
@@ -733,7 +724,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
             or selected_line is None
         ):
             return no_update
-        obj = self.survey #self.workspace.get_entity(uuid.UUID(self.survey))[0]
+        obj = self.survey  # self.workspace.get_entity(uuid.UUID(self.survey))[0]
 
         property_groups = [
             obj.find_or_create_property_group(name=name)  # type: ignore
@@ -744,25 +735,27 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         selected_line_ind = survey_line_ids.index(selected_line)
 
         survey_lines = survey_line_ids[
-            max(0, selected_line_ind - n_lines):
-            min(len(survey_line_ids), selected_line_ind + n_lines)
+            max(0, selected_line_ind - n_lines) : min(
+                len(survey_line_ids), selected_line_ind + n_lines
+            )
         ]
 
         survey_lines_subset = survey_lines
-        if (
-            self.computed_lines is not None
-            and "survey_trigger" not in triggers
-        ):
-            survey_lines_subset = [line for line in survey_lines if line not in self.computed_lines]
+        if self.computed_lines is not None and "survey_trigger" not in triggers:
+            survey_lines_subset = [
+                line for line in survey_lines if line not in self.computed_lines
+            ]
 
         # Dash converts np arrays to lists when it passes through callbacks
         # Converting back to np arrays
         for line_id, full_indices in self.line_indices.items():
-            self.line_indices[line_id] = [np.array(inds) for inds in full_indices]
+            self.line_indices[line_id]["line_indices"] = [
+                np.array(inds) for inds in full_indices["line_indices"]
+            ]
 
         line_computation = PeakFinderDriver.compute_lines(
             survey=obj,  # type: ignore
-            line_indices=self.line_indices,
+            line_indices_dict=self.line_indices,
             line_ids=survey_lines_subset,
             property_groups=property_groups,
             smoothing=smoothing,
@@ -779,8 +772,14 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
             results = compute(line_computation)
 
         # Remove un-needed lines
-        if self.computed_lines is not None and len(triggers) == 1 and "n_lines" in triggers:
-            entries_to_remove = [line for line in self.computed_lines if line not in survey_lines]
+        if (
+            self.computed_lines is not None
+            and len(triggers) == 1
+            and "n_lines" in triggers
+        ):
+            entries_to_remove = [
+                line for line in self.computed_lines if line not in survey_lines
+            ]
             for key in entries_to_remove:
                 self.computed_lines.pop(key, None)
         else:
@@ -799,11 +798,19 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
                     self.computed_lines[line_anomaly.line_id] = {
                         "position": [],
                         "anomalies": [],
+                        "plot_line_start": np.inf,
                     }
-                self.computed_lines[line_anomaly.line_id]["anomalies"].append(line_anomalies)
+                self.computed_lines[line_anomaly.line_id]["anomalies"].append(
+                    line_anomalies
+                )
                 # Add position to self.lines
                 self.computed_lines[line_anomaly.line_id]["position"].append(
                     line_anomaly.position
+                )
+
+                self.lines[line_anomaly.line_id]["plot_line_start"] = min(
+                    np.min(line_anomaly.position.locations_resampled),
+                    self.lines[line_anomaly.line_id]["plot_line_start"],
                 )
 
         return lines_computation_trigger + 1
@@ -885,10 +892,17 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
                 continue
             full_values = sign * np.array(channel_dict["values"])
 
-            for ind in range(len(self.line_indices[str(selected_line)])):
+            line_indices = self.line_indices[str(selected_line)]["line_indices"]
+
+            inds = range(len(line_indices))
+            for ind in inds:
+                # for ind in range(len(self.line_indices[str(selected_line)])):
                 position = self.computed_lines[selected_line]["position"][ind]
                 anomalies = self.computed_lines[selected_line]["anomalies"][ind]
                 indices = self.line_indices[str(selected_line)][ind]
+
+                indices = line_indices[ind]
+
                 locs = position.locations_resampled
 
                 if len(indices) < 2 or locs is None:
@@ -1288,7 +1302,9 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
                 self.figure.data[self.trace_map[key]]["x"] = value["x"]
                 self.figure.data[self.trace_map[key]]["y"] = value["y"]
                 if "customdata" in value:
-                    self.figure.data[self.trace_map[key]]["customdata"] = value["customdata"]
+                    self.figure.data[self.trace_map[key]]["customdata"] = value[
+                        "customdata"
+                    ]
                 if "marker_color" in value:
                     self.figure.data[self.trace_map[key]]["marker_color"] = value[
                         "marker_color"
@@ -1509,10 +1525,27 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         elif full_lines_click_data is not None and "full_lines_figure" in triggers:
             x_min = np.min(
                 np.concatenate(
-                    tuple(pos.x_locations for pos in self.computed_lines[self.selected_line]["position"])
+                    tuple(
+                        pos.x_locations
+                        for pos in self.computed_lines[self.selected_line]["position"]
+                    )
                 )
             )
-            x_val = full_lines_click_data["points"][0]["x"] - x_min
+            y_locs = np.concatenate(
+                tuple(pos.y_locations for pos in self.lines[line_id]["position"])
+            )
+            min_index = np.argmin(x_locs)
+            x_min = x_locs[min_index]
+            y_min = y_locs[min_index]
+
+            x_val = np.linalg.norm(
+                [
+                    full_lines_click_data["points"][0]["x"] - x_min,
+                    full_lines_click_data["points"][0]["y"] - y_min,
+                ]
+            )
+
+            # x_val = full_lines_click_data["points"][0]["x"] - x_min
             self.figure.update_shapes({"x0": x_val, "x1": x_val})
 
         return figure_click_data_trigger + 1
@@ -1786,15 +1819,32 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
                 and self.computed_lines is not None
             ):
                 x_locs = np.concatenate(
-                    tuple(pos.x_locations for pos in self.computed_lines[selected_line]["position"])
+                    tuple(
+                        pos.x_locations
+                        for pos in self.computed_lines[selected_line]["position"]
+                    )
                 )
                 y_locs = np.concatenate(
-                    tuple(pos.y_locations for pos in self.computed_lines[selected_line]["position"])
+                    tuple(
+                        pos.y_locations
+                        for pos in self.computed_lines[selected_line]["position"]
+                    )
                 )
-                x_min = np.min(x_locs)
-                x_val = x_min + line_click_data["points"][0]["x"]  # type: ignore
-                ind = (np.abs(x_locs - x_val)).argmin()
-                y_val = y_locs[ind]
+                # Get start of line
+                start_ind = np.argmin(x_locs)
+                x_min = x_locs[start_ind]
+                y_min = y_locs[start_ind]
+
+                # Get distances along line
+                dists = np.linalg.norm(np.c_[x_locs - x_min, y_locs - y_min], axis=1)
+
+                # Get point closest to this distance along the line
+                click_dist = line_click_data["points"][0]["x"]
+                closest_ind = (np.abs(dists - click_dist)).argmin()
+
+                x_val = x_locs[closest_ind]
+                y_val = y_locs[closest_ind]
+
                 figure["data"][-1]["x"] = [x_val]
                 figure["data"][-1]["y"] = [y_val]
                 return figure
@@ -1812,11 +1862,14 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         all_survey_lines = list(self.ordered_survey_lines.keys())
         selected_line_ind = all_survey_lines.index(selected_line)
         survey_lines = all_survey_lines[
-            max(0, selected_line_ind - n_lines):
-            min(len(all_survey_lines), selected_line_ind + n_lines)
+            max(0, selected_line_ind - n_lines) : min(
+                len(all_survey_lines), selected_line_ind + n_lines
+            )
         ]
 
-        line_ids_labels = {line: self.ordered_survey_lines[line] for line in survey_lines}
+        line_ids_labels = {
+            line: self.ordered_survey_lines[line] for line in survey_lines
+        }
 
         anomaly_traces = {}
         for key, value in self.property_groups.items():
@@ -1828,8 +1881,8 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
                 "name": key,
             }
 
-        marker_x = None
-        marker_y = None
+        marker_x = np.inf
+        marker_y = np.inf
         line_dict = {}
         for line in self.computed_lines:  # type: ignore  # pylint: disable=C0206
             line_position = self.computed_lines[line]["position"]
@@ -1853,11 +1906,11 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
                 if position is not None and position.locations_resampled is not None:
                     x_locs = position.x_locations
                     y_locs = position.y_locations
-                    if line == selected_line:
+                    if line == selected_line and x_locs[0] < marker_x:
                         marker_x = x_locs[0]
                         marker_y = y_locs[0]
-                    line_dict[line]["x"] += list(x_locs)  # type: ignore
-                    line_dict[line]["y"] += list(y_locs)  # type: ignore
+                    line_dict[line]["x"] += [None] + list(x_locs)  # type: ignore
+                    line_dict[line]["y"] += [None] + list(y_locs)  # type: ignore
 
                 x_min = np.min(position.x_locations)
                 if anomalies is not None:

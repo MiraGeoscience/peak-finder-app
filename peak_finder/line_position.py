@@ -36,6 +36,7 @@ class LinePosition:  # pylint: disable=R0902
         self,
         locations: np.ndarray | None = None,
         line_indices: np.ndarray | None = None,
+        line_start: list[int] | None = None,
         sorting: np.ndarray | None = None,
         epsilon: float | None = None,
         interpolation: str = "gaussian",
@@ -50,6 +51,7 @@ class LinePosition:  # pylint: disable=R0902
         self.z_locations = None
         self._map_locations = None
         self.line_indices = line_indices
+        self.line_start = line_start
         self.sorting = sorting
         self.locations = locations
         self._epsilon = epsilon
@@ -106,28 +108,16 @@ class LinePosition:  # pylint: disable=R0902
         self._map_locations = None
 
         if locations is not None and len(locations) > 0:
-            if np.all(np.diff(self.sorting) < 0):
-                self.sorting = np.flip(self.sorting)
-
             if locations.ndim > 1:
-                if np.std(locations[self.line_indices, 1]) > np.std(
-                    locations[self.line_indices, 0]
-                ):
-                    start = np.argmin(locations[self.line_indices, 1])
-                else:
-                    start = np.argmin(locations[self.line_indices, 0])
                 self.x_locations = locations[self.sorting, 0]
                 self.y_locations = locations[self.sorting, 1]
-
                 if locations.shape[1] == 3:
                     self.z_locations = locations[self.sorting, 2]
 
                 distances = np.linalg.norm(
                     np.c_[
-                        locations[self.line_indices, 0][start]
-                        - locations[self.sorting, 0],
-                        locations[self.line_indices, 1][start]
-                        - locations[self.sorting, 1],
+                        self.line_start[0] - locations[self.sorting, 0],
+                        self.line_start[1] - locations[self.sorting, 1],
                     ],
                     axis=1,
                 )
@@ -143,9 +133,9 @@ class LinePosition:  # pylint: disable=R0902
             dx = np.mean(  # pylint: disable=C0103
                 np.abs(self.locations[1:] - self.locations[:-1])
             )
-            self._sampling_width = np.ceil(
-                (self._locations[-1] - self._locations[0]) / dx
-            ).astype(int)
+            self._sampling_width = np.abs(
+                np.ceil((self._locations[-1] - self._locations[0]) / dx).astype(int)
+            )
             self._locations_resampled = np.linspace(
                 self._locations[0], self._locations[-1], self.sampling_width
             )
@@ -160,6 +150,17 @@ class LinePosition:  # pylint: disable=R0902
     @line_indices.setter
     def line_indices(self, value):
         self._line_indices = value
+
+    @property
+    def line_start(self) -> list[int] | None:
+        """
+        Start index for current line
+        """
+        return self._line_start
+
+    @line_start.setter
+    def line_start(self, value):
+        self._line_start = value
 
     @property
     def sorting(self) -> np.ndarray:
