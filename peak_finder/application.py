@@ -456,11 +456,11 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
             return no_update, no_update
 
         output = []
-        if "Line plot" in plot_selection:
+        if "Line figure" in plot_selection:
             output.append({"display": "block"})
         else:
             output.append({"display": "none"})
-        if "Survey plot" in plot_selection:
+        if "Survey figure" in plot_selection:
             output.append({"display": "block"})
         else:
             output.append({"display": "none"})
@@ -1191,11 +1191,13 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
                 },
             },
         }
-        n_parts = len(self.computed_lines[selected_line]["position"])
-        for ind in range(n_parts):  # pylint: disable=R1702
+        line_indices = self.line_indices[str(selected_line)]["line_indices"]
+
+        inds = range(len(line_indices))
+        for ind in inds:
             position = self.computed_lines[selected_line]["position"][ind]
             anomalies = self.computed_lines[selected_line]["anomalies"][ind]
-            indices = self.line_indices[str(selected_line)][ind]
+            indices = line_indices[ind]
 
             if len(indices) < 2:
                 continue
@@ -1435,11 +1437,13 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         log = y_scale == "symlog"
         threshold = np.float_power(10, linear_threshold)
 
-        n_parts = len(self.computed_lines[selected_line]["position"])
-        for ind in range(n_parts):  # pylint: disable=R1702
+        line_indices = self.line_indices[str(selected_line)]["line_indices"]
+
+        inds = range(len(line_indices))
+        for ind in inds:
             position = self.computed_lines[selected_line]["position"][ind]
             anomalies = self.computed_lines[selected_line]["anomalies"][ind]
-            indices = self.line_indices[str(selected_line)][ind]
+            indices = line_indices[ind]
 
             if len(indices) < 2:
                 continue

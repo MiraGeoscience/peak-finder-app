@@ -494,7 +494,7 @@ peak_finder_layout = html.Div(
                     options=["Line figure", "Survey figure"],
                     multi=True,
                     id="figure_selection",
-                    value="Line plot",
+                    value=["Line figure"],
                     style={"width": "50%"},
                 ),
                 figure_layout,
