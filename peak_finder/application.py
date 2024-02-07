@@ -283,7 +283,6 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
                         and getattr(chan, "values", None) is not None
                         and hasattr(chan, "name")
                     ):
-                        print(len(chan.values))
                         active_channels[channel] = {
                             "name": chan.name,
                             "values": chan.values.copy(),
@@ -315,20 +314,16 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         self._line_indices = value
 
     @property
-    def line_field(self) -> ReferencedData | None:
+    def line_field(self) -> Data | None:
         """
         Line labels for survey.
         """
+
         return self._line_field
 
     @line_field.setter
     def line_field(self, value):
-        if (
-            self._line_field is not None
-            and self._line_field.parent is not self.workspace
-        ):
-            self._line_field = self.workspace.get_entity(self.line_field.uid)[0]
-        elif is_uuid(value):
+        if is_uuid(value):
             self._line_field = self.workspace.get_entity(uuid.UUID(value))
         elif isinstance(value, ReferencedData):
             self._line_field = value
@@ -354,13 +349,16 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         """
         Current survey object.
         """
+        if self._survey is not None and self._survey not in self.workspace.objects:
+            self._survey = self.workspace.get_entity(self._survey.uid)[0]
+            if self._line_field is not None:
+                self._line_field = self._survey.get_entity(self.line_field.uid)[0]
+
         return self._survey
 
     @survey.setter
     def survey(self, value):
-        if self._survey is not None and self.workspace is not self._survey.parent:
-            self._survey = self.workspace.get_entity(self.survey.uid)[0]
-        elif is_uuid(value):
+        if is_uuid(value):
             self._survey = self.workspace.get_entity(uuid.UUID(value))
         elif isinstance(value, ObjectBase):
             self._survey = value
@@ -634,9 +632,6 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
             if d_max > -np.inf:
                 min_value = d_min
 
-        print("survey ", len(survey_obj.vertices))
-        print("line field ", len(self.line_field.values))
-
         return survey_trigger + 1, min_value
 
     def get_line_indices(  # pylint: disable=too-many-locals
@@ -655,7 +650,6 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
 
         :return: Line indices for each line ID given.
         """
-
         if (
             self.survey is None
             or self.line_field is None
@@ -672,10 +666,24 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         ):
             return no_update
 
-        indices_dict = PeakFinderDriver.get_line_indices(
-            self.survey, self.line_field, line_ids
-        )
+        survey_line_ids = list(self.ordered_survey_lines.keys())
+        selected_line_ind = survey_line_ids.index(selected_line)
 
+        survey_lines = survey_line_ids[
+                       max(0, selected_line_ind - n_lines):
+                       min(len(survey_line_ids), selected_line_ind + n_lines)
+                       ]
+
+        triggers = [t["prop_id"].split(".")[0] for t in callback_context.triggered]
+        survey_lines_subset = survey_lines
+        if self.line_indices is None or "survey_trigger" in triggers:
+            self.line_indices = {}
+        else:
+            survey_lines_subset = [line for line in survey_lines if line not in self.line_indices]
+
+        indices_dict = PeakFinderDriver.get_line_indices(
+            self.survey, self.line_field, survey_lines_subset
+        )
         self.line_indices = indices_dict
 
         return line_indices_trigger + 1
@@ -808,9 +816,9 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
                     line_anomaly.position
                 )
 
-                self.lines[line_anomaly.line_id]["plot_line_start"] = min(
+                self.computed_lines[line_anomaly.line_id]["plot_line_start"] = min(
                     np.min(line_anomaly.position.locations_resampled),
-                    self.lines[line_anomaly.line_id]["plot_line_start"],
+                    self.computed_lines[line_anomaly.line_id]["plot_line_start"],
                 )
 
         return lines_computation_trigger + 1
@@ -856,7 +864,6 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         :return: Linear threshold slider max.
         :return: Linear threshold slider marks.
         """
-        print("Updating figure lines")
         if (
             self.active_channels is None
             or self.computed_lines is None
@@ -899,7 +906,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
                 # for ind in range(len(self.line_indices[str(selected_line)])):
                 position = self.computed_lines[selected_line]["position"][ind]
                 anomalies = self.computed_lines[selected_line]["anomalies"][ind]
-                indices = self.line_indices[str(selected_line)][ind]
+                # indices = self.line_indices[str(selected_line)][ind]
 
                 indices = line_indices[ind]
 
@@ -979,6 +986,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         for trace_name in ["lines", "property_groups"]:
             if trace_name in trace_dict:
                 for key, value in trace_dict[trace_name].items():  # type: ignore
+
                     self.figure.data[trace_map[key]]["x"] = value["x"]
                     self.figure.data[trace_map[key]]["y"] = value["y"]
                     if "customdata" in value:

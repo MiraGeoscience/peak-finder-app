@@ -471,10 +471,8 @@ stored_params_layout = html.Div(
         dcc.Store(id=label, data=0)
         for label in [
             "survey_trigger",
-            #"line_field_trigger",
             "line_indices_trigger",
             "lines_computation_trigger",
-
             "figure_lines_trigger",
             "figure_markers_trigger",
             "figure_residuals_trigger",

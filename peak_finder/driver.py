@@ -161,54 +161,6 @@ class PeakFinderDriver(BaseDriver):
 
         return indices_dict
 
-    """
-            if (
-<<<<<<< HEAD
-            self.line_field is None
-            or self.survey is None
-            or not hasattr(self.line_field, "values")
-            or not hasattr(self.survey, "parts")
-        ):
-            return no_update
-
-        line_length = len(self.line_field.values)
-
-        triggers = [t["prop_id"].split(".")[0] for t in callback_context.triggered]
-
-        survey_line_ids = list(self.ordered_survey_lines.keys())
-        selected_line_ind = survey_line_ids.index(selected_line)
-
-        survey_lines = survey_line_ids[
-            max(0, selected_line_ind - n_lines):
-            min(len(survey_line_ids), selected_line_ind + n_lines)
-        ]
-
-        survey_lines_subset = survey_lines
-        if self.line_indices is None or "survey_trigger" in triggers:
-            self.line_indices = {}
-        else:
-            survey_lines_subset = [line for line in survey_lines if line not in self.line_indices]
-
-        indices_dict: dict[str, np.ndarray] = {}
-        for line_id in survey_lines_subset:
-
-            indices_dict[str(line_id)] = []
-
-            line_bool = self.line_field.values == line_id
-            full_line_indices = np.where(line_bool)[0]
-
-            parts = np.unique(self.survey.parts[full_line_indices])
-
-            for part in parts:
-                active_indices = np.where(
-                    (self.line_field.values == line_id) & (self.survey.parts == part)
-                )[0]
-                single_line_indices = np.zeros(line_length, dtype=bool)
-                single_line_indices[active_indices] = True
-
-                indices_dict[str(line_id)].append(single_line_indices)
-    """
-
     def run(self):  # noqa  # pylint: disable=R0912, R0914, too-many-statements
         with fetch_active_workspace(self.params.geoh5, mode="r+"):
             survey = self.params.objects
