@@ -51,7 +51,7 @@ class PeakFinder(
     _param_class = PeakFinderParams
     _driver_class = PeakFinderDriver
 
-    _active_channels = None
+    _active_channels: dict | None = None
     _figure = None
     _line_field = None
     _line_indices = None
@@ -273,22 +273,16 @@ class PeakFinder(
             return None
 
         if self._active_channels is None:
-            active_channels = {}
+            self._active_channels = {}
 
             for group in self.property_groups.values():
                 for channel in group["properties"]:
                     chan = self.workspace.get_entity(uuid.UUID(channel))[0]
-                    if (
-                        chan is not None
-                        and getattr(chan, "values", None) is not None
-                        and hasattr(chan, "name")
-                    ):
-                        active_channels[channel] = {
+                    if isinstance(chan, Data):
+                        self._active_channels[channel] = {
                             "name": chan.name,
                             "values": chan.values.copy(),
                         }
-            self._active_channels = active_channels
-
         return self._active_channels
 
     @property
@@ -377,7 +371,12 @@ class PeakFinder(
         """
         Order of survey lines.
         """
-        if self._ordered_survey_lines is None and self.line_field is not None:
+        if (
+            self._ordered_survey_lines is None
+            and self.line_field is not None
+            and self.survey is not None
+            and self.survey.vertices is not None
+        ):
             line_ids = []
             line_labels = []
             locs = []
@@ -522,7 +521,7 @@ class PeakFinder(
         """
         masking_data_options = [{"label": "None", "value": "None"}]
         if self.survey is None or not hasattr(self.survey, "children"):
-            return no_update, no_update
+            return no_update
         for child in self.survey.children:
             if isinstance(child, BooleanData):
                 masking_data_options.append(
@@ -532,7 +531,7 @@ class PeakFinder(
 
     def update_survey_mask(
         self,
-        survey_trigger: str,
+        survey_trigger: int,
         masking_data: str,
         flip_sign: bool,
     ) -> tuple[int, float]:
@@ -546,8 +545,11 @@ class PeakFinder(
         :return: Trigger to indicate survey object has been updated.
         :return: Minimum value for figure, which changes on object change.
         """
+        if self.survey is None:
+            return no_update, no_update
         original_workspace = self.params.geoh5
         survey_obj = original_workspace.get_entity(self.survey.uid)[0]
+
         if masking_data is not None and masking_data != "None":
             self.workspace: Workspace = Workspace()
             with fetch_active_workspace(original_workspace):
@@ -597,6 +599,9 @@ class PeakFinder(
 
         :return: Active line IDs.
         """
+        if self.ordered_survey_lines is None:
+            return []
+
         survey_line_ids = list(self.ordered_survey_lines.keys())
         selected_line_ind = survey_line_ids.index(selected_line)
 
@@ -787,7 +792,7 @@ class PeakFinder(
         min_value: float,
         x_label: str,
         flip_sign: bool,
-    ) -> tuple[int, float, float, dict]:
+    ) -> tuple:
         """
         Update the figure lines data.
 
@@ -812,6 +817,7 @@ class PeakFinder(
             or self.computed_lines is None
             or selected_line is None
             or self.figure is None
+            or self.line_indices is None
         ):
             return no_update, no_update, no_update, no_update
 
@@ -900,7 +906,7 @@ class PeakFinder(
                                 "customdata"
                             ] += list(values[start:end]) + [None]
 
-        if np.isinf(y_min):
+        if np.isinf(y_min) or self.property_groups is None:
             return no_update, None, None, None
 
         all_values = np.array(all_values)
@@ -1087,9 +1093,9 @@ class PeakFinder(
         if (
             self.active_channels is None
             or self.computed_lines is None
-            or not self.computed_lines
-            or selected_line is None
             or self.figure is None
+            or self.line_indices is None
+            or self.property_groups is None
         ):
             return no_update
 
@@ -1362,6 +1368,7 @@ class PeakFinder(
             or not self.computed_lines
             or selected_line is None
             or self.figure is None
+            or self.line_indices is None
         ):
             return no_update
 
@@ -1448,6 +1455,9 @@ class PeakFinder(
         :return: Updated color picker.
         :return: Trigger to update figure colours.
         """
+        if self.property_groups is None:
+            return no_update, no_update
+
         color_picker_out = no_update
         trigger = ctx.triggered_id
 
@@ -1838,7 +1848,12 @@ class PeakFinder(
                 return figure
 
         figure = go.Figure()
-        if self.computed_lines is None or selected_line is None:
+        if (
+            self.computed_lines is None
+            or selected_line is None
+            or self.ordered_survey_lines is None
+            or self.property_groups is None
+        ):
             return figure
 
         survey_lines = self.get_active_line_ids(selected_line, n_lines)
@@ -1981,6 +1996,7 @@ class PeakFinder(
             (monitoring_directory is None)
             or (monitoring_directory == "")
             or not Path(monitoring_directory).is_dir()
+            or self.property_groups is None
         ):
             return no_update, ["Invalid output path."]
 
