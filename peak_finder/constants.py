@@ -83,6 +83,11 @@ default_ui_json.update(
             "parent": "objects",
             "value": None,
         },
+        "trend_lines": {
+            "main": True,
+            "label": "Create trend lines",
+            "value": False,
+        },
         "masking_data": {
             "association": "Vertex",
             "dataType": "Boolean",
