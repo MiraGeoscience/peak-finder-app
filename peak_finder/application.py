@@ -324,13 +324,10 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
     def line_field(self, value):
         if is_uuid(value):
             self._line_field = self.workspace.get_entity(uuid.UUID(value))
-        elif isinstance(value, ReferencedData):
+        elif isinstance(value, Data):
             self._line_field = value
         else:
             self._line_field = None
-
-        self._active_channels = None
-        self._ordered_survey_lines = None
 
     @property
     def computed_lines(self) -> dict | None:
@@ -352,6 +349,8 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
             self._survey = self.workspace.get_entity(self._survey.uid)[0]
             if self._survey is not None and self._line_field is not None:
                 self._line_field = self._survey.get_entity(self.line_field.uid)[0]
+            self._active_channels = None
+            self._ordered_survey_lines = None
 
         return self._survey
 
@@ -598,7 +597,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         :return: Line field uid to trigger other callbacks.
         """
         original_workspace = self.params.geoh5
-        survey_obj = self.survey
+        survey_obj = original_workspace.get_entity(self.survey.uid)[0]
         if masking_data is not None and masking_data != "None":
             self.workspace: Workspace = Workspace()
             with fetch_active_workspace(original_workspace):
@@ -1512,7 +1511,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         elif line_click_data is not None and "line_figure" in triggers:
             x_val = line_click_data["points"][0]["x"]
             self.figure.update_shapes({"x0": x_val, "x1": x_val})
-        elif full_lines_click_data is not None and "full_lines_figure" in triggers:
+        elif full_lines_click_data is not None and "survey_figure" in triggers:
             x_locs = np.concatenate(
                 tuple(
                     pos.x_locations
@@ -1838,7 +1837,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
                 figure["data"][-1]["x"] = [x_val]
                 figure["data"][-1]["y"] = [y_val]
                 return figure
-            if survey_figure_click_data is not None and "full_lines_figure" in triggers:
+            if survey_figure_click_data is not None and "survey_figure" in triggers:
                 x_val = survey_figure_click_data["points"][0]["x"]
                 y_val = survey_figure_click_data["points"][0]["y"]
                 figure["data"][-1]["x"] = [x_val]

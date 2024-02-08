@@ -203,7 +203,7 @@ class PeakFinderDriver(BaseDriver):
                 line_field_obj = self.params.line_field
 
             line_ids = line_field_obj.value_map.map.keys()
-            indices_dict = PeakFinderDriver.get_line_indices(
+            indices_dict = PeakFinderDriver.update_line_indices(
                 survey_obj, line_field_obj, line_ids
             )
 
