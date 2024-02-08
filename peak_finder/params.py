@@ -44,6 +44,7 @@ class PeakFinderParams(BaseParams):  # pylint: disable=R0902, R0904
         self._max_separation: float | None = None
         self._ga_group_name: str | None = None
         self._structural_markers: bool | None = None
+        self._trend_lines: bool | None = None
         self._line_id: int | None = None
         self._group_a_data: PropertyGroup | None = None
         self._group_a_color: str | None = None
@@ -239,6 +240,17 @@ class PeakFinderParams(BaseParams):  # pylint: disable=R0902, R0904
     @smoothing.setter
     def smoothing(self, val):
         self.setter_validator("smoothing", val)
+
+    @property
+    def trend_lines(self) -> bool | None:
+        """
+        Create trend lines.
+        """
+        return self._trend_lines
+
+    @trend_lines.setter
+    def trend_lines(self, val):
+        self.setter_validator("trend_lines", val)
 
     @property
     def n_groups(self) -> int | None:
