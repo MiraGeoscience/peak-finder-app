@@ -535,7 +535,7 @@ def test_trend_line(tmp_path: Path):  # pylint: disable=too-many-locals
         group_a_data=prop_group,
         trend_lines=True,
     )
-    params.input_file.write_ui_json("test_trend_lines", tmp_path)
+    params.input_file.write_ui_json("test_peak_trend", tmp_path)
     PeakFinderDriver(params).run()
 
     with temp_ws.open():

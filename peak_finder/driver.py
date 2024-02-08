@@ -282,7 +282,6 @@ class PeakFinderDriver(BaseDriver):
 
             print("Exporting . . .")
             group_points = None
-
             if group_center:
                 channel_group = np.hstack(channel_group)  # Start count at 1
 
@@ -368,12 +367,20 @@ class PeakFinderDriver(BaseDriver):
                     "entity": group_points,
                     "data": channel_group_data,
                     "parts": line_id_data,
+                    "export_as": "Trend Lines",
                     "damping": 1,
                 }
                 params = Parameters.instantiate(inputs)
+                params.input_file.write_ui_json(
+                    "trend_lines", path=self.params.workpath
+                )
                 driver = TrendLinesDriver(params)
-                driver.create_output("Trend Lines", parent=output_group)
+                out_trend = driver.create_output("Trend Lines", parent=output_group)
 
+                if out_trend is not None:
+                    driver.add_ui_json(out_trend)
+
+        with self.params.geoh5.open(mode="r+"):
             self.update_monitoring_directory(output_group)
 
 
