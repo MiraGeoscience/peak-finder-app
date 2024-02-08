@@ -287,10 +287,10 @@ class PeakFinderDriver(BaseDriver):
                 channel_group = np.hstack(channel_group)  # Start count at 1
 
                 # Create reference values and color_map
-                group_map, color_map = {}, []
+                group_map, color_map = {0: "Unknown"}, [[0, 0, 0, 0, 0]]
                 for ind, (name, group) in enumerate(channel_groups.items()):
                     group_map[ind + 1] = name
-                    color_map += [[ind + 1] + hex_to_rgb(group["color"]) + [1]]
+                    color_map += [[ind + 1] + hex_to_rgb(group["color"]) + [0]]
 
                 color_map = np.core.records.fromarrays(
                     np.vstack(color_map).T,
@@ -368,10 +368,11 @@ class PeakFinderDriver(BaseDriver):
                     "entity": group_points,
                     "data": channel_group_data,
                     "parts": line_id_data,
+                    "damping": 1,
                 }
                 params = Parameters.instantiate(inputs)
                 driver = TrendLinesDriver(params)
-                driver.create_output("Trend lines", parent=output_group)
+                driver.create_output("Trend Lines", parent=output_group)
 
             self.update_monitoring_directory(output_group)
 
