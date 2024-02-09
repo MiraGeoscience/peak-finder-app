@@ -371,9 +371,6 @@ class PeakFinderDriver(BaseDriver):
                     "damping": 1,
                 }
                 params = Parameters.instantiate(inputs)
-                params.input_file.write_ui_json(
-                    "trend_lines", path=self.params.workpath
-                )
                 driver = TrendLinesDriver(params)
                 out_trend = driver.create_output("Trend Lines", parent=output_group)
 
