@@ -25,7 +25,6 @@ from geoapps_utils.application.dash_application import (
     BaseDashApplication,
     ObjectSelection,
 )
-from geoapps_utils.numerical import traveling_salesman
 from geoapps_utils.plotting import format_axis, symlog
 from geoapps_utils.workspace import get_output_workspace
 from geoh5py import Workspace
@@ -39,6 +38,7 @@ from peak_finder.anomaly_group import AnomalyGroup
 from peak_finder.driver import PeakFinderDriver
 from peak_finder.layout import peak_finder_layout
 from peak_finder.params import PeakFinderParams
+from peak_finder.utils import get_ordered_survey_lines
 
 
 class PeakFinder(
@@ -377,22 +377,9 @@ class PeakFinder(
             and self.survey is not None
             and self.survey.vertices is not None
         ):
-            line_ids = []
-            line_labels = []
-            locs = []
-            value_map = self.line_field.value_map.map  # type: ignore
-
-            for line_id in np.unique(self.line_field.values):
-                line_indices = np.where(self.line_field.values == line_id)[0]
-                mean_locs = np.mean(self.survey.vertices[line_indices], axis=0)
-                line_ids.append(line_id)
-                line_labels.append(value_map[line_id])
-                locs.append(mean_locs)
-
-            order = traveling_salesman(np.array(locs))
-            self._ordered_survey_lines = {
-                line_ids[ind]: line_labels[ind] for ind in order
-            }
+            self._ordered_survey_lines = get_ordered_survey_lines(
+                self.survey, self.line_field
+            )
 
         return self._ordered_survey_lines
 
@@ -616,7 +603,7 @@ class PeakFinder(
     def update_line_indices(  # pylint: disable=too-many-locals
         self,
         line_indices_trigger: int,
-        survey_trigger: str,
+        survey_trigger: int,
         selected_line: int,
         n_lines: int,
     ) -> int:
@@ -656,8 +643,8 @@ class PeakFinder(
     def compute_lines(  # pylint: disable=too-many-arguments, too-many-locals
         self,
         lines_computation_trigger: int,
-        line_indices_trigger: dict,
-        survey_trigger: str,
+        line_indices_trigger: int,
+        survey_trigger: int,
         selected_line: int,
         n_lines: int,
         smoothing: float,
@@ -1879,7 +1866,7 @@ class PeakFinder(
             line_position = self.computed_lines[line]["position"]
             line_anomalies = self.computed_lines[line]["anomalies"]
 
-            label = line_ids_labels[int(line)]  # type: ignore
+            label = line_ids_labels[line]  # type: ignore
             n_parts = len(line_position)
 
             line_dict[line] = {
@@ -1887,7 +1874,7 @@ class PeakFinder(
                 "y": [None],
                 "name": label,
             }
-            if int(line) == selected_line:
+            if line == selected_line:
                 line_dict[line]["line_color"] = "black"
 
             for ind in range(n_parts):
