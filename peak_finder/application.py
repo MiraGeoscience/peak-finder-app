@@ -269,7 +269,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
             State(component_id="property_groups", component_property="data"),
             State(component_id="ga_group_name", component_property="value"),
             State(component_id="live_link", component_property="value"),
-            State(component_id="monitoring_directory", component_property="value"),
+            State(component_id="monitoring_directory", component_property="data"),
             prevent_initial_call=True,
         )(self.trigger_click)
 
@@ -328,7 +328,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         ]
 
     @staticmethod
-    def update_plot_visibility(plot_selection: list[str]) -> tuple:
+    def update_plot_visibility(plot_selection: list[str]) -> dict:
         """
         Update which plots are visible based on dropdown selection.
 
@@ -336,6 +336,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
 
         :return: Visibility of line plot and survey plot.
         """
+
         if plot_selection is None:
             return no_update, no_update
 
@@ -351,7 +352,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         return tuple(output)
 
     @staticmethod
-    def update_widget_visibility(widget_selection: str) -> tuple:
+    def update_widget_visibility(widget_selection: str) -> dict:
         """
         Update which widgets are visible based on dropdown selection.
 
@@ -364,11 +365,10 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
 
         if widget_selection == "Data selection":
             return {"display": "block"}, {"display": "none"}, {"display": "none"}
-        if widget_selection == "Visual parameters":
+        elif widget_selection == "Visual parameters":
             return {"display": "none"}, {"display": "block"}, {"display": "none"}
-        if widget_selection == "Detection parameters":
+        elif widget_selection == "Detection parameters":
             return {"display": "none"}, {"display": "none"}, {"display": "block"}
-        return no_update, no_update, no_update
 
     @staticmethod
     def update_group_selection(widget_selection: str) -> list[bool]:
@@ -1942,63 +1942,56 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         :return: Live link status.
         :return: Output save message.
         """
-        if (
-            (monitoring_directory is None)
-            or (monitoring_directory == "")
-            or not Path(monitoring_directory).is_dir()
-        ):
-            return no_update, ["Invalid output path."]
+        # Update self.params from dash component values
+        param_dict = self.get_params_dict(locals())
 
         if not live_link:
             live_link = False  # type: ignore
         else:
             live_link = True  # type: ignore
 
-        # Update self.params from dash component values
-        param_dict = self.get_params_dict(locals())
+        # Get output path
+        if (
+            monitoring_directory is not None
+            and monitoring_directory != ""
+            and Path(monitoring_directory).resolve().exists()
+        ):
+            monitoring_directory = Path(monitoring_directory).resolve()
+            # Create a new workspace and copy objects into it
+            temp_geoh5 = f"{ga_group_name}_{time.time():.0f}.geoh5"
+            _, live_link = get_output_workspace(
+                live_link=live_link, workpath=monitoring_directory, name=temp_geoh5
+            )
+            if not live_link:
+                param_dict["monitoring_directory"] = ""
+        else:
+            live_link = False
 
-        # Get output path.
-        param_dict["monitoring_directory"] = str(Path(monitoring_directory).resolve())
-        temp_geoh5 = f"{ga_group_name}_{time.time():.0f}.geoh5"
+        workspace = self.params.ui_json["geoh5"]
+        output_path = workspace.h5file
 
-        # Get output workspace.
-        workspace, live_link = get_output_workspace(
-            live_link, monitoring_directory, temp_geoh5
+        # Put entities in output workspace.
+        param_dict["geoh5"] = workspace
+
+        if masking_data == "None":
+            param_dict["masking_data"] = None
+
+        # Write output uijson.
+        new_params = PeakFinderParams(**param_dict)
+        new_params.write_input_file(
+            name=str(workspace.h5file).replace(".geoh5", ".ui.json"),
+            path=param_dict["monitoring_directory"],
+            validate=False,
         )
 
-        if not live_link:
-            param_dict["monitoring_directory"] = ""
-
-        with workspace as new_workspace:
-            # Put entities in output workspace.
-            param_dict["geoh5"] = new_workspace
-            param_dict["objects"] = param_dict["objects"].copy(
-                parent=new_workspace, copy_children=True
-            )
-            p_g_new = {p_g.name: p_g for p_g in param_dict["objects"].property_groups}
-            # Add property groups
-            for key, value in property_groups.items():
-                param_dict[f"group_{value['param']}_data"] = p_g_new[key]
-                param_dict[f"group_{value['param']}_color"] = value["color"]
-
-            if masking_data == "None":
-                param_dict["masking_data"] = None
-
-            # Write output uijson.
-            new_params = PeakFinderParams(**param_dict)
-            new_params.write_input_file(
-                name=str(new_workspace.h5file).replace(".geoh5", ".ui.json"),
-                path=param_dict["monitoring_directory"],
-                validate=False,
-            )
-            driver = PeakFinderDriver(new_params)
-            driver.run()
+        driver = PeakFinderDriver(new_params)
+        driver.run()
 
         if live_link:
             return [True], [
                 "Live link active. Check your ANALYST session for new mesh."
             ]
-        return [], ["Saved to " + monitoring_directory]
+        return [], ["Saved to " + str(output_path)]
 
 
 if __name__ == "__main__":

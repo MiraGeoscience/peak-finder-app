@@ -285,7 +285,7 @@ class PeakFinderDriver(BaseDriver):
                         },
                     }
                 )
-
+            print("monitor")
             self.update_monitoring_directory(output_group)
 
 
