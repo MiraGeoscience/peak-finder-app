@@ -38,6 +38,11 @@
         "parent": "objects",
         "value": ""
     },
+    "trend_lines": {
+        "main": true,
+        "label": "Create trend lines",
+        "value": false
+    },
     "masking_data": {
         "association": "Vertex",
         "dataType": "Boolean",
