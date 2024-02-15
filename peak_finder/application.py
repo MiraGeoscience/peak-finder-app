@@ -21,10 +21,8 @@ from dash.dependencies import Input, Output, State
 from dask import compute
 from dask.diagnostics import ProgressBar
 from flask import Flask
-from geoapps_utils.application.dash_application import (
-    BaseDashApplication,
-    ObjectSelection,
-)
+from geoapps_utils.application.dash_application import (BaseDashApplication,
+                                                        ObjectSelection)
 from geoapps_utils.plotting import format_axis, symlog
 from geoapps_utils.workspace import get_output_workspace
 from geoh5py import Workspace
@@ -634,7 +632,7 @@ class PeakFinder(
             return no_update
 
         survey_lines = self.get_active_line_ids(selected_line, n_lines)
-        self.line_indices = PeakFinderDriver.update_line_indices(
+        self.line_indices = PeakFinderDriver.get_line_indices(
             self.survey, self.line_field, survey_lines
         )
 
@@ -690,7 +688,6 @@ class PeakFinder(
         ]
 
         survey_lines = self.get_active_line_ids(selected_line, n_lines)
-
         survey_lines_subset = survey_lines
         if (
             self.computed_lines is not None
@@ -834,7 +831,6 @@ class PeakFinder(
             if "values" not in channel_dict:
                 continue
             full_values = sign * np.array(channel_dict["values"])
-
             line_indices = self.line_indices[selected_line]["line_indices"]
 
             inds = range(len(line_indices))
