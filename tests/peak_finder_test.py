@@ -13,7 +13,8 @@ from pathlib import Path
 import numpy as np
 from dash._callback_context import context_value
 from dash._utils import AttributeDict
-from geoh5py.objects import Curve
+from geoh5py.data import ReferencedData
+from geoh5py.objects import Curve, Points
 from geoh5py.shared.utils import compare_entities
 from geoh5py.workspace import Workspace
 from scipy import stats
@@ -22,6 +23,20 @@ from peak_finder.application import PeakFinder, PeakFinderDriver
 from peak_finder.params import PeakFinderParams
 
 # pylint: disable=R0801
+
+
+def get_template_anomalies():
+    """
+    Add gaussian anomalies in series.
+    """
+    dist1 = 10 * stats.norm.pdf(np.arange(0, 200, 0.1), 100, 1.5)
+    dist2 = 3 * stats.norm.pdf(np.arange(200, 450, 0.1), 300, 25)
+    dist3 = 5 * stats.norm.pdf(np.arange(450, 650, 0.1), 600, 1)
+    dist4 = 7 * stats.norm.pdf(np.arange(650, 725, 0.1), 700, 1.75)
+    dist5 = 1000 * stats.norm.pdf(np.arange(725, 875, 0.1), 800, 3)
+    dist6 = 7 * stats.norm.pdf(np.arange(875, 1000, 0.1), 900, 3)
+
+    return np.concatenate((dist1, dist2, dist3, dist4, dist5, dist6))
 
 
 def test_peak_finder_app(tmp_path: Path):  # pylint: disable=too-many-locals
@@ -43,12 +58,11 @@ def test_peak_finder_app(tmp_path: Path):  # pylint: disable=too-many-locals
         {
             "line_id": {
                 "values": np.ones_like(x),
-                "value_map": {1: "1", 2: "2", 3: "3"},
+                "value_map": {0: "Unknown", 1: "1", 2: "2", 3: "3"},
                 "type": "referenced",
             }
         }
     )
-    curve.add_data_to_group(line, property_group="Line")
 
     data_map = {d.name: d.uid for d in curve.children}
 
@@ -167,16 +181,7 @@ def test_merging_peaks(tmp_path: Path):  # pylint: disable=too-many-locals
     x = np.arange(0, 1000, 0.1)
 
     curve = Curve.create(temp_ws, vertices=np.c_[x, np.zeros((x.shape[0], 2))])
-
-    dist1 = 10 * stats.norm.pdf(np.arange(0, 200, 0.1), 100, 1.5)
-    dist2 = 3 * stats.norm.pdf(np.arange(200, 450, 0.1), 300, 25)
-    dist3 = 5 * stats.norm.pdf(np.arange(450, 650, 0.1), 600, 1)
-    dist4 = 7 * stats.norm.pdf(np.arange(650, 725, 0.1), 700, 1.75)
-    dist5 = 1000 * stats.norm.pdf(np.arange(725, 875, 0.1), 800, 3)
-    dist6 = 7 * stats.norm.pdf(np.arange(875, 1000, 0.1), 900, 3)
-
-    dist = np.concatenate((dist1, dist2, dist3, dist4, dist5, dist6))
-
+    dist = get_template_anomalies()
     data = curve.add_data({"data": {"values": dist}})
     curve.add_data_to_group(data, property_group="obs")
 
@@ -184,12 +189,11 @@ def test_merging_peaks(tmp_path: Path):  # pylint: disable=too-many-locals
         {
             "line_id": {
                 "values": np.ones_like(x),
-                "value_map": {1: "1", 2: "2", 3: "3"},
+                "value_map": {0: "Unknown", 1: "1", 2: "2", 3: "3"},
                 "type": "referenced",
             }
         }
     )
-    curve.add_data_to_group(line, property_group="Line")
 
     prop_group = curve.find_or_create_property_group(
         name="prop group", properties=[data.uid]
@@ -295,12 +299,11 @@ def test_masking_peaks(tmp_path: Path):  # pylint: disable=too-many-locals
         {
             "line_id": {
                 "values": np.ones_like(x),
-                "value_map": {1: "1", 2: "2", 3: "3"},
+                "value_map": {0: "Unknown", 1: "1", 2: "2", 3: "3"},
                 "type": "referenced",
             }
         }
     )
-    curve.add_data_to_group(line, property_group="Line")
 
     masking_array = np.ones_like(x)
     masking_array[(x > 650) & (x < 850)] = 0
@@ -385,14 +388,7 @@ def test_map_locations(tmp_path: Path):  # pylint: disable=too-many-locals
 
     curve = Curve.create(temp_ws, vertices=np.c_[x, np.zeros((x.shape[0], 2))])
 
-    dist1 = 10 * stats.norm.pdf(np.arange(0, 200, 0.1), 100, 1.5)
-    dist2 = 3 * stats.norm.pdf(np.arange(200, 450, 0.1), 300, 25)
-    dist3 = 5 * stats.norm.pdf(np.arange(450, 650, 0.1), 600, 1)
-    dist4 = 7 * stats.norm.pdf(np.arange(650, 725, 0.1), 700, 1.75)
-    dist5 = 1000 * stats.norm.pdf(np.arange(725, 875, 0.1), 800, 3)
-    dist6 = 7 * stats.norm.pdf(np.arange(875, 1000, 0.1), 900, 3)
-
-    dist = np.concatenate((dist1, dist2, dist3, dist4, dist5, dist6))
+    dist = get_template_anomalies()
 
     expected_peaks = [100, 300, 600, 700, 800, 900]
 
@@ -403,12 +399,11 @@ def test_map_locations(tmp_path: Path):  # pylint: disable=too-many-locals
         {
             "line_id": {
                 "values": np.ones_like(x),
-                "value_map": {1: "1", 2: "2", 3: "3"},
+                "value_map": {0: "Unknown", 1: "1", 2: "2", 3: "3"},
                 "type": "referenced",
             }
         }
     )
-    curve.add_data_to_group(line, property_group="Line")
 
     prop_group = curve.find_or_create_property_group(
         name="prop group", properties=[data.uid]
@@ -503,3 +498,73 @@ def test_map_locations(tmp_path: Path):  # pylint: disable=too-many-locals
                 assert len(np.setdiff1d(locs, og_locs)) == len(expected_peaks)
                 assert np.isclose(locs, expected_peaks, atol=5).any()
                 assert np.isclose(og_locs, expected_peaks, atol=5).any()
+
+
+def test_trend_line(tmp_path: Path):  # pylint: disable=too-many-locals
+    h5file_path = tmp_path / r"testPeakFinder.geoh5"
+    # Create temp workspace
+    temp_ws = Workspace(h5file_path)
+
+    params = PeakFinderParams(geoh5=str(h5file_path))
+    app = PeakFinder(params=params, ui_json_data={})
+    app.workspace = temp_ws
+
+    x_locs, y_locs = [], []
+    line_id, data = [], []
+    for ind in range(5):
+        x = np.linspace(0, 1000, 10000)
+        noise = np.random.uniform(low=-5, high=5, size=len(x))
+        x = np.sort(x + noise)
+
+        y = np.linspace(0, 1000, 10000) + ind * 300
+        noise = np.random.uniform(low=-10, high=10, size=len(x))
+        y = np.sort(y + noise)
+
+        x_locs.append(x)
+        y_locs.append(y)
+        line_id.append(np.ones_like(x) * (ind + 1))
+        data.append(get_template_anomalies())
+
+    x_locs = np.concatenate(x_locs)
+    y_locs = np.concatenate(y_locs)
+    curve = Curve.create(temp_ws, vertices=np.c_[x_locs, y_locs, np.zeros_like(x_locs)])
+
+    data = curve.add_data({"data": {"values": np.concatenate(data)}})
+    prop_group = curve.add_data_to_group(data, property_group="obs")
+    value_map = {0: "Unknown"}
+    value_map.update({ind + 1: f"{ind+1}" for ind in range(len(line_id))})
+
+    line = curve.add_data(
+        {
+            "line_id": {
+                "values": np.concatenate(line_id),
+                "value_map": value_map,
+                "type": "referenced",
+            }
+        }
+    )
+
+    temp_ws.close()
+
+    params = PeakFinderParams(
+        geoh5=temp_ws,
+        objects=curve,
+        line_field=line,
+        group_a_data=prop_group,
+        trend_lines=True,
+    )
+    params.input_file.write_ui_json("test_peak_trend", tmp_path)
+    PeakFinderDriver(params).run()
+
+    with temp_ws.open():
+        trend_lines = temp_ws.get_entity("Trend Lines")[0]
+        anomalies = temp_ws.get_entity("Anomaly Groups")[0]
+
+        assert isinstance(anomalies, Points)
+        assert isinstance(trend_lines, Curve)
+
+        anom_group = anomalies.get_data("channel_group")[0]
+        trend_group = trend_lines.get_data("channel_group")[0]
+
+        assert isinstance(trend_group, ReferencedData)
+        assert trend_group.entity_type.uid == anom_group.entity_type.uid

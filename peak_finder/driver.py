@@ -75,8 +75,8 @@ class PeakFinderDriver(BaseDriver):
 
         anomalies = []
         for line_id in tqdm(list(line_ids)):
-            line_start = line_indices_dict[line_id]["line_start"]
-            for indices in line_indices_dict[line_id]["line_indices"]:  # type: ignore
+            line_start = line_indices_dict[str(line_id)]["line_start"]
+            for indices in line_indices_dict[str(line_id)]["line_indices"]:  # type: ignore
                 anomalies += [
                     line_computation(
                         entity=survey,
@@ -99,7 +99,7 @@ class PeakFinderDriver(BaseDriver):
         return anomalies
 
     @staticmethod
-    def update_line_indices(  # pylint: disable=too-many-locals
+    def get_line_indices(  # pylint: disable=too-many-locals
         survey_obj: Curve,
         line_field_obj: Data,
         line_ids: list[int],
@@ -128,7 +128,7 @@ class PeakFinderDriver(BaseDriver):
             line_bool = line_field_obj.values == line_id
             full_line_indices = np.where(line_bool)[0]
 
-            indices_dict[line_id] = {"line_indices": []}
+            indices_dict[str(line_id)] = {"line_indices": []}
 
             parts = np.unique(survey_obj.parts[full_line_indices])
 
@@ -140,7 +140,7 @@ class PeakFinderDriver(BaseDriver):
                 line_indices = np.zeros(line_length, dtype=bool)
                 line_indices[active_indices] = True
 
-                indices_dict[line_id]["line_indices"].append(line_indices)
+                indices_dict[str(line_id)]["line_indices"].append(line_indices)
 
         # Just on masked parts of line
         for line_id, indices in indices_dict.items():
@@ -205,7 +205,7 @@ class PeakFinderDriver(BaseDriver):
                 line_field_obj = self.params.line_field
 
             line_ids = line_field_obj.value_map.map.keys()
-            indices_dict = PeakFinderDriver.update_line_indices(
+            indices_dict = PeakFinderDriver.get_line_indices(
                 survey_obj, line_field_obj, line_ids
             )
 
@@ -282,15 +282,14 @@ class PeakFinderDriver(BaseDriver):
 
             print("Exporting . . .")
             group_points = None
-
             if group_center:
                 channel_group = np.hstack(channel_group)  # Start count at 1
 
                 # Create reference values and color_map
-                group_map, color_map = {}, []
+                group_map, color_map = {0: "Unknown"}, [[0, 0, 0, 0, 0]]
                 for ind, (name, group) in enumerate(channel_groups.items()):
                     group_map[ind + 1] = name
-                    color_map += [[ind + 1] + hex_to_rgb(group["color"]) + [1]]
+                    color_map += [[ind + 1] + hex_to_rgb(group["color"]) + [0]]
 
                 color_map = np.core.records.fromarrays(
                     np.vstack(color_map).T,
@@ -368,11 +367,17 @@ class PeakFinderDriver(BaseDriver):
                     "entity": group_points,
                     "data": channel_group_data,
                     "parts": line_id_data,
+                    "export_as": "Trend Lines",
+                    "damping": 1,
                 }
-                params = Parameters.instantiate(inputs)
+                params = Parameters.build(inputs)
                 driver = TrendLinesDriver(params)
-                driver.create_output("Trend lines", parent=output_group)
+                out_trend = driver.create_output("Trend Lines", parent=output_group)
 
+                if out_trend is not None:
+                    driver.add_ui_json(out_trend)
+
+        with self.params.geoh5.open(mode="r+"):
             self.update_monitoring_directory(output_group)
 
 
