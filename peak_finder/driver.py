@@ -370,7 +370,7 @@ class PeakFinderDriver(BaseDriver):
                     "export_as": "Trend Lines",
                     "damping": 1,
                 }
-                params = Parameters.instantiate(inputs)
+                params = Parameters.build(inputs)
                 driver = TrendLinesDriver(params)
                 out_trend = driver.create_output("Trend Lines", parent=output_group)
 
