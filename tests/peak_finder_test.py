@@ -505,10 +505,6 @@ def test_trend_line(tmp_path: Path):  # pylint: disable=too-many-locals
     # Create temp workspace
     temp_ws = Workspace(h5file_path)
 
-    params = PeakFinderParams(geoh5=str(h5file_path))
-    app = PeakFinder(params=params, ui_json_data={})
-    app.workspace = temp_ws
-
     x_locs, y_locs = [], []
     line_id, data = [], []
     for ind in range(5):
@@ -553,6 +549,7 @@ def test_trend_line(tmp_path: Path):  # pylint: disable=too-many-locals
         group_a_data=prop_group,
         trend_lines=True,
     )
+
     params.input_file.write_ui_json("test_peak_trend", tmp_path)
     PeakFinderDriver(params).run()
 
