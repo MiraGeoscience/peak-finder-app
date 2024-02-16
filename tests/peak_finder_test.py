@@ -44,10 +44,6 @@ def test_peak_finder_app(tmp_path: Path):  # pylint: disable=too-many-locals
     # Create temp workspace
     temp_ws = Workspace(h5file_path)
 
-    params = PeakFinderParams(geoh5=str(h5file_path))
-    app = PeakFinder(params=params, ui_json_data={})
-    app.workspace = temp_ws
-
     x = np.arange(-2 * np.pi + np.pi / 4, 2 * np.pi, np.pi / 32)
 
     curve = Curve.create(temp_ws, vertices=np.c_[x, np.zeros((x.shape[0], 2))])
@@ -119,11 +115,20 @@ def test_peak_finder_app(tmp_path: Path):  # pylint: disable=too-many-locals
     min_width = 1.0
     line_field = "{" + str(line.uid) + "}"
 
+    params = PeakFinderParams(geoh5=str(h5file_path))
+    app = PeakFinder(
+        params=params,
+        ui_json_data={
+            "objects": objects,
+            "line_field": line_field,
+        },
+    )
+    app.property_groups = property_groups
+    app.workspace = temp_ws
+
     app.trigger_click(
         n_clicks=0,
-        objects=objects,
         flip_sign=[],
-        line_field=line_field,
         masking_data=None,
         smoothing=smoothing,
         min_amplitude=min_amplitude,
@@ -133,8 +138,7 @@ def test_peak_finder_app(tmp_path: Path):  # pylint: disable=too-many-locals
         min_channels=min_channels,
         n_groups=1,
         max_separation=100.0,
-        line_id=1,
-        property_groups=property_groups,
+        selected_line=1,
         ga_group_name="peak_finder",
         live_link=[],
         monitoring_directory=str(tmp_path),
@@ -173,10 +177,6 @@ def test_merging_peaks(tmp_path: Path):  # pylint: disable=too-many-locals
     h5file_path = tmp_path / r"testPeakFinder.geoh5"
     # Create temp workspace
     temp_ws = Workspace(h5file_path)
-
-    params = PeakFinderParams(geoh5=str(h5file_path))
-    app = PeakFinder(params=params, ui_json_data={})
-    app.workspace = temp_ws
 
     x = np.arange(0, 1000, 0.1)
 
@@ -218,6 +218,17 @@ def test_merging_peaks(tmp_path: Path):  # pylint: disable=too-many-locals
     min_width = 1.0
     line_field = "{" + str(line.uid) + "}"
 
+    params = PeakFinderParams(geoh5=str(h5file_path))
+    app = PeakFinder(
+        params=params,
+        ui_json_data={
+            "objects": objects,
+            "line_field": line_field,
+        },
+    )
+    app.property_groups = property_groups
+    app.workspace = temp_ws
+
     # Test merging peaks
     n_groups_list = [2, 2, 2, 3, 2]
     max_separation_list = [1, 55, 65, 65, 90]
@@ -232,9 +243,7 @@ def test_merging_peaks(tmp_path: Path):  # pylint: disable=too-many-locals
     for ind in range(5):
         app.trigger_click(
             n_clicks=0,
-            objects=objects,
             flip_sign=[],
-            line_field=line_field,
             masking_data=None,
             smoothing=smoothing,
             min_amplitude=min_amplitude,
@@ -244,8 +253,7 @@ def test_merging_peaks(tmp_path: Path):  # pylint: disable=too-many-locals
             min_channels=min_channels,
             n_groups=n_groups_list[ind],
             max_separation=max_separation_list[ind],
-            line_id=1,
-            property_groups=property_groups,
+            selected_line=1,
             ga_group_name="peak_finder_" + str(ind),
             live_link=[],
             monitoring_directory=str(tmp_path),
@@ -272,10 +280,6 @@ def test_masking_peaks(tmp_path: Path):  # pylint: disable=too-many-locals
     h5file_path = tmp_path / r"testPeakFinder.geoh5"
     # Create temp workspace
     temp_ws = Workspace(h5file_path)
-
-    params = PeakFinderParams(geoh5=str(h5file_path))
-    app = PeakFinder(params=params, ui_json_data={})
-    app.workspace = temp_ws
 
     x = np.arange(0, 1000, 0.1)
 
@@ -335,12 +339,21 @@ def test_masking_peaks(tmp_path: Path):  # pylint: disable=too-many-locals
     min_width = 1.0
     line_field = "{" + str(line.uid) + "}"
 
+    params = PeakFinderParams(geoh5=str(h5file_path))
+    app = PeakFinder(
+        params=params,
+        ui_json_data={
+            "objects": objects,
+            "line_field": line_field,
+        },
+    )
+    app.property_groups = property_groups
+    app.workspace = temp_ws
+
     # Test masking
     app.trigger_click(
         n_clicks=0,
-        objects=objects,
         flip_sign=[],
-        line_field=line_field,
         masking_data=str(masking_data.uid),
         smoothing=smoothing,
         min_amplitude=min_amplitude,
@@ -350,8 +363,7 @@ def test_masking_peaks(tmp_path: Path):  # pylint: disable=too-many-locals
         min_channels=min_channels,
         n_groups=1,
         max_separation=350,
-        line_id=1,
-        property_groups=property_groups,
+        selected_line=1,
         ga_group_name="peak_finder_masking",
         live_link=[],
         monitoring_directory=str(tmp_path),
@@ -369,10 +381,6 @@ def test_map_locations(tmp_path: Path):  # pylint: disable=too-many-locals
     h5file_path = tmp_path / r"testPeakFinder.geoh5"
     # Create temp workspace
     temp_ws = Workspace(h5file_path)
-
-    params = PeakFinderParams(geoh5=str(h5file_path))
-    app = PeakFinder(params=params, ui_json_data={})
-    app.workspace = temp_ws
 
     x = np.linspace(0, 1000, 10000)
     noise = np.random.uniform(low=-5, high=5, size=len(x))
@@ -420,37 +428,49 @@ def test_map_locations(tmp_path: Path):  # pylint: disable=too-many-locals
     min_width = 1.0
     line_field = "{" + str(line.uid) + "}"
 
+    params = PeakFinderParams(geoh5=str(h5file_path))
+    app = PeakFinder(
+        params=params,
+        ui_json_data={
+            "objects": survey,
+            "line_field": line_field,
+        },
+    )
+    app.property_groups = property_groups
+    app.workspace = temp_ws
+
     # Test merging peaks
     n_groups = 1
     max_separation = 100
 
     context_value.set(
         AttributeDict(
-            **{"triggered_inputs": [{"prop_id": "line_ids.value", "value": [1]}]}
-        )
-    )
-
-    indices_dict = app.get_line_indices(
-        survey,
-        line_field,
-        line_ids=[1],
-    )
-
-    context_value.set(
-        AttributeDict(
             **{
                 "triggered_inputs": [
-                    {"prop_id": "line_indices.data", "data": indices_dict["1"]}  # type: ignore
+                    {"prop_id": "line_indices_trigger.data", "data": 0}
                 ]
             }
         )
     )
 
-    app.compute_line(
-        line_indices=indices_dict,  # type: ignore
-        line_ids=[1],
-        objects=survey,
-        property_groups_dict=property_groups,
+    app.update_line_indices(0, 0, 1, 1)
+
+    context_value.set(
+        AttributeDict(
+            **{
+                "triggered_inputs": [
+                    {"prop_id": "line_indices_trigger.data", "data": 1}  # type: ignore
+                ]
+            }
+        )
+    )
+
+    app.compute_lines(
+        lines_computation_trigger=0,
+        line_indices_trigger=0,
+        survey_trigger=0,
+        selected_line=1,
+        n_lines=1,
         smoothing=smoothing,
         max_migration=max_migration,
         min_channels=min_channels,
@@ -459,12 +479,10 @@ def test_map_locations(tmp_path: Path):  # pylint: disable=too-many-locals
         min_width=min_width,
         n_groups=n_groups,
         max_separation=max_separation,
-        update_from_property_groups=False,
-        update_computation=0,
     )
 
-    if app.lines is not None:
-        for value in app.lines.values():
+    if app.computed_lines is not None:
+        for value in app.computed_lines.values():
             positions = value["position"]
             anomaly_groups = value["anomalies"]
 
@@ -486,10 +504,6 @@ def test_trend_line(tmp_path: Path):  # pylint: disable=too-many-locals
     h5file_path = tmp_path / r"testPeakFinder.geoh5"
     # Create temp workspace
     temp_ws = Workspace(h5file_path)
-
-    params = PeakFinderParams(geoh5=str(h5file_path))
-    app = PeakFinder(params=params, ui_json_data={})
-    app.workspace = temp_ws
 
     x_locs, y_locs = [], []
     line_id, data = [], []
@@ -535,6 +549,7 @@ def test_trend_line(tmp_path: Path):  # pylint: disable=too-many-locals
         group_a_data=prop_group,
         trend_lines=True,
     )
+
     params.input_file.write_ui_json("test_peak_trend", tmp_path)
     PeakFinderDriver(params).run()
 

@@ -75,8 +75,8 @@ class PeakFinderDriver(BaseDriver):
 
         anomalies = []
         for line_id in tqdm(list(line_ids)):
-            line_start = line_indices_dict[str(line_id)]["line_start"]
-            for indices in line_indices_dict[str(line_id)]["line_indices"]:  # type: ignore
+            line_start = line_indices_dict[line_id]["line_start"]
+            for indices in line_indices_dict[line_id]["line_indices"]:  # type: ignore
                 anomalies += [
                     line_computation(
                         entity=survey,
@@ -128,7 +128,7 @@ class PeakFinderDriver(BaseDriver):
             line_bool = line_field_obj.values == line_id
             full_line_indices = np.where(line_bool)[0]
 
-            indices_dict[str(line_id)] = {"line_indices": []}
+            indices_dict[line_id] = {"line_indices": []}
 
             parts = np.unique(survey_obj.parts[full_line_indices])
 
@@ -140,7 +140,7 @@ class PeakFinderDriver(BaseDriver):
                 line_indices = np.zeros(line_length, dtype=bool)
                 line_indices[active_indices] = True
 
-                indices_dict[str(line_id)]["line_indices"].append(line_indices)
+                indices_dict[line_id]["line_indices"].append(line_indices)
 
         # Just on masked parts of line
         for line_id, indices in indices_dict.items():
@@ -208,7 +208,6 @@ class PeakFinderDriver(BaseDriver):
             indices_dict = PeakFinderDriver.get_line_indices(
                 survey_obj, line_field_obj, line_ids
             )
-
             anomalies = PeakFinderDriver.compute_lines(
                 survey=survey_obj,
                 line_indices_dict=indices_dict,
