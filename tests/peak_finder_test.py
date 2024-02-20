@@ -13,7 +13,8 @@ from pathlib import Path
 import numpy as np
 from dash._callback_context import context_value
 from dash._utils import AttributeDict
-from geoh5py.objects import Curve
+from geoh5py.data import ReferencedData
+from geoh5py.objects import Curve, Points
 from geoh5py.shared.utils import compare_entities
 from geoh5py.workspace import Workspace
 from scipy import stats
@@ -24,14 +25,24 @@ from peak_finder.params import PeakFinderParams
 # pylint: disable=R0801
 
 
+def get_template_anomalies():
+    """
+    Add gaussian anomalies in series.
+    """
+    dist1 = 10 * stats.norm.pdf(np.arange(0, 200, 0.1), 100, 1.5)
+    dist2 = 3 * stats.norm.pdf(np.arange(200, 450, 0.1), 300, 25)
+    dist3 = 5 * stats.norm.pdf(np.arange(450, 650, 0.1), 600, 1)
+    dist4 = 7 * stats.norm.pdf(np.arange(650, 725, 0.1), 700, 1.75)
+    dist5 = 1000 * stats.norm.pdf(np.arange(725, 875, 0.1), 800, 3)
+    dist6 = 7 * stats.norm.pdf(np.arange(875, 1000, 0.1), 900, 3)
+
+    return np.concatenate((dist1, dist2, dist3, dist4, dist5, dist6))
+
+
 def test_peak_finder_app(tmp_path: Path):  # pylint: disable=too-many-locals
     h5file_path = tmp_path / r"testPeakFinder.geoh5"
     # Create temp workspace
     temp_ws = Workspace(h5file_path)
-
-    params = PeakFinderParams(geoh5=str(h5file_path))
-    app = PeakFinder(params=params, ui_json_data={})
-    app.workspace = temp_ws
 
     x = np.arange(-2 * np.pi + np.pi / 4, 2 * np.pi, np.pi / 32)
 
@@ -47,12 +58,11 @@ def test_peak_finder_app(tmp_path: Path):  # pylint: disable=too-many-locals
         {
             "line_id": {
                 "values": np.ones_like(x),
-                "value_map": {1: "1", 2: "2", 3: "3"},
+                "value_map": {0: "Unknown", 1: "1", 2: "2", 3: "3"},
                 "type": "referenced",
             }
         }
     )
-    curve.add_data_to_group(line, property_group="Line")
 
     data_map = {d.name: d.uid for d in curve.children}
 
@@ -105,11 +115,20 @@ def test_peak_finder_app(tmp_path: Path):  # pylint: disable=too-many-locals
     min_width = 1.0
     line_field = "{" + str(line.uid) + "}"
 
+    params = PeakFinderParams(geoh5=str(h5file_path))
+    app = PeakFinder(
+        params=params,
+        ui_json_data={
+            "objects": objects,
+            "line_field": line_field,
+        },
+    )
+    app.property_groups = property_groups
+    app.workspace = temp_ws
+
     app.trigger_click(
         n_clicks=0,
-        objects=objects,
         flip_sign=[],
-        line_field=line_field,
         masking_data=None,
         smoothing=smoothing,
         min_amplitude=min_amplitude,
@@ -119,8 +138,7 @@ def test_peak_finder_app(tmp_path: Path):  # pylint: disable=too-many-locals
         min_channels=min_channels,
         n_groups=1,
         max_separation=100.0,
-        line_id=1,
-        property_groups=property_groups,
+        selected_line=1,
         ga_group_name="peak_finder",
         live_link=[],
         monitoring_directory=str(tmp_path),
@@ -160,23 +178,10 @@ def test_merging_peaks(tmp_path: Path):  # pylint: disable=too-many-locals
     # Create temp workspace
     temp_ws = Workspace(h5file_path)
 
-    params = PeakFinderParams(geoh5=str(h5file_path))
-    app = PeakFinder(params=params, ui_json_data={})
-    app.workspace = temp_ws
-
     x = np.arange(0, 1000, 0.1)
 
     curve = Curve.create(temp_ws, vertices=np.c_[x, np.zeros((x.shape[0], 2))])
-
-    dist1 = 10 * stats.norm.pdf(np.arange(0, 200, 0.1), 100, 1.5)
-    dist2 = 3 * stats.norm.pdf(np.arange(200, 450, 0.1), 300, 25)
-    dist3 = 5 * stats.norm.pdf(np.arange(450, 650, 0.1), 600, 1)
-    dist4 = 7 * stats.norm.pdf(np.arange(650, 725, 0.1), 700, 1.75)
-    dist5 = 1000 * stats.norm.pdf(np.arange(725, 875, 0.1), 800, 3)
-    dist6 = 7 * stats.norm.pdf(np.arange(875, 1000, 0.1), 900, 3)
-
-    dist = np.concatenate((dist1, dist2, dist3, dist4, dist5, dist6))
-
+    dist = get_template_anomalies()
     data = curve.add_data({"data": {"values": dist}})
     curve.add_data_to_group(data, property_group="obs")
 
@@ -184,12 +189,11 @@ def test_merging_peaks(tmp_path: Path):  # pylint: disable=too-many-locals
         {
             "line_id": {
                 "values": np.ones_like(x),
-                "value_map": {1: "1", 2: "2", 3: "3"},
+                "value_map": {0: "Unknown", 1: "1", 2: "2", 3: "3"},
                 "type": "referenced",
             }
         }
     )
-    curve.add_data_to_group(line, property_group="Line")
 
     prop_group = curve.find_or_create_property_group(
         name="prop group", properties=[data.uid]
@@ -214,6 +218,17 @@ def test_merging_peaks(tmp_path: Path):  # pylint: disable=too-many-locals
     min_width = 1.0
     line_field = "{" + str(line.uid) + "}"
 
+    params = PeakFinderParams(geoh5=str(h5file_path))
+    app = PeakFinder(
+        params=params,
+        ui_json_data={
+            "objects": objects,
+            "line_field": line_field,
+        },
+    )
+    app.property_groups = property_groups
+    app.workspace = temp_ws
+
     # Test merging peaks
     n_groups_list = [2, 2, 2, 3, 2]
     max_separation_list = [1, 55, 65, 65, 90]
@@ -228,9 +243,7 @@ def test_merging_peaks(tmp_path: Path):  # pylint: disable=too-many-locals
     for ind in range(5):
         app.trigger_click(
             n_clicks=0,
-            objects=objects,
             flip_sign=[],
-            line_field=line_field,
             masking_data=None,
             smoothing=smoothing,
             min_amplitude=min_amplitude,
@@ -240,8 +253,7 @@ def test_merging_peaks(tmp_path: Path):  # pylint: disable=too-many-locals
             min_channels=min_channels,
             n_groups=n_groups_list[ind],
             max_separation=max_separation_list[ind],
-            line_id=1,
-            property_groups=property_groups,
+            selected_line=1,
             ga_group_name="peak_finder_" + str(ind),
             live_link=[],
             monitoring_directory=str(tmp_path),
@@ -269,10 +281,6 @@ def test_masking_peaks(tmp_path: Path):  # pylint: disable=too-many-locals
     # Create temp workspace
     temp_ws = Workspace(h5file_path)
 
-    params = PeakFinderParams(geoh5=str(h5file_path))
-    app = PeakFinder(params=params, ui_json_data={})
-    app.workspace = temp_ws
-
     x = np.arange(0, 1000, 0.1)
 
     curve = Curve.create(temp_ws, vertices=np.c_[x, np.zeros((x.shape[0], 2))])
@@ -291,12 +299,11 @@ def test_masking_peaks(tmp_path: Path):  # pylint: disable=too-many-locals
         {
             "line_id": {
                 "values": np.ones_like(x),
-                "value_map": {1: "1", 2: "2", 3: "3"},
+                "value_map": {0: "Unknown", 1: "1", 2: "2", 3: "3"},
                 "type": "referenced",
             }
         }
     )
-    curve.add_data_to_group(line, property_group="Line")
 
     masking_array = np.ones_like(x)
     masking_array[(x > 650) & (x < 850)] = 0
@@ -332,12 +339,21 @@ def test_masking_peaks(tmp_path: Path):  # pylint: disable=too-many-locals
     min_width = 1.0
     line_field = "{" + str(line.uid) + "}"
 
+    params = PeakFinderParams(geoh5=str(h5file_path))
+    app = PeakFinder(
+        params=params,
+        ui_json_data={
+            "objects": objects,
+            "line_field": line_field,
+        },
+    )
+    app.property_groups = property_groups
+    app.workspace = temp_ws
+
     # Test masking
     app.trigger_click(
         n_clicks=0,
-        objects=objects,
         flip_sign=[],
-        line_field=line_field,
         masking_data=str(masking_data.uid),
         smoothing=smoothing,
         min_amplitude=min_amplitude,
@@ -347,8 +363,7 @@ def test_masking_peaks(tmp_path: Path):  # pylint: disable=too-many-locals
         min_channels=min_channels,
         n_groups=1,
         max_separation=350,
-        line_id=1,
-        property_groups=property_groups,
+        selected_line=1,
         ga_group_name="peak_finder_masking",
         live_link=[],
         monitoring_directory=str(tmp_path),
@@ -367,24 +382,13 @@ def test_map_locations(tmp_path: Path):  # pylint: disable=too-many-locals
     # Create temp workspace
     temp_ws = Workspace(h5file_path)
 
-    params = PeakFinderParams(geoh5=str(h5file_path))
-    app = PeakFinder(params=params, ui_json_data={})
-    app.workspace = temp_ws
-
     x = np.linspace(0, 1000, 10000)
     noise = np.random.uniform(low=-5, high=5, size=len(x))
     x = np.sort(x + noise)
 
     curve = Curve.create(temp_ws, vertices=np.c_[x, np.zeros((x.shape[0], 2))])
 
-    dist1 = 10 * stats.norm.pdf(np.arange(0, 200, 0.1), 100, 1.5)
-    dist2 = 3 * stats.norm.pdf(np.arange(200, 450, 0.1), 300, 25)
-    dist3 = 5 * stats.norm.pdf(np.arange(450, 650, 0.1), 600, 1)
-    dist4 = 7 * stats.norm.pdf(np.arange(650, 725, 0.1), 700, 1.75)
-    dist5 = 1000 * stats.norm.pdf(np.arange(725, 875, 0.1), 800, 3)
-    dist6 = 7 * stats.norm.pdf(np.arange(875, 1000, 0.1), 900, 3)
-
-    dist = np.concatenate((dist1, dist2, dist3, dist4, dist5, dist6))
+    dist = get_template_anomalies()
 
     expected_peaks = [100, 300, 600, 700, 800, 900]
 
@@ -395,12 +399,11 @@ def test_map_locations(tmp_path: Path):  # pylint: disable=too-many-locals
         {
             "line_id": {
                 "values": np.ones_like(x),
-                "value_map": {1: "1", 2: "2", 3: "3"},
+                "value_map": {0: "Unknown", 1: "1", 2: "2", 3: "3"},
                 "type": "referenced",
             }
         }
     )
-    curve.add_data_to_group(line, property_group="Line")
 
     prop_group = curve.find_or_create_property_group(
         name="prop group", properties=[data.uid]
@@ -425,37 +428,49 @@ def test_map_locations(tmp_path: Path):  # pylint: disable=too-many-locals
     min_width = 1.0
     line_field = "{" + str(line.uid) + "}"
 
+    params = PeakFinderParams(geoh5=str(h5file_path))
+    app = PeakFinder(
+        params=params,
+        ui_json_data={
+            "objects": survey,
+            "line_field": line_field,
+        },
+    )
+    app.property_groups = property_groups
+    app.workspace = temp_ws
+
     # Test merging peaks
     n_groups = 1
     max_separation = 100
 
     context_value.set(
         AttributeDict(
-            **{"triggered_inputs": [{"prop_id": "line_ids.value", "value": [1]}]}
-        )
-    )
-
-    indices_dict = app.get_line_indices(
-        survey,
-        line_field,
-        line_ids=[1],
-    )
-
-    context_value.set(
-        AttributeDict(
             **{
                 "triggered_inputs": [
-                    {"prop_id": "line_indices.data", "data": indices_dict["1"]}  # type: ignore
+                    {"prop_id": "line_indices_trigger.data", "data": 0}
                 ]
             }
         )
     )
 
-    app.compute_line(
-        line_indices=indices_dict,  # type: ignore
-        line_ids=[1],
-        objects=survey,
-        property_groups_dict=property_groups,
+    app.update_line_indices(0, 0, 1, 1)
+
+    context_value.set(
+        AttributeDict(
+            **{
+                "triggered_inputs": [
+                    {"prop_id": "line_indices_trigger.data", "data": 1}  # type: ignore
+                ]
+            }
+        )
+    )
+
+    app.compute_lines(
+        lines_computation_trigger=0,
+        line_indices_trigger=0,
+        survey_trigger=0,
+        selected_line=1,
+        n_lines=1,
         smoothing=smoothing,
         max_migration=max_migration,
         min_channels=min_channels,
@@ -464,12 +479,10 @@ def test_map_locations(tmp_path: Path):  # pylint: disable=too-many-locals
         min_width=min_width,
         n_groups=n_groups,
         max_separation=max_separation,
-        update_from_property_groups=False,
-        update_computation=0,
     )
 
-    if app.lines is not None:
-        for value in app.lines.values():
+    if app.computed_lines is not None:
+        for value in app.computed_lines.values():
             positions = value["position"]
             anomaly_groups = value["anomalies"]
 
@@ -485,3 +498,70 @@ def test_map_locations(tmp_path: Path):  # pylint: disable=too-many-locals
                 assert len(np.setdiff1d(locs, og_locs)) == len(expected_peaks)
                 assert np.isclose(locs, expected_peaks, atol=5).any()
                 assert np.isclose(og_locs, expected_peaks, atol=5).any()
+
+
+def test_trend_line(tmp_path: Path):  # pylint: disable=too-many-locals
+    h5file_path = tmp_path / r"testPeakFinder.geoh5"
+    # Create temp workspace
+    temp_ws = Workspace(h5file_path)
+
+    x_locs, y_locs = [], []
+    line_id, data = [], []
+    for ind in range(5):
+        x = np.linspace(0, 1000, 10000)
+        noise = np.random.uniform(low=-5, high=5, size=len(x))
+        x = np.sort(x + noise)
+
+        y = np.linspace(0, 1000, 10000) + ind * 300
+        noise = np.random.uniform(low=-10, high=10, size=len(x))
+        y = np.sort(y + noise)
+
+        x_locs.append(x)
+        y_locs.append(y)
+        line_id.append(np.ones_like(x) * (ind + 1))
+        data.append(get_template_anomalies())
+
+    x_locs = np.concatenate(x_locs)
+    y_locs = np.concatenate(y_locs)
+    curve = Curve.create(temp_ws, vertices=np.c_[x_locs, y_locs, np.zeros_like(x_locs)])
+
+    data = curve.add_data({"data": {"values": np.concatenate(data)}})
+    prop_group = curve.add_data_to_group(data, property_group="obs")
+    value_map = {0: "Unknown"}
+    value_map.update({ind + 1: f"{ind+1}" for ind in range(len(line_id))})
+
+    line = curve.add_data(
+        {
+            "line_id": {
+                "values": np.concatenate(line_id),
+                "value_map": value_map,
+                "type": "referenced",
+            }
+        }
+    )
+
+    temp_ws.close()
+
+    params = PeakFinderParams(
+        geoh5=temp_ws,
+        objects=curve,
+        line_field=line,
+        group_a_data=prop_group,
+        trend_lines=True,
+    )
+
+    params.input_file.write_ui_json("test_peak_trend", tmp_path)
+    PeakFinderDriver(params).run()
+
+    with temp_ws.open():
+        trend_lines = temp_ws.get_entity("Trend Lines")[0]
+        anomalies = temp_ws.get_entity("Anomaly Groups")[0]
+
+        assert isinstance(anomalies, Points)
+        assert isinstance(trend_lines, Curve)
+
+        anom_group = anomalies.get_data("channel_group")[0]
+        trend_group = trend_lines.get_data("channel_group")[0]
+
+        assert isinstance(trend_group, ReferencedData)
+        assert trend_group.entity_type.uid == anom_group.entity_type.uid

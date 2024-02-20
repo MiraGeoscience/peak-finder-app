@@ -18,7 +18,6 @@ import numpy as np
 import plotly.graph_objects as go
 from dash import Dash, callback_context, ctx, dcc, no_update
 from dash.dependencies import Input, Output, State
-from dash.exceptions import PreventUpdate
 from dask import compute
 from dask.diagnostics import ProgressBar
 from flask import Flask
@@ -29,9 +28,9 @@ from geoapps_utils.application.dash_application import (
 from geoapps_utils.plotting import format_axis, symlog
 from geoapps_utils.workspace import get_output_workspace
 from geoh5py import Workspace
-from geoh5py.data import BooleanData, Data, ReferencedData
-from geoh5py.objects import Curve
-from geoh5py.shared.utils import fetch_active_workspace
+from geoh5py.data import BooleanData, Data
+from geoh5py.objects import Curve, ObjectBase
+from geoh5py.shared.utils import fetch_active_workspace, is_uuid
 from geoh5py.ui_json import InputFile
 from tqdm import tqdm
 
@@ -39,9 +38,12 @@ from peak_finder.anomaly_group import AnomalyGroup
 from peak_finder.driver import PeakFinderDriver
 from peak_finder.layout import peak_finder_layout
 from peak_finder.params import PeakFinderParams
+from peak_finder.utils import get_ordered_survey_lines
 
 
-class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-methods
+class PeakFinder(
+    BaseDashApplication
+):  # pylint: disable=too-many-public-methods, too-many-instance-attributes
     """
     Dash app to make a scatter plot.
     """
@@ -49,8 +51,14 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
     _param_class = PeakFinderParams
     _driver_class = PeakFinderDriver
 
-    _lines = None
+    _active_channels: dict | None = None
     _figure = None
+    _line_field = None
+    _line_indices = None
+    _computed_lines = None
+    _survey = None
+    _property_groups = None
+    _ordered_survey_lines = None
 
     def __init__(
         self,
@@ -76,92 +84,63 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         # Getting app layout
         self.set_initialized_layout()
 
-        # Set up callbacks
+        # Callbacks for layout
+        # Update visibility of plots based on dropdown selection.
         self.app.callback(
             Output(component_id="line_figure", component_property="style"),
-            Output(component_id="full_lines_figure", component_property="style"),
-            Input(component_id="plot_selection", component_property="value"),
+            Output(component_id="survey_figure", component_property="style"),
+            Input(component_id="figure_selection", component_property="value"),
         )(PeakFinder.update_plot_visibility)
+        # Update visibility of widgets based on dropdown selection.
         self.app.callback(
             Output(component_id="data_selection", component_property="style"),
             Output(component_id="visual_params", component_property="style"),
             Output(component_id="detection_params", component_property="style"),
+            Output(component_id="color_picker_visibility", component_property="value"),
             Input(component_id="widget_selection", component_property="value"),
         )(PeakFinder.update_widget_visibility)
+        # Disable linear threshold input if y-axis is symlog.
         self.app.callback(
             Output(component_id="linear_threshold", component_property="disabled"),
             Input(component_id="y_scale", component_property="value"),
         )(PeakFinder.disable_linear_threshold)
+        # Update colour picker visibility from checkbox.
         self.app.callback(
-            Output(component_id="group_settings", component_property="style"),
-            Input(component_id="group_settings_visibility", component_property="value"),
+            Output(component_id="color_picker_div", component_property="style"),
+            Input(component_id="color_picker_visibility", component_property="value"),
         )(BaseDashApplication.update_visibility_from_checklist)
+
+        # Callbacks for data selection
+        # Update masking data dropdown from a change in survey object.
         self.app.callback(
-            Output(
-                component_id="group_settings_visibility", component_property="value"
-            ),
-            Input(component_id="widget_selection", component_property="value"),
-        )(PeakFinder.update_group_selection)
-        self.app.callback(
-            Output(component_id="line_field", component_property="options"),
             Output(component_id="masking_data", component_property="options"),
-            Input(component_id="objects", component_property="data"),
-        )(self.init_data_dropdowns)
+            Input(component_id="survey_trigger", component_property="data"),
+        )(self.update_masking_dropdowns)
+
+        # Apply masking to survey object.
         self.app.callback(
-            Output(component_id="line_id", component_property="options"),
-            Output(component_id="line_id", component_property="value"),
-            Input(component_id="line_field", component_property="value"),
-            State(component_id="line_id", component_property="value"),
-        )(self.update_line_id_options)
-        self.app.callback(
-            Output(component_id="property_groups", component_property="data"),
-            Output(component_id="color_picker", component_property="value"),
-            Output(component_id="group_name", component_property="options"),
-            Output(component_id="update_colours", component_property="data"),
-            Output(
-                component_id="update_from_property_groups", component_property="data"
-            ),
-            Input(component_id="color_picker", component_property="value"),
-            Input(component_id="group_name", component_property="value"),
-            Input(component_id="property_groups", component_property="data"),
-            State(component_id="trace_map", component_property="data"),
-            State(component_id="update_colours", component_property="data"),
-        )(self.update_property_groups)
-        self.app.callback(
-            Output(component_id="active_channels", component_property="data"),
+            Output(component_id="survey_trigger", component_property="data"),
             Output(component_id="min_value", component_property="value"),
-            Input(component_id="flip_sign", component_property="value"),
-            Input(component_id="line_field", component_property="value"),
-            Input(component_id="property_groups", component_property="data"),
-            Input(
-                component_id="update_from_property_groups", component_property="data"
-            ),
-        )(self.update_active_channels)
-        self.app.callback(
-            Output(component_id="objects", component_property="data"),
-            Output(component_id="line_field", component_property="value"),
-            Input(component_id="line_field", component_property="value"),
+            Input(component_id="survey_trigger", component_property="data"),
             Input(component_id="masking_data", component_property="value"),
-            Input(component_id="objects", component_property="data"),
-        )(self.mask_data)
+            Input(component_id="flip_sign", component_property="value"),
+        )(self.update_survey_mask)
+        # Update line indices for plotting.
         self.app.callback(
-            Output(component_id="line_ids", component_property="data"),
-            Input(component_id="line_id", component_property="options"),
-            Input(component_id="line_id", component_property="value"),
+            Output(component_id="line_indices_trigger", component_property="data"),
+            Input(component_id="line_indices_trigger", component_property="data"),
+            Input(component_id="survey_trigger", component_property="data"),
+            Input(component_id="selected_line", component_property="value"),
             Input(component_id="n_lines", component_property="value"),
-        )(PeakFinder.get_line_ids)
+        )(self.update_line_indices)
+        # Compute active lines for plotting.
         self.app.callback(
-            Output(component_id="line_indices", component_property="data"),
-            Input(component_id="objects", component_property="data"),
-            Input(component_id="line_field", component_property="value"),
-            Input(component_id="line_ids", component_property="data"),
-        )(self.get_line_indices)
-        self.app.callback(
-            Output(component_id="update_computation", component_property="data"),
-            Input(component_id="line_indices", component_property="data"),
-            Input(component_id="line_ids", component_property="data"),
-            Input(component_id="objects", component_property="data"),
-            Input(component_id="property_groups", component_property="data"),
+            Output(component_id="lines_computation_trigger", component_property="data"),
+            State(component_id="lines_computation_trigger", component_property="data"),
+            Input(component_id="line_indices_trigger", component_property="data"),
+            Input(component_id="survey_trigger", component_property="data"),
+            Input(component_id="selected_line", component_property="value"),
+            Input(component_id="n_lines", component_property="value"),
             Input(component_id="smoothing", component_property="value"),
             Input(component_id="max_migration", component_property="value"),
             Input(component_id="min_channels", component_property="value"),
@@ -170,93 +149,93 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
             Input(component_id="min_width", component_property="value"),
             Input(component_id="n_groups", component_property="value"),
             Input(component_id="max_separation", component_property="value"),
-            Input(
-                component_id="update_from_property_groups", component_property="data"
-            ),
-            State(component_id="update_computation", component_property="data"),
-        )(self.compute_line)
+        )(self.compute_lines)
+
+        # Callbacks to update components of selected line figure
         self.app.callback(
-            Output(component_id="update_lines", component_property="data"),
+            Output(component_id="figure_lines_trigger", component_property="data"),
             Output(component_id="linear_threshold", component_property="min"),
             Output(component_id="linear_threshold", component_property="max"),
             Output(component_id="linear_threshold", component_property="marks"),
-            Input(component_id="update_computation", component_property="data"),
-            Input(component_id="line_id", component_property="value"),
-            Input(component_id="line_indices", component_property="data"),
+            State(component_id="figure_lines_trigger", component_property="data"),
+            Input(component_id="lines_computation_trigger", component_property="data"),
+            Input(component_id="line_indices_trigger", component_property="data"),
+            Input(component_id="selected_line", component_property="value"),
             Input(component_id="y_scale", component_property="value"),
             Input(component_id="linear_threshold", component_property="value"),
-            Input(component_id="active_channels", component_property="data"),
-            Input(component_id="property_groups", component_property="data"),
             Input(component_id="trace_map", component_property="data"),
             Input(component_id="min_value", component_property="value"),
             Input(component_id="x_label", component_property="value"),
-            State(component_id="update_lines", component_property="data"),
-        )(self.update_lines)
+            Input(component_id="flip_sign", component_property="value"),
+        )(self.update_figure_lines)
         self.app.callback(
-            Output(component_id="update_markers", component_property="data"),
-            Input(component_id="update_computation", component_property="data"),
-            State(component_id="update_markers", component_property="data"),
+            Output(component_id="figure_markers_trigger", component_property="data"),
+            State(component_id="figure_markers_trigger", component_property="data"),
+            Input(component_id="lines_computation_trigger", component_property="data"),
+            Input(component_id="line_indices_trigger", component_property="data"),
             Input(component_id="structural_markers", component_property="value"),
-            Input(component_id="line_id", component_property="value"),
-            Input(component_id="active_channels", component_property="data"),
-            State(component_id="property_groups", component_property="data"),
-            State(
-                component_id="update_from_property_groups", component_property="data"
-            ),
+            Input(component_id="selected_line", component_property="value"),
             Input(component_id="y_scale", component_property="value"),
             Input(component_id="linear_threshold", component_property="value"),
-            Input(component_id="line_indices", component_property="data"),
             Input(component_id="trace_map", component_property="data"),
-        )(self.update_markers)
+            Input(component_id="flip_sign", component_property="value"),
+        )(self.update_figure_markers)
         self.app.callback(
-            Output(component_id="update_residuals", component_property="data"),
-            Input(component_id="update_computation", component_property="data"),
+            Output(component_id="figure_residuals_trigger", component_property="data"),
+            State(component_id="figure_residuals_trigger", component_property="data"),
+            Input(component_id="lines_computation_trigger", component_property="data"),
+            Input(component_id="line_indices_trigger", component_property="data"),
             Input(component_id="show_residuals", component_property="value"),
-            Input(component_id="active_channels", component_property="data"),
-            Input(component_id="line_id", component_property="value"),
+            Input(component_id="selected_line", component_property="value"),
             Input(component_id="y_scale", component_property="value"),
             Input(component_id="linear_threshold", component_property="value"),
-            Input(component_id="line_indices", component_property="data"),
             Input(component_id="trace_map", component_property="data"),
-            State(component_id="update_residuals", component_property="data"),
-        )(self.update_residuals)
+            Input(component_id="flip_sign", component_property="value"),
+        )(self.update_figure_residuals)
+        # Update property groups colour from color picker, and color picker from property groups.
         self.app.callback(
-            Output(component_id="update_click_data", component_property="data"),
-            State(component_id="update_click_data", component_property="data"),
+            Output(component_id="color_picker", component_property="value"),
+            Output(component_id="figure_colours_trigger", component_property="data"),
+            State(component_id="figure_colours_trigger", component_property="data"),
+            Input(component_id="color_picker", component_property="value"),
+            Input(component_id="group_name", component_property="value"),
+            State(component_id="trace_map", component_property="data"),
+        )(self.update_figure_colours)
+        self.app.callback(
+            Output(component_id="figure_click_data_trigger", component_property="data"),
+            State(component_id="figure_click_data_trigger", component_property="data"),
+            Input(component_id="lines_computation_trigger", component_property="data"),
             Input(component_id="line_figure", component_property="clickData"),
-            Input(component_id="full_lines_figure", component_property="clickData"),
-            Input(component_id="line_id", component_property="value"),
-            Input(component_id="update_computation", component_property="data"),
-        )(self.update_click_data)
+            Input(component_id="survey_figure", component_property="clickData"),
+            Input(component_id="selected_line", component_property="value"),
+        )(self.update_figure_click_data)
+        # Update the lines, markers, residuals, colours, click data for the selected line figure.
         self.app.callback(
             Output(component_id="line_figure", component_property="figure"),
-            Input(component_id="update_lines", component_property="data"),
-            Input(component_id="update_markers", component_property="data"),
-            Input(component_id="update_residuals", component_property="data"),
-            Input(component_id="update_colours", component_property="data"),
-            Input(component_id="update_click_data", component_property="data"),
-        )(self.update_line_figure)
+            Input(component_id="figure_lines_trigger", component_property="data"),
+            Input(component_id="figure_markers_trigger", component_property="data"),
+            Input(component_id="figure_residuals_trigger", component_property="data"),
+            Input(component_id="figure_colours_trigger", component_property="data"),
+            Input(component_id="figure_click_data_trigger", component_property="data"),
+        )(self.update_selected_line_figure)
+
+        # Update the survey figure.
         self.app.callback(
-            Output(component_id="full_lines_figure", component_property="figure"),
-            Input(component_id="full_lines_figure", component_property="figure"),
+            Output(component_id="survey_figure", component_property="figure"),
+            Input(component_id="lines_computation_trigger", component_property="data"),
+            Input(component_id="survey_figure", component_property="figure"),
             Input(component_id="line_figure", component_property="clickData"),
-            Input(component_id="full_lines_figure", component_property="clickData"),
-            Input(component_id="line_id", component_property="options"),
-            Input(component_id="property_groups", component_property="data"),
-            Input(
-                component_id="update_from_property_groups", component_property="data"
-            ),
-            Input(component_id="line_id", component_property="value"),
-            Input(component_id="line_ids", component_property="data"),
-            Input(component_id="update_computation", component_property="data"),
-        )(self.update_full_lines_figure)
+            Input(component_id="survey_figure", component_property="clickData"),
+            Input(component_id="selected_line", component_property="value"),
+            Input(component_id="n_lines", component_property="value"),
+        )(self.update_survey_figure)
+
+        # Save current parameters and run the driver.
         self.app.callback(
             Output(component_id="live_link", component_property="value"),
             Output(component_id="output_message", component_property="children"),
             Input(component_id="export", component_property="n_clicks"),
-            State(component_id="objects", component_property="data"),
             State(component_id="flip_sign", component_property="value"),
-            State(component_id="line_field", component_property="value"),
             State(component_id="masking_data", component_property="value"),
             State(component_id="smoothing", component_property="value"),
             State(component_id="min_amplitude", component_property="value"),
@@ -266,8 +245,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
             State(component_id="min_channels", component_property="value"),
             State(component_id="n_groups", component_property="value"),
             State(component_id="max_separation", component_property="value"),
-            State(component_id="line_id", component_property="value"),
-            State(component_id="property_groups", component_property="data"),
+            State(component_id="selected_line", component_property="value"),
             State(component_id="ga_group_name", component_property="value"),
             State(component_id="live_link", component_property="value"),
             State(component_id="monitoring_directory", component_property="data"),
@@ -287,20 +265,30 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         return self._app
 
     @property
-    def lines(self) -> dict | None:
+    def active_channels(self) -> dict | None:
         """
-        Line anomalies for the current plot.
+        Data for the channels to be plotted.
         """
-        return self._lines
+        if self.property_groups is None:
+            return None
 
-    @lines.setter
-    def lines(self, value):
-        self._lines = value
+        if self._active_channels is None:
+            self._active_channels = {}
+
+            for group in self.property_groups.values():
+                for channel in group["properties"]:
+                    chan = self.workspace.get_entity(uuid.UUID(channel))[0]
+                    if isinstance(chan, Data):
+                        self._active_channels[channel] = {
+                            "name": chan.name,
+                            "values": chan.values.copy(),
+                        }
+        return self._active_channels
 
     @property
     def figure(self) -> go.Figure | None:
         """
-        Single line figure.
+        Selected line figure.
         """
         return self._figure
 
@@ -308,25 +296,146 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
     def figure(self, value):
         self._figure = value
 
+    @property
+    def line_indices(self) -> dict | None:
+        """
+        Line indices for each active line.
+        """
+        return self._line_indices
+
+    @line_indices.setter
+    def line_indices(self, value):
+        self._line_indices = value
+
+    @property
+    def line_field(self) -> Data | None:
+        """
+        Line labels for survey.
+        """
+        return self._line_field
+
+    @line_field.setter
+    def line_field(self, value):
+        if is_uuid(value):
+            self._line_field = self.workspace.get_entity(uuid.UUID(value))
+        elif isinstance(value, Data):
+            self._line_field = value
+        else:
+            self._line_field = None
+
+    @property
+    def computed_lines(self) -> dict | None:
+        """
+        Line anomalies and positions for the current line ids.
+        """
+        return self._computed_lines
+
+    @computed_lines.setter
+    def computed_lines(self, value):
+        self._computed_lines = value
+
+    @property
+    def survey(self) -> Curve | None:
+        """
+        Current survey object.
+        """
+        if self._survey is not None and self._survey not in self.workspace.objects:
+            self._survey = self.workspace.get_entity(self._survey.uid)[0]
+            if self._survey is not None and self._line_field is not None:
+                self._line_field = self._survey.get_entity(self.line_field.uid)[0]
+            self._active_channels = None
+            self._ordered_survey_lines = None
+
+        return self._survey
+
+    @survey.setter
+    def survey(self, value):
+        if is_uuid(value):
+            self._survey = self.workspace.get_entity(uuid.UUID(value))
+        elif isinstance(value, ObjectBase):
+            self._survey = value
+
+    @property
+    def property_groups(self) -> dict | None:
+        """
+        Property groups data and colours.
+        """
+        return self._property_groups
+
+    @property_groups.setter
+    def property_groups(self, value):
+        self._property_groups = value
+
+    @property
+    def ordered_survey_lines(self) -> dict | None:
+        """
+        Order of survey lines.
+        """
+        if (
+            self._ordered_survey_lines is None
+            and self.line_field is not None
+            and self.survey is not None
+            and self.survey.vertices is not None
+        ):
+            self._ordered_survey_lines = get_ordered_survey_lines(
+                self.survey, self.line_field
+            )
+
+        return self._ordered_survey_lines
+
     def set_initialized_layout(self):
         """
         Initialize the app layout from ui.json data.
         """
         self.app.layout = peak_finder_layout
-        BaseDashApplication.init_vals(self.app.layout.children, self._ui_json_data)
 
-        # Assemble property groups
+        # Assemble property groups.
         property_groups = self.params.get_property_groups()
         for value in property_groups.values():
             value["data"] = str(value["data"])
             value["properties"] = [str(p) for p in value["properties"]]
 
-        trace_map = self.initialize_figure(property_groups)
+        trace_map = self.initialize_line_figure(property_groups)
+
+        self.survey = self.workspace.get_entity(
+            uuid.UUID(self._ui_json_data["objects"])
+        )[0]
+        self.line_field = self.workspace.get_entity(
+            uuid.UUID(self._ui_json_data["line_field"])
+        )[0]
+
+        self.property_groups = property_groups
 
         self.app.layout.children += [
-            dcc.Store(id="property_groups", data=property_groups),
             dcc.Store(id="trace_map", data=trace_map),
         ]
+
+        # Line dropdown options
+        selected_line_options = [
+            {"label": label, "value": id}
+            for id, label in self.ordered_survey_lines.items()
+        ]
+        # Initial line
+        selected_line = None
+        if len(selected_line_options) > 0:
+            selected_line = selected_line_options[0]["value"]
+
+        specify_values = {
+            "selected_line": [
+                {"property": "options", "value": selected_line_options},
+                {"property": "value", "value": selected_line},
+            ],
+            "group_name": [
+                {
+                    "property": "options",
+                    "value": list(self.property_groups.keys()),
+                }
+            ],
+        }
+
+        BaseDashApplication.init_vals(
+            self.app.layout.children, self._ui_json_data, kwargs=specify_values
+        )
 
     @staticmethod
     def update_plot_visibility(plot_selection: list[str]) -> dict:
@@ -342,11 +451,11 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
             return no_update, no_update
 
         output = []
-        if "Line plot" in plot_selection:
+        if "Line figure" in plot_selection:
             output.append({"display": "block"})
         else:
             output.append({"display": "none"})
-        if "Survey plot" in plot_selection:
+        if "Survey figure" in plot_selection:
             output.append({"display": "block"})
         else:
             output.append({"display": "none"})
@@ -362,14 +471,19 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         :return: Visibility of data selection widgets.
         """
         if widget_selection is None:
-            return no_update, no_update, no_update
+            return no_update, no_update, no_update, no_update
 
         if widget_selection == "Data selection":
-            return {"display": "block"}, {"display": "none"}, {"display": "none"}
-        elif widget_selection == "Visual parameters":
-            return {"display": "none"}, {"display": "block"}, {"display": "none"}
-        elif widget_selection == "Detection parameters":
-            return {"display": "none"}, {"display": "none"}, {"display": "block"}
+            return {"display": "block"}, {"display": "none"}, {"display": "none"}, []
+        if widget_selection == "Visual parameters":
+            return (
+                {"display": "none"},
+                {"display": "block"},
+                {"display": "none"},
+                no_update,
+            )
+        if widget_selection == "Detection parameters":
+            return {"display": "none"}, {"display": "none"}, {"display": "block"}, []
 
     @staticmethod
     def update_group_selection(widget_selection: str) -> list[bool]:
@@ -390,209 +504,45 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
             return False
         return True
 
-    def update_property_groups(
-        self,
-        color_picker: dict,
-        group_name: str,
-        property_groups: dict,
-        trace_map: dict,
-        update_colours: int,
-    ) -> tuple[dict, dict, list[str], int, bool]:
-        """
-        Update property groups on color change.
-        Update color picker on group name dropdown change.
-
-        :param color_picker: Color picker hex value.
-        :param group_name: Name of property group from dropdown.
-        :param property_groups: Property groups dictionary.
-        :param trace_map: Dict mapping figure trace indices to trace name.
-        :param update_colours: Trigger for updating figure colours.
-
-        :return: Updated property groups
-        :return: Updated color picker.
-        :return: Updated group name options.
-        :return: Trigger to update figure colours.
-        :return: Whether to update other callbacks from property groups.
-            (If only the colours have been updated, the other plotting callbacks should not be
-            triggered.)
-        """
-        property_groups_out, color_picker_out, group_name_options = (
-            no_update,
-            no_update,
-            no_update,
-        )
-        update_from_property_groups = False
-        trigger = ctx.triggered_id
-
-        if trigger == "group_name":
-            color_picker_out = {"hex": property_groups[group_name]["color"]}
-        elif trigger == "color_picker":
-            property_groups_out = property_groups
-            original_colour = property_groups_out[group_name]["color"]
-            new_colour = str(color_picker["hex"])
-            property_groups_out[group_name]["color"] = new_colour
-            # Update line colours
-            if self.figure is not None:
-                if group_name in trace_map:
-                    self.figure.data[trace_map[group_name]]["line_color"] = new_colour
-                    # Update marker colours
-                    colour_array = np.array(
-                        self.figure.data[trace_map["peaks"]]["marker_color"]
-                    )
-                    colour_array[colour_array == str(original_colour)] = new_colour
-                    self.figure.data[trace_map["peaks"]]["marker_color"] = colour_array
-        elif trigger == "property_groups" or trigger is None:
-            group_name_options = list(property_groups.keys())
-            update_from_property_groups = True
-
-        return (
-            property_groups_out,
-            color_picker_out,
-            group_name_options,
-            update_colours + 1,
-            update_from_property_groups,
-        )
-
-    def init_data_dropdowns(self, objects: str) -> tuple[list[dict], list[dict]]:
+    def update_masking_dropdowns(self, survey_trigger: int) -> list[dict]:
         """
         Initialize data and line field dropdowns from input object.
 
-        :param objects: Input object.
+        :param survey_trigger: Trigger indicating survey object has been updated.
 
-        :return: Line field dropdown options.
         :return: Masking data dropdown options.
         """
-        line_field_options = []
         masking_data_options = [{"label": "None", "value": "None"}]
-        obj = self.workspace.get_entity(uuid.UUID(objects))[0]
-        if obj is None or not hasattr(obj, "children"):
-            return no_update, no_update
-        for child in obj.children:
-            if isinstance(child, ReferencedData):
-                line_field_options.append(
-                    {"label": child.name, "value": "{" + str(child.uid) + "}"}
-                )
+        if self.survey is None or not hasattr(self.survey, "children"):
+            return no_update
+        for child in self.survey.children:
             if isinstance(child, BooleanData):
                 masking_data_options.append(
                     {"label": child.name, "value": "{" + str(child.uid) + "}"}
                 )
-        return line_field_options, masking_data_options
+        return masking_data_options
 
-    def update_line_id_options(
+    def update_survey_mask(
         self,
-        line_field: str | None,
-        line_id: int | None,
-    ) -> tuple[list[dict], int | None]:
-        """
-        Update line ID dropdown options from line field.
-
-        :param line_field: Line field.
-        :param line_id: Line ID.
-
-        :return: Line ID dropdown options.
-        :return: Line ID value.
-        """
-        if line_field is None:
-            return [], None
-
-        line_field_obj = self.workspace.get_entity(uuid.UUID(line_field))[0]
-        value_map = line_field_obj.value_map.map  # type: ignore
-        line_vals = np.unique(line_field_obj.values)  # type: ignore
-
-        options = []
-        for key, value in value_map.items():  # type: ignore
-            if key in line_vals:
-                options.append({"label": value, "value": key})
-
-        if line_id not in line_vals:
-            line_id = options[0]["value"]
-
-        return options, line_id
-
-    def update_active_channels(  # pylint: disable=too-many-locals
-        self,
-        flip_sign_bool: list[bool],
-        line_field: str,
-        property_groups_dict: dict,
-        update_from_property_groups: bool,
-    ) -> tuple[dict, float]:
-        """
-        Update active channels from property groups.
-
-        :param flip_sign_bool: Whether to flip the sign of the data.
-        :param line_field: Trigger update if masking data is changed.
-        :param property_groups_dict: Property groups dictionary.
-        :param update_from_property_groups: Whether to update if property groups is triggered.
-
-        :return: Active channels.
-        :return: Minimum value.
-        """
-        triggers = [t["prop_id"].split(".")[0] for t in callback_context.triggered]
-        if (
-            "update_from_property_groups" in triggers
-            and not update_from_property_groups
-        ):
-            # Prevent updating the rest of the figure if only the colours have changed.
-            raise PreventUpdate
-
-        if flip_sign_bool:
-            flip_sign = -1
-        else:
-            flip_sign = 1
-
-        active_channels = {}
-        property_groups_dict = dict(property_groups_dict)
-        for group in property_groups_dict.values():
-            for channel in group["properties"]:
-                chan = self.workspace.get_entity(uuid.UUID(channel))[0]
-                if (
-                    chan is not None
-                    and getattr(chan, "values", None) is not None
-                    and hasattr(chan, "name")
-                ):
-                    active_channels[channel] = {"name": chan.name}
-
-        d_min, d_max = np.inf, -np.inf
-
-        keys = list(active_channels.keys())
-        for uid in keys:
-            chan = self.workspace.get_entity(uuid.UUID(uid))[0]
-            try:
-                if (
-                    chan is not None
-                    and hasattr(chan, "values")
-                    and hasattr(chan.values, "min")
-                    and hasattr(chan.values, "max")
-                ):
-                    active_channels[uid]["values"] = flip_sign * chan.values.copy()
-                    d_min = np.nanmin([d_min, active_channels[uid]["values"].min()])  # type: ignore
-                    d_max = np.nanmax([d_max, active_channels[uid]["values"].max()])  # type: ignore
-            except KeyError:
-                continue
-
-        min_value = no_update
-        if d_max > -np.inf:
-            min_value = d_min
-        return active_channels, min_value
-
-    def mask_data(
-        self,
-        line_field: str,
+        survey_trigger: int,
         masking_data: str,
-        objects: str,
-    ) -> tuple[str, str]:
+        flip_sign: bool,
+    ) -> tuple[int, float]:
         """
         Apply masking to survey object.
 
-        :param line_field: Line field.
+        :param survey_trigger: Survey trigger to update.
         :param masking_data: Masking data.
-        :param objects: Input object.
+        :param flip_sign: Whether to flip the sign of the data.
 
-        :return: Object uid to trigger other callbacks.
-        :return: Line field uid to trigger other callbacks.
+        :return: Trigger to indicate survey object has been updated.
+        :return: Minimum value for figure, which changes on object change.
         """
+        if self.survey is None:
+            return no_update, no_update
         original_workspace = self.params.geoh5
-        survey_obj = original_workspace.get_entity(uuid.UUID(objects))[0]
+        survey_obj = original_workspace.get_entity(self.survey.uid)[0]
+
         if masking_data is not None and masking_data != "None":
             self.workspace: Workspace = Workspace()
             with fetch_active_workspace(original_workspace):
@@ -608,76 +558,101 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
             self.workspace = original_workspace
             self.workspace.open()
 
-        return objects, line_field
+        min_value = no_update
+        if self.active_channels is not None:
+            sign = 1
+            if flip_sign:
+                sign *= -1
 
-    @staticmethod
-    def get_line_ids(
-        line_id_options: list[dict],
-        line_id: int,
-        n_lines: int,
-    ) -> np.ndarray:
+            d_min, d_max = np.inf, -np.inf
+            for channel in self.active_channels:
+                d_min = np.nanmin(
+                    [
+                        d_min,
+                        sign * self.active_channels[channel]["values"].min(),  # type: ignore
+                    ]
+                )
+                d_max = np.nanmax(
+                    [
+                        d_max,
+                        sign * self.active_channels[channel]["values"].max(),  # type: ignore
+                    ]
+                )
+            if d_max > -np.inf:
+                min_value = d_min
+
+        return survey_trigger + 1, min_value
+
+    def get_active_line_ids(self, selected_line: int, n_lines: int) -> list[int]:
         """
-        Get line IDs to compute for plotting.
+        Get active line IDs for plotting.
 
-        :param line_id_options: Line ID options.
-        :param line_id: Line ID.
-        :param n_lines: Number of lines to plot on either side of line_id.
+        :param selected_line: Selected line ID.
+        :param n_lines: Number of outward survey lines.
 
-        :return: Line IDs.
+        :return: Active line IDs.
         """
-        if line_id is None or n_lines is None:
-            return no_update
+        if self.ordered_survey_lines is None:
+            return []
 
-        full_line_ids = [val["value"] for val in line_id_options]
-        line_id_ind = np.where(np.array(full_line_ids) == line_id)[0][0]
+        survey_line_ids = list(self.ordered_survey_lines.keys())
+        selected_line_ind = survey_line_ids.index(selected_line)
 
-        min_ind = max(0, line_id_ind - n_lines)
-        max_ind = min(len(full_line_ids), line_id_ind + n_lines + 1)
+        survey_lines = survey_line_ids[
+            max(0, selected_line_ind - n_lines) : min(
+                len(survey_line_ids), selected_line_ind + n_lines + 1
+            )
+        ]
 
-        line_ids = full_line_ids[min_ind:max_ind]
-        return line_ids
+        return survey_lines
 
-    def get_line_indices(  # pylint: disable=too-many-locals
+    def update_line_indices(  # pylint: disable=too-many-locals
         self,
-        survey: str,
-        line_field: str,
-        line_ids: list[int],
-    ) -> dict | None:
+        line_indices_trigger: int,
+        survey_trigger: int,
+        selected_line: int,
+        n_lines: int,
+    ) -> int:
         """
         Get line indices for plotting.
 
-        :param survey: Survey object.
-        :param line_field: Line field.
-        :param line_ids: Line IDs.
+        :param line_indices_trigger: Trigger for updating line indices.
+        :param survey_trigger: Trigger for updating survey object.
+        :param selected_line: Selected line ID.
+        :param n_lines: Number of outward survey lines.
 
-        :return: Line indices for each line ID given.
+        :return: Trigger indicating line indices have been updated.
         """
-        if survey is None or line_field is None or line_ids is None:
-            return no_update
-
-        survey_obj = self.workspace.get_entity(uuid.UUID(survey))[0]
-        line_field_obj = self.workspace.get_entity(uuid.UUID(line_field))[0]
-
         if (
-            not isinstance(line_field_obj, Data)
-            or not isinstance(survey_obj, Curve)
-            or not hasattr(line_field_obj, "values")
-            or not hasattr(survey_obj, "parts")
+            self.survey is None
+            or self.line_field is None
+            or self.ordered_survey_lines is None
+            or selected_line is None
         ):
             return no_update
 
-        indices_dict = PeakFinderDriver.get_line_indices(
-            survey_obj, line_field_obj, line_ids
+        if (
+            not isinstance(self.line_field, Data)
+            or not isinstance(self.survey, Curve)
+            or not hasattr(self.line_field, "values")
+            or not hasattr(self.survey, "parts")
+        ):
+            return no_update
+
+        survey_lines = self.get_active_line_ids(selected_line, n_lines)
+        self.line_indices = PeakFinderDriver.get_line_indices(
+            self.survey, self.line_field, survey_lines
         )
 
-        return indices_dict
+        return line_indices_trigger + 1
 
-    def compute_line(  # pylint: disable=too-many-arguments, too-many-locals
+    def compute_lines(  # pylint: disable=too-many-arguments, too-many-locals
         self,
-        line_indices: dict,
-        line_ids: list,
-        objects: str,
-        property_groups_dict: dict,
+        lines_computation_trigger: int,
+        line_indices_trigger: int,
+        survey_trigger: int,
+        selected_line: int,
+        n_lines: int,
         smoothing: float,
         max_migration: float,
         min_channels: int,
@@ -686,16 +661,15 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         min_width: float,
         n_groups: int,
         max_separation: float,
-        update_from_property_groups: bool,
-        update_computation: int,
     ) -> int | None:
         """
         Compute line anomalies.
 
-        :param line_indices: Line indices for each line ID given.
-        :param line_ids: Line IDs.
-        :param objects: Input object.
-        :param property_groups_dict: Property groups dictionary.
+        :param lines_computation_trigger: Trigger for updating the line computation.
+        :param line_indices_trigger: Trigger for updating line indices.
+        :param survey_trigger: Trigger indicating survey has been updated.
+        :param selected_line: Selected line ID.
+        :param n_lines: Number of outward survey lines.
         :param smoothing: Smoothing factor.
         :param max_migration: Maximum peak migration.
         :param min_channels: Minimum number of channels in anomaly.
@@ -704,48 +678,38 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         :param min_width: Minimum width of anomaly in meters.
         :param n_groups: Number of groups to use for grouping anomalies.
         :param max_separation: Maximum separation between anomalies in meters.
-        :param update_from_property_groups: Whether to update if property groups is triggered.
-        :param update_computation: Count for if line has been updated.
 
-        :return: Count for if line has been updated.
+        :return: Trigger indicating line computation has been updated.
         """
         triggers = [t["prop_id"].split(".")[0] for t in callback_context.triggered]
         if (
-            objects is None
-            or line_ids is None
-            or line_indices is None
-            or (
-                "update_from_property_groups" in triggers
-                and not update_from_property_groups
-            )
+            self.survey is None
+            or self.line_indices is None
+            or self.property_groups is None
+            or selected_line is None
         ):
             return no_update
-        obj = self.workspace.get_entity(uuid.UUID(objects))[0]
 
         property_groups = [
-            obj.find_or_create_property_group(name=name)  # type: ignore
-            for name in property_groups_dict
+            self.survey.find_or_create_property_group(name=name)  # type: ignore
+            for name in self.property_groups
         ]
 
-        line_ids_subset = line_ids
+        survey_lines = self.get_active_line_ids(selected_line, n_lines)
+        survey_lines_subset = survey_lines
         if (
-            "line_ids" in triggers
-            and self.lines is not None
-            and "objects" not in triggers
+            self.computed_lines is not None
+            and "survey_trigger" not in triggers
+            and "n_lines" in triggers
         ):
-            line_ids_subset = [line for line in line_ids if line not in self.lines]
-
-        # Dash converts np arrays to lists when it passes through callbacks
-        # Converting back to np arrays
-        for line_id, full_indices in line_indices.items():
-            line_indices[line_id]["line_indices"] = [
-                np.array(inds) for inds in full_indices["line_indices"]
+            survey_lines_subset = [
+                line for line in survey_lines if line not in self.computed_lines
             ]
 
         line_computation = PeakFinderDriver.compute_lines(
-            survey=obj,  # type: ignore
-            line_indices_dict=line_indices,
-            line_ids=line_ids_subset,
+            survey=self.survey,  # type: ignore
+            line_indices_dict=self.line_indices,
+            line_ids=survey_lines_subset,
             property_groups=property_groups,
             smoothing=smoothing,
             min_amplitude=min_amplitude,
@@ -761,12 +725,14 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
             results = compute(line_computation)
 
         # Remove un-needed lines
-        if self.lines is not None and len(triggers) == 1 and "line_ids" in triggers:
-            entries_to_remove = [line for line in self.lines if line not in line_ids]
+        if self.computed_lines is not None and "n_lines" in triggers:
+            entries_to_remove = [
+                line for line in self.computed_lines if line not in survey_lines
+            ]
             for key in entries_to_remove:
-                self.lines.pop(key, None)
+                self.computed_lines.pop(key, None)
         else:
-            self.lines = {}
+            self.computed_lines = {}
 
         # Add new lines
         for result in tqdm(results):
@@ -777,27 +743,28 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
                 if line_groups is not None:
                     for line_group in line_groups:
                         line_anomalies += line_group.groups  # type: ignore
-
-                if line_anomaly.line_id not in self.lines:
-                    self.lines[line_anomaly.line_id] = {
+                if line_anomaly.line_id not in self.computed_lines:
+                    self.computed_lines[line_anomaly.line_id] = {
                         "position": [],
                         "anomalies": [],
                         "plot_line_start": np.inf,
                     }
-                self.lines[line_anomaly.line_id]["anomalies"].append(line_anomalies)
+                self.computed_lines[line_anomaly.line_id]["anomalies"].append(
+                    line_anomalies
+                )
                 # Add position to self.lines
-                self.lines[line_anomaly.line_id]["position"].append(
+                self.computed_lines[line_anomaly.line_id]["position"].append(
                     line_anomaly.position
                 )
 
-                self.lines[line_anomaly.line_id]["plot_line_start"] = min(
+                self.computed_lines[line_anomaly.line_id]["plot_line_start"] = min(
                     np.min(line_anomaly.position.locations_resampled),
-                    self.lines[line_anomaly.line_id]["plot_line_start"],
+                    self.computed_lines[line_anomaly.line_id]["plot_line_start"],
                 )
 
-        return update_computation + 1
+        return lines_computation_trigger + 1
 
-    def update_line_figure(self, *args) -> go.Figure | None:
+    def update_selected_line_figure(self, *args) -> go.Figure | None:
         """
         :param args: Triggers for updating the figure.
 
@@ -805,34 +772,32 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         """
         return self.figure
 
-    def update_lines(  # pylint: disable=too-many-arguments, too-many-locals, too-many-branches  # noqa: C901
+    def update_figure_lines(  # pylint: disable=too-many-arguments, too-many-locals, too-many-branches  # noqa: C901
         self,
-        update_computation: int,
-        line_id: int,
-        line_indices_dict: dict,
+        figure_lines_trigger: int,
+        lines_computation_trigger: int,
+        line_indices_trigger: dict,
+        selected_line: int,
         y_scale: str,
         linear_threshold: float,
-        active_channels: dict,
-        property_groups_dict: dict,
         trace_map: dict,
         min_value: float,
         x_label: str,
-        update_lines: int,
-    ):
+        flip_sign: bool,
+    ) -> tuple:
         """
         Update the figure lines data.
 
-        :param update_computation: Trigger for if the line computation has been updated.
-        :param line_id: Line ID.
-        :param line_indices_dict: Line indices for each line ID given.
+        :param figure_lines_trigger: Trigger for updating the figure lines data.
+        :param lines_computation_trigger: Trigger indicating line computation has been updated.
+        :param line_indices_trigger: Trigger indicating line indices have been updated.
+        :param selected_line: Selected line ID.
         :param y_scale: Whether y-axis ticks are linear or symlog.
         :param linear_threshold: Linear threshold.
-        :param active_channels: Active channels.
-        :param property_groups_dict: Property groups dictionary.
         :param trace_map: Dict mapping trace names to indices.
         :param min_value: Minimum value for figure.
         :param x_label: Label for x-axis.
-        :param update_lines: Trigger for updating the figure lines data.
+        :param flip_sign: Whether to flip the sign of the data.
 
         :return: Trigger for updating the figure lines data.
         :return: Linear threshold slider min.
@@ -840,13 +805,17 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         :return: Linear threshold slider marks.
         """
         if (
-            len(active_channels) == 0
-            or self.lines is None
-            or not self.lines
-            or line_id is None
+            self.active_channels is None
+            or self.computed_lines is None
+            or selected_line is None
             or self.figure is None
+            or self.line_indices is None
         ):
             return no_update, no_update, no_update, no_update
+
+        sign = 1
+        if flip_sign:
+            sign *= -1
 
         y_min, y_max = np.inf, -np.inf
         log = y_scale == "symlog"
@@ -865,19 +834,19 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         }
 
         for channel_dict in list(  # pylint: disable=too-many-nested-blocks
-            active_channels.values()
+            self.active_channels.values()
         ):
             if "values" not in channel_dict:
                 continue
-            full_values = np.array(channel_dict["values"])
-
-            line_indices = line_indices_dict[str(line_id)]["line_indices"]
+            full_values = sign * np.array(channel_dict["values"])
+            line_indices = self.line_indices[selected_line]["line_indices"]
 
             inds = range(len(line_indices))
             for ind in inds:
-                position = self.lines[line_id]["position"][ind]
-                anomalies = self.lines[line_id]["anomalies"][ind]
+                position = self.computed_lines[selected_line]["position"][ind]
+                anomalies = self.computed_lines[selected_line]["anomalies"][ind]
                 indices = line_indices[ind]
+
                 locs = position.locations_resampled
 
                 if len(indices) < 2 or locs is None:
@@ -928,7 +897,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
                                 "customdata"
                             ] += list(values[start:end]) + [None]
 
-        if np.isinf(y_min):
+        if np.isinf(y_min) or self.property_groups is None:
             return no_update, None, None, None
 
         all_values = np.array(all_values)
@@ -940,7 +909,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         )
 
         # Remove traces in trace map but not trace dict from plot
-        remaining_traces = set(property_groups_dict.keys()) - set(
+        remaining_traces = set(self.property_groups.keys()) - set(
             trace_dict["property_groups"].keys()
         )
 
@@ -971,7 +940,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         }
 
         # Update figure layout
-        self.update_layout(
+        self.update_figure_layout(
             y_label,
             y_tickvals,
             y_ticktext,
@@ -981,7 +950,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
             x_label,
         )
         return (
-            update_lines + 1,
+            figure_lines_trigger + 1,
             thresh_min,
             thresh_max,
             thresh_ticks,
@@ -1085,52 +1054,45 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
 
         return trace_dict
 
-    def update_markers(  # noqa: C901  # pylint: disable=too-many-arguments, too-many-locals, too-many-branches, too-many-statements
+    def update_figure_markers(  # noqa: C901  # pylint: disable=too-many-arguments, too-many-locals, too-many-branches, too-many-statements
         self,
-        update_computation: int,
-        update_markers: int,
+        figure_markers_trigger: int,
+        lines_computation_trigger: int,
+        line_indices_trigger: int,
         show_markers: list[bool],
-        line_id: int,
-        active_channels: dict,
-        property_groups: dict,
-        update_from_property_groups: bool,
+        selected_line: int,
         y_scale: str,
         linear_threshold: float,
-        line_indices_dict: dict,
         trace_map: dict,
+        flip_sign: bool,
     ) -> int:
         """
         Update the figure markers data.
 
-        :param update_computation: Trigger for if the line computation has been updated.
-        :param update_markers: Trigger for updating the figure markers data.
+        :param figure_markers_trigger: Trigger for updating the figure markers data.
+        :param lines_computation_trigger: Trigger indicating line computation has been updated.
+        :param line_indices_trigger: Trigger indicating line indices have been updated.
         :param show_markers: Whether to show markers.
-        :param line_id: Line ID.
-        :param active_channels: Active channels.
-        :param property_groups: Property groups dictionary.
-        :param update_from_property_groups: Whether to update if property groups is triggered.
+        :param selected_line: Selected line ID.
         :param y_scale: Whether y-axis ticks are linear or symlog.
         :param linear_threshold: Linear threshold.
-        :param line_indices_dict: Line indices for each line ID given.
         :param trace_map: Dict mapping trace names to indices.
+        :param flip_sign: Whether to flip the sign of the data.
 
         :return: Trigger for updating the figure markers data.
         """
         if (
-            len(active_channels) == 0
-            or self.lines is None
-            or not self.lines
-            or line_id is None
+            self.active_channels is None
+            or self.computed_lines is None
             or self.figure is None
+            or self.line_indices is None
+            or self.property_groups is None
         ):
             return no_update
 
-        triggers = [t["prop_id"].split(".")[0] for t in callback_context.triggered]
-        if (
-            "update_from_property_groups" in triggers
-            and not update_from_property_groups
-        ):
-            raise PreventUpdate
+        sign = 1
+        if flip_sign:
+            sign *= -1
 
         if not show_markers:
             self.figure.data[trace_map["markers_legend"]]["visible"] = False
@@ -1146,7 +1108,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
                 if trace_name in trace_map:
                     self.figure.data[trace_map[trace_name]]["x"] = []
                     self.figure.data[trace_map[trace_name]]["y"] = []
-            return update_markers + 1
+            return figure_markers_trigger + 1
         self.figure.data[trace_map["markers_legend"]]["visible"] = True
 
         log = y_scale == "symlog"
@@ -1177,21 +1139,23 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
                 },
             },
         }
-        n_parts = len(self.lines[line_id]["position"])
-        for ind in range(n_parts):  # pylint: disable=R1702
-            position = self.lines[line_id]["position"][ind]
-            anomalies = self.lines[line_id]["anomalies"][ind]
-            indices = line_indices_dict[str(line_id)]["line_indices"][ind]
+        line_indices = self.line_indices[selected_line]["line_indices"]
+
+        inds = range(len(line_indices))
+        for ind in inds:
+            position = self.computed_lines[selected_line]["position"][ind]
+            anomalies = self.computed_lines[selected_line]["anomalies"][ind]
+            indices = line_indices[ind]
 
             if len(indices) < 2:
                 continue
             locs = position.locations_resampled
 
-            for channel_dict in list(active_channels.values()):
+            for channel_dict in list(self.active_channels.values()):
                 if "values" not in channel_dict:
                     continue
 
-                values = np.array(channel_dict["values"])[indices]
+                values = sign * np.array(channel_dict["values"])[indices]
                 values, _ = position.resample_values(values)
                 all_values += list(values.flatten())
 
@@ -1206,7 +1170,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
                             [a.parent.data_entity.name for a in subgroup.anomalies]
                         )
                         group_name = subgroup.property_group.name
-                        color = property_groups[group_name]["color"]
+                        color = self.property_groups[group_name]["color"]
                         query = np.where(np.array(channels) == channel_dict["name"])[0]
                         if len(query) == 0:
                             continue
@@ -1288,7 +1252,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
                         "marker_color"
                     ]
 
-        return update_markers + 1
+        return figure_markers_trigger + 1
 
     def add_residuals(
         self,
@@ -1362,44 +1326,49 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
             )
         )
 
-    def update_residuals(  # pylint: disable=too-many-arguments, too-many-locals
+    def update_figure_residuals(  # pylint: disable=too-many-arguments, too-many-locals
         self,
-        update_computation: int,
+        figure_residuals_trigger: int,
+        lines_computation_trigger: int,
+        line_indices_trigger: int,
         show_residuals: list[bool],
-        active_channels: dict,
-        line_id: int,
+        selected_line: int,
         y_scale: str,
         linear_threshold: float,
-        line_indices_dict: dict,
         trace_map: dict,
-        update_residuals: int,
+        flip_sign: bool,
     ) -> int:
         """
         Add residuals to figure.
 
-        :param update_computation: Trigger for if the line computation has been updated.
+        :param figure_residuals_trigger: Trigger for updating the figure residuals data.
+        :param lines_computation_trigger: Trigger indicating line computation has been updated.
+        :param line_indices_trigger: Trigger indicating line indices have been updated.
         :param show_residuals: Whether to show residuals.
-        :param active_channels: Active channels.
-        :param line_id: Line ID.
+        :param selected_line: Selected line ID.
         :param y_scale: Whether y-axis ticks are linear or symlog.
         :param linear_threshold: Linear threshold.
-        :param line_indices_dict: Line indices for each line ID given.
         :param trace_map: Dict mapping trace names to indices.
-        :param update_residuals: Trigger for updating the figure residuals data.
+        :param flip_sign: Whether to flip the sign of the data.
 
         :return: Trigger for updating the figure residuals data.
         """
         if (
-            len(active_channels) == 0
-            or self.lines is None
-            or not self.lines
-            or line_id is None
+            self.active_channels is None
+            or self.computed_lines is None
+            or not self.computed_lines
+            or selected_line is None
             or self.figure is None
+            or self.line_indices is None
         ):
             return no_update
 
+        sign = 1
+        if flip_sign:
+            sign *= -1
+
         triggers = [t["prop_id"].split(".")[0] for t in callback_context.triggered]
-        if "update_computation" in triggers or (
+        if "lines_computation_trigger" in triggers or (
             "show_residuals" in triggers and not show_residuals
         ):
             for ind in range(len(trace_map), len(self.figure.data)):
@@ -1409,7 +1378,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         if not show_residuals:
             self.figure.data[trace_map["pos_residuals_legend"]]["visible"] = False
             self.figure.data[trace_map["neg_residuals_legend"]]["visible"] = False
-            return update_residuals + 1
+            return figure_residuals_trigger + 1
 
         self.figure.data[trace_map["pos_residuals_legend"]]["visible"] = True
         self.figure.data[trace_map["neg_residuals_legend"]]["visible"] = True
@@ -1417,21 +1386,23 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         log = y_scale == "symlog"
         threshold = np.float_power(10, linear_threshold)
 
-        n_parts = len(self.lines[line_id]["position"])
-        for ind in range(n_parts):  # pylint: disable=R1702
-            position = self.lines[line_id]["position"][ind]
-            anomalies = self.lines[line_id]["anomalies"][ind]
-            indices = line_indices_dict[str(line_id)][ind]
+        line_indices = self.line_indices[selected_line]["line_indices"]
+
+        inds = range(len(line_indices))
+        for ind in inds:
+            position = self.computed_lines[selected_line]["position"][ind]
+            anomalies = self.computed_lines[selected_line]["anomalies"][ind]
+            indices = line_indices[ind]
 
             if len(indices) < 2:
                 continue
             locs = position.locations_resampled
 
-            for channel_dict in list(active_channels.values()):
+            for channel_dict in list(self.active_channels.values()):
                 if "values" not in channel_dict:
                     continue
 
-                values = np.array(channel_dict["values"])[indices]
+                values = sign * np.array(channel_dict["values"])[indices]
                 values, raw = position.resample_values(values)
 
                 if log:
@@ -1454,31 +1425,75 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
                     sym_raw,
                     locs,
                 )
-        return update_residuals + 1
+        return figure_residuals_trigger + 1
 
-    def update_click_data(
+    def update_figure_colours(
         self,
-        update_click_data: int,
+        figure_colours_trigger: int,
+        color_picker: dict,
+        group_name: str,
+        trace_map: dict,
+    ) -> tuple[dict, int]:
+        """
+        Update property groups color on color_picker change.
+        Update color picker on group name dropdown change.
+
+        :param figure_colours_trigger: Trigger for updating figure colours.
+        :param color_picker: Color picker hex value.
+        :param group_name: Name of property group from dropdown.
+        :param trace_map: Dict mapping figure trace indices to trace name.
+
+        :return: Updated color picker.
+        :return: Trigger to update figure colours.
+        """
+        if self.property_groups is None:
+            return no_update, no_update
+
+        color_picker_out = no_update
+        trigger = ctx.triggered_id
+
+        if trigger == "group_name":
+            color_picker_out = {"hex": self.property_groups[group_name]["color"]}
+        elif trigger == "color_picker":
+            original_colour = self.property_groups[group_name]["color"]
+            new_colour = str(color_picker["hex"])
+            self.property_groups[group_name]["color"] = new_colour
+            # Update line colours
+            if self.figure is not None:
+                if group_name in trace_map:
+                    self.figure.data[trace_map[group_name]]["line_color"] = new_colour
+                    # Update marker colours
+                    colour_array = np.array(
+                        self.figure.data[trace_map["peaks"]]["marker_color"]
+                    )
+                    colour_array[colour_array == str(original_colour)] = new_colour
+                    self.figure.data[trace_map["peaks"]]["marker_color"] = colour_array
+
+        return color_picker_out, figure_colours_trigger + 1
+
+    def update_figure_click_data(
+        self,
+        figure_click_data_trigger: int,
+        lines_computation_trigger: int,
         line_click_data: dict | None,
         full_lines_click_data: dict | None,
-        line_id: int,
-        update_computation: int,
+        selected_line: int,
     ) -> int:
         """
         Update the markers on the single line figure from clicking on either figure.
 
-        :param update_click_data: Trigger for updating the click data.
+        :param figure_click_data_trigger: Trigger for updating the figure click data.
+        :param lines_computation_trigger: Trigger indicating line computation has been updated.
         :param line_click_data: Click data from the single line figure.
         :param full_lines_click_data: Click data from the full lines figure.
-        :param line_id: Line ID.
-        :param update_computation: Trigger for recomputation of line.
+        :param selected_line: Selected line ID.
 
         :return: Trigger for updating the click data.
         """
         if (
             self.figure is None
             or self.figure.layout.shapes is None
-            or self.lines is None
+            or self.computed_lines is None
         ):
             return no_update
 
@@ -1488,20 +1503,25 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         triggers = [t["prop_id"].split(".")[0] for t in callback_context.triggered]
 
         if (
-            "update_computation" in triggers
-            and "line_id" in triggers
-            and line_id in self.lines
+            "lines_computation_trigger" in triggers
+            and selected_line in self.computed_lines
         ):
             self.figure.update_shapes({"x0": 0, "x1": 0})
         elif line_click_data is not None and "line_figure" in triggers:
             x_val = line_click_data["points"][0]["x"]
             self.figure.update_shapes({"x0": x_val, "x1": x_val})
-        elif full_lines_click_data is not None and "full_lines_figure" in triggers:
+        elif full_lines_click_data is not None and "survey_figure" in triggers:
             x_locs = np.concatenate(
-                tuple(pos.x_locations for pos in self.lines[line_id]["position"])
+                tuple(
+                    pos.x_locations
+                    for pos in self.computed_lines[selected_line]["position"]
+                )
             )
             y_locs = np.concatenate(
-                tuple(pos.y_locations for pos in self.lines[line_id]["position"])
+                tuple(
+                    pos.y_locations
+                    for pos in self.computed_lines[selected_line]["position"]
+                )
             )
             min_index = np.argmin(x_locs)
             x_min = x_locs[min_index]
@@ -1514,12 +1534,11 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
                 ]
             )
 
-            # x_val = full_lines_click_data["points"][0]["x"] - x_min
             self.figure.update_shapes({"x0": x_val, "x1": x_val})
 
-        return update_click_data + 1
+        return figure_click_data_trigger + 1
 
-    def update_layout(  # pylint: disable=too-many-arguments
+    def update_figure_layout(  # pylint: disable=too-many-arguments
         self,
         y_label: str | None,
         y_tickvals: np.ndarray | None,
@@ -1565,7 +1584,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
             {"xaxis_title": x_label + " (m)", "yaxis_tickformat": ".2e"}
         )
 
-    def initialize_figure(
+    def initialize_line_figure(
         self,
         property_groups: dict,
     ) -> dict:
@@ -1754,48 +1773,45 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         self.figure.update_layout(margin={"t": 20, "l": 20, "b": 20, "r": 20})
         return trace_map
 
-    def update_full_lines_figure(  # pylint: disable=too-many-arguments, too-many-locals, too-many-branches
+    def update_survey_figure(  # pylint: disable=too-many-arguments, too-many-locals, too-many-branches
         self,
+        lines_computation_trigger: int,
         figure: dict | None,
         line_click_data: dict | None,
-        full_lines_click_data: dict | None,
-        line_id_options: list[dict[str, str]],
-        property_groups: dict,
-        update_from_property_groups: bool,
-        line_id: int,
-        line_ids: list[int],
-        update_computation: int,
+        survey_figure_click_data: dict | None,
+        selected_line: int,
+        n_lines: int,
     ) -> go.Figure:
         """
         Update the full lines figure.
 
+        :param lines_computation_trigger: Trigger indicating line computation has been updated.
         :param figure: Figure dictionary.
         :param line_click_data: Line figure click data.
-        :param full_lines_click_data: Full lines figure click data.
-        :param line_id_options: Line id options.
-        :param property_groups: Property groups dictionary.
-        :param update_from_property_groups: Whether to update the plot if property groups is
-            triggered.
-        :param line_id: Line id.
-        :param line_ids: Line ids.
-        :param update_computation: Trigger for line computation.
+        :param survey_figure_click_data: Survey figure click data.
+        :param selected_line: Selected line ID.
+        :param n_lines: Number of lines outward from the selected line to plot.
 
         :return: Full lines figure.
         """
         triggers = [t["prop_id"].split(".")[0] for t in callback_context.triggered]
-        if property_groups in triggers and not update_from_property_groups:
-            raise PreventUpdate
         if figure is not None:
             if (
                 line_click_data is not None
                 and "line_figure" in triggers
-                and self.lines is not None
+                and self.computed_lines is not None
             ):
                 x_locs = np.concatenate(
-                    tuple(pos.x_locations for pos in self.lines[line_id]["position"])
+                    tuple(
+                        pos.x_locations
+                        for pos in self.computed_lines[selected_line]["position"]
+                    )
                 )
                 y_locs = np.concatenate(
-                    tuple(pos.y_locations for pos in self.lines[line_id]["position"])
+                    tuple(
+                        pos.y_locations
+                        for pos in self.computed_lines[selected_line]["position"]
+                    )
                 )
                 # Get start of line
                 start_ind = np.argmin(x_locs)
@@ -1815,21 +1831,30 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
                 figure["data"][-1]["x"] = [x_val]
                 figure["data"][-1]["y"] = [y_val]
                 return figure
-            if full_lines_click_data is not None and "full_lines_figure" in triggers:
-                x_val = full_lines_click_data["points"][0]["x"]
-                y_val = full_lines_click_data["points"][0]["y"]
+            if survey_figure_click_data is not None and "survey_figure" in triggers:
+                x_val = survey_figure_click_data["points"][0]["x"]
+                y_val = survey_figure_click_data["points"][0]["y"]
                 figure["data"][-1]["x"] = [x_val]
                 figure["data"][-1]["y"] = [y_val]
                 return figure
 
         figure = go.Figure()
-        if line_ids is None or self.lines is None or line_id is None:
+        if (
+            self.computed_lines is None
+            or selected_line is None
+            or self.ordered_survey_lines is None
+            or self.property_groups is None
+        ):
             return figure
 
-        line_ids_labels = {line["value"]: line["label"] for line in line_id_options}
+        survey_lines = self.get_active_line_ids(selected_line, n_lines)
+
+        line_ids_labels = {
+            line: self.ordered_survey_lines[line] for line in survey_lines
+        }
 
         anomaly_traces = {}
-        for key, value in property_groups.items():
+        for key, value in self.property_groups.items():
             anomaly_traces[key] = {
                 "x": [None],
                 "y": [None],
@@ -1841,11 +1866,11 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         marker_x = np.inf
         marker_y = np.inf
         line_dict = {}
-        for line in self.lines:  # type: ignore  # pylint: disable=C0206
-            line_position = self.lines[line]["position"]
-            line_anomalies = self.lines[line]["anomalies"]
+        for line in self.computed_lines:  # type: ignore  # pylint: disable=C0206
+            line_position = self.computed_lines[line]["position"]
+            line_anomalies = self.computed_lines[line]["anomalies"]
 
-            label = line_ids_labels[int(line)]  # type: ignore
+            label = line_ids_labels[line]  # type: ignore
             n_parts = len(line_position)
 
             line_dict[line] = {
@@ -1853,7 +1878,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
                 "y": [None],
                 "name": label,
             }
-            if int(line) == line_id:
+            if line == selected_line:
                 line_dict[line]["line_color"] = "black"
 
             for ind in range(n_parts):
@@ -1863,7 +1888,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
                 if position is not None and position.locations_resampled is not None:
                     x_locs = position.x_locations
                     y_locs = position.y_locations
-                    if line == line_id and x_locs[0] < marker_x:
+                    if line == selected_line and x_locs[0] < marker_x:
                         marker_x = x_locs[0]
                         marker_y = y_locs[0]
                     line_dict[line]["x"] += [None] + list(x_locs)  # type: ignore
@@ -1921,9 +1946,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
     def trigger_click(  # pylint: disable=too-many-arguments, too-many-locals
         self,
         n_clicks: int,
-        objects: str,
         flip_sign: list[bool],
-        line_field: str,
         masking_data: str | None,
         smoothing: float,
         min_amplitude: float,
@@ -1933,8 +1956,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         min_channels: int,
         n_groups: int,
         max_separation: float,
-        line_id: int,
-        property_groups: dict,
+        selected_line: int,
         ga_group_name: str,
         live_link: list[bool],
         monitoring_directory: str,
@@ -1943,9 +1965,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         Write output ui.json file and workspace, run driver.
 
         :param n_clicks: Trigger for callback.
-        :param objects: Input object.
         :param flip_sign: Whether to flip the sign of the data.
-        :param line_field: Line field.
         :param masking_data: Masking data.
         :param smoothing: Smoothing factor.
         :param min_amplitude: Minimum amplitude.
@@ -1955,8 +1975,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         :param min_channels: Minimum number of channels.
         :param n_groups: Number of consecutive peaks to merge.
         :param max_separation: Maximum separation between peaks to merge.
-        :param line_id: Line ID.
-        :param property_groups: Property groups dictionary.
+        :param selected_line: Selected line ID.
         :param ga_group_name: Group name.
         :param live_link: Whether to use live link.
         :param monitoring_directory: Monitoring directory.
@@ -1966,6 +1985,13 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         """
         # Update self.params from dash component values
         param_dict = self.get_params_dict(locals())
+        if (
+            (monitoring_directory is None)
+            or (monitoring_directory == "")
+            or not Path(monitoring_directory).is_dir()
+            or self.property_groups is None
+        ):
+            return no_update, ["Invalid output path."]
 
         if not live_link:
             live_link = False  # type: ignore
@@ -1973,21 +1999,26 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
             live_link = True  # type: ignore
 
         # Get output path
-        if (
-            monitoring_directory is not None
-            and monitoring_directory != ""
-            and Path(monitoring_directory).resolve().exists()
-        ):
-            monitoring_directory = Path(monitoring_directory).resolve()
-            # Create a new workspace and copy objects into it
-            temp_geoh5 = f"{ga_group_name}_{time.time():.0f}.geoh5"
-            _, live_link = get_output_workspace(
-                live_link=live_link, workpath=monitoring_directory, name=temp_geoh5
-            )
-            if not live_link:
-                param_dict["monitoring_directory"] = ""
+        monitoring_directory = Path(monitoring_directory).resolve()
+        # Create a new workspace and copy objects into it
+        temp_geoh5 = f"{ga_group_name}_{time.time():.0f}.geoh5"
+        _, live_link = get_output_workspace(
+            live_link=live_link, workpath=monitoring_directory, name=temp_geoh5
+        )
+        if not live_link:
+            param_dict["monitoring_directory"] = ""
         else:
             live_link = False
+
+        # Update self.params from dash component values
+        param_vals = locals()
+        param_vals.update(
+            {
+                "objects": self.survey,
+                "line_field": self.line_field,
+            }
+        )
+        param_dict = self.get_params_dict(locals())
 
         workspace = self.params.ui_json["geoh5"]
         output_path = workspace.h5file
@@ -1998,16 +2029,30 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         if masking_data == "None":
             param_dict["masking_data"] = None
 
-        # Write output uijson.
-        new_params = PeakFinderParams(**param_dict)
-        new_params.write_input_file(
-            name=str(workspace.h5file).replace(".geoh5", ".ui.json"),
-            path=param_dict["monitoring_directory"],
-            validate=False,
-        )
+        if not live_link:
+            param_dict["monitoring_directory"] = ""
 
-        driver = PeakFinderDriver(new_params)
-        driver.run()
+        with workspace as new_workspace:
+            # Put entities in output workspace.
+            param_dict["geoh5"] = new_workspace
+            param_dict["objects"] = param_dict["objects"].copy(
+                parent=new_workspace, copy_children=True
+            )
+            p_g_new = {p_g.name: p_g for p_g in param_dict["objects"].property_groups}
+            # Add property groups
+            for key, value in self.property_groups.items():
+                param_dict[f"group_{value['param']}_data"] = p_g_new[key]
+                param_dict[f"group_{value['param']}_color"] = value["color"]
+
+            # Write output uijson.
+            new_params = PeakFinderParams(**param_dict)
+            new_params.write_input_file(
+                name=str(new_workspace.h5file).replace(".geoh5", ".ui.json"),
+                path=param_dict["monitoring_directory"],
+                validate=False,
+            )
+            driver = PeakFinderDriver(new_params)
+            driver.run()
 
         if live_link:
             return [True], [

@@ -12,6 +12,8 @@ from __future__ import annotations
 import sys
 
 import numpy as np
+from curve_apps.trend_lines.driver import TrendLinesDriver
+from curve_apps.trend_lines.params import Parameters
 from dask import compute, delayed
 from dask.diagnostics import ProgressBar
 from geoapps_utils.conversions import hex_to_rgb
@@ -73,8 +75,8 @@ class PeakFinderDriver(BaseDriver):
 
         anomalies = []
         for line_id in tqdm(list(line_ids)):
-            line_start = line_indices_dict[str(line_id)]["line_start"]
-            for indices in line_indices_dict[str(line_id)]["line_indices"]:  # type: ignore
+            line_start = line_indices_dict[line_id]["line_start"]
+            for indices in line_indices_dict[line_id]["line_indices"]:  # type: ignore
                 anomalies += [
                     line_computation(
                         entity=survey,
@@ -126,7 +128,7 @@ class PeakFinderDriver(BaseDriver):
             line_bool = line_field_obj.values == line_id
             full_line_indices = np.where(line_bool)[0]
 
-            indices_dict[str(line_id)] = {"line_indices": []}
+            indices_dict[line_id] = {"line_indices": []}
 
             parts = np.unique(survey_obj.parts[full_line_indices])
 
@@ -138,7 +140,7 @@ class PeakFinderDriver(BaseDriver):
                 line_indices = np.zeros(line_length, dtype=bool)
                 line_indices[active_indices] = True
 
-                indices_dict[str(line_id)]["line_indices"].append(line_indices)
+                indices_dict[line_id]["line_indices"].append(line_indices)
 
         # Just on masked parts of line
         for line_id, indices in indices_dict.items():
@@ -206,7 +208,6 @@ class PeakFinderDriver(BaseDriver):
             indices_dict = PeakFinderDriver.get_line_indices(
                 survey_obj, line_field_obj, line_ids
             )
-
             anomalies = PeakFinderDriver.compute_lines(
                 survey=survey_obj,
                 line_indices_dict=indices_dict,
@@ -235,7 +236,8 @@ class PeakFinderDriver(BaseDriver):
                 anom_start,
                 anom_end,
                 peaks,
-            ) = ([], [], [], [], [], [], [], [], [], [], [], [])
+                line_ids,
+            ) = ([], [], [], [], [], [], [], [], [], [], [], [], [])
 
             print("Processing and collecting results:")
             with ProgressBar():
@@ -267,7 +269,7 @@ class PeakFinderDriver(BaseDriver):
                             group_center.append(locs[ind])
                             group_start.append(group.start)
                             group_end.append(group.end)
-
+                            line_ids.append(line_anomaly.line_id)
                             inds_map = group.position.map_locations
                             for anom in group.anomalies:
                                 anom_locs.append(locs[inds_map[anom.peak]])
@@ -278,14 +280,15 @@ class PeakFinderDriver(BaseDriver):
                                 peaks.append(inds_map[anom.peak])
 
             print("Exporting . . .")
+            group_points = None
             if group_center:
                 channel_group = np.hstack(channel_group)  # Start count at 1
 
                 # Create reference values and color_map
-                group_map, color_map = {}, []
+                group_map, color_map = {0: "Unknown"}, [[0, 0, 0, 0, 0]]
                 for ind, (name, group) in enumerate(channel_groups.items()):
                     group_map[ind + 1] = name
-                    color_map += [[ind + 1] + hex_to_rgb(group["color"]) + [1]]
+                    color_map += [[ind + 1] + hex_to_rgb(group["color"]) + [0]]
 
                 color_map = np.core.records.fromarrays(
                     np.vstack(color_map).T,
@@ -324,6 +327,14 @@ class PeakFinderDriver(BaseDriver):
                     "name": "Time Groups",
                     "values": color_map,
                 }
+                line_id_data = group_points.add_data(
+                    {
+                        line_field_obj.name: {
+                            "values": np.hstack(line_ids).astype(np.int32),
+                            "entity_type": line_field_obj.entity_type,
+                        }
+                    }
+                )
 
             if anom_locs:
                 anom_points = Points.create(
@@ -348,7 +359,24 @@ class PeakFinderDriver(BaseDriver):
                         },
                     }
                 )
-            print("monitor")
+
+            if group_points is not None and self.params.trend_lines:
+                inputs = {
+                    "geoh5": self.params.geoh5,
+                    "entity": group_points,
+                    "data": channel_group_data,
+                    "parts": line_id_data,
+                    "export_as": "Trend Lines",
+                    "damping": 1,
+                }
+                params = Parameters.build(inputs)
+                driver = TrendLinesDriver(params)
+                out_trend = driver.create_output("Trend Lines", parent=output_group)
+
+                if out_trend is not None:
+                    driver.add_ui_json(out_trend)
+
+        with self.params.geoh5.open(mode="r+"):
             self.update_monitoring_directory(output_group)
 
 
