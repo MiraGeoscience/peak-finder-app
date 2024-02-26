@@ -129,6 +129,7 @@ def test_peak_finder_app(tmp_path: Path):  # pylint: disable=too-many-locals
     app.trigger_click(
         n_clicks=0,
         flip_sign=[],
+        trend_lines=[],
         masking_data=None,
         smoothing=smoothing,
         min_amplitude=min_amplitude,
@@ -244,6 +245,7 @@ def test_merging_peaks(tmp_path: Path):  # pylint: disable=too-many-locals
         app.trigger_click(
             n_clicks=0,
             flip_sign=[],
+            trend_lines=[],
             masking_data=None,
             smoothing=smoothing,
             min_amplitude=min_amplitude,
@@ -354,6 +356,7 @@ def test_masking_peaks(tmp_path: Path):  # pylint: disable=too-many-locals
     app.trigger_click(
         n_clicks=0,
         flip_sign=[],
+        trend_lines=[],
         masking_data=str(masking_data.uid),
         smoothing=smoothing,
         min_amplitude=min_amplitude,
