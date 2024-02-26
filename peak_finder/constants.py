@@ -18,6 +18,7 @@ defaults = {
     "objects": None,
     "flip_sign": False,
     "line_field": None,
+    "trend_lines": None,
     "masking_data": None,
     "smoothing": 6,
     "min_amplitude": 1.0,

@@ -78,6 +78,10 @@ data_selection_layout = html.Div(
             ]
         ),
         dcc.Checklist(
+            id="trend_lines",
+            options=[{"label": "Create trend lines", "value": True}],
+        ),
+        dcc.Checklist(
             id="flip_sign",
             options=[{"label": "Flip Y (-1x)", "value": True}],
         ),
