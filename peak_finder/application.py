@@ -10,9 +10,7 @@ from __future__ import annotations
 
 import os
 import sys
-import time
 import uuid
-from pathlib import Path
 
 import numpy as np
 import plotly.graph_objects as go
@@ -26,7 +24,6 @@ from geoapps_utils.application.dash_application import (
     ObjectSelection,
 )
 from geoapps_utils.plotting import format_axis, symlog
-from geoapps_utils.workspace import get_output_workspace
 from geoh5py import Workspace
 from geoh5py.data import BooleanData, Data
 from geoh5py.objects import Curve, ObjectBase
@@ -75,6 +72,7 @@ class PeakFinder(
         """
 
         super().__init__(ui_json, ui_json_data, params)
+
         self._app = None
 
         # Start flask server
@@ -232,7 +230,6 @@ class PeakFinder(
 
         # Save current parameters and run the driver.
         self.app.callback(
-            Output(component_id="live_link", component_property="value"),
             Output(component_id="output_message", component_property="children"),
             Input(component_id="export", component_property="n_clicks"),
             State(component_id="flip_sign", component_property="value"),
@@ -248,8 +245,6 @@ class PeakFinder(
             State(component_id="max_separation", component_property="value"),
             State(component_id="selected_line", component_property="value"),
             State(component_id="ga_group_name", component_property="value"),
-            State(component_id="live_link", component_property="value"),
-            State(component_id="monitoring_directory", component_property="data"),
             prevent_initial_call=True,
         )(self.trigger_click)
 
@@ -275,7 +270,6 @@ class PeakFinder(
 
         if self._active_channels is None:
             self._active_channels = {}
-
             for group in self.property_groups.values():
                 for channel in group["properties"]:
                     chan = self.workspace.get_entity(uuid.UUID(channel))[0]
@@ -342,6 +336,7 @@ class PeakFinder(
         """
         if self._survey is not None and self._survey not in self.workspace.objects:
             self._survey = self.workspace.get_entity(self._survey.uid)[0]
+
             if self._survey is not None and self._line_field is not None:
                 self._line_field = self._survey.get_entity(self.line_field.uid)[0]
             self._active_channels = None
@@ -439,7 +434,7 @@ class PeakFinder(
         )
 
     @staticmethod
-    def update_plot_visibility(plot_selection: list[str]) -> dict:
+    def update_plot_visibility(plot_selection: list[str]) -> tuple:
         """
         Update which plots are visible based on dropdown selection.
 
@@ -463,7 +458,7 @@ class PeakFinder(
         return tuple(output)
 
     @staticmethod
-    def update_widget_visibility(widget_selection: str) -> dict:
+    def update_widget_visibility(widget_selection: str) -> tuple:
         """
         Update which widgets are visible based on dropdown selection.
 
@@ -485,6 +480,7 @@ class PeakFinder(
             )
         if widget_selection == "Detection parameters":
             return {"display": "none"}, {"display": "none"}, {"display": "block"}, []
+        return no_update, no_update, no_update, no_update
 
     @staticmethod
     def update_group_selection(widget_selection: str) -> list[bool]:
@@ -542,22 +538,19 @@ class PeakFinder(
         if self.survey is None:
             return no_update, no_update
         original_workspace = self.params.geoh5
-        survey_obj = original_workspace.get_entity(self.survey.uid)[0]
+        original_survey_obj = original_workspace.get_entity(self.params.objects.uid)[0]
+
+        self.workspace: Workspace = Workspace()
+        with fetch_active_workspace(original_workspace):
+            if original_survey_obj is not None and hasattr(original_survey_obj, "copy"):
+                self.survey = original_survey_obj.copy(parent=self.workspace)
 
         if masking_data is not None and masking_data != "None":
-            self.workspace: Workspace = Workspace()
-            with fetch_active_workspace(original_workspace):
-                if survey_obj is not None and hasattr(survey_obj, "copy"):
-                    survey_obj = survey_obj.copy(parent=self.workspace)
-
-            if survey_obj is not None and hasattr(survey_obj, "remove_vertices"):
-                masking_data_obj = survey_obj.get_data(uuid.UUID(masking_data))[0]
+            if self.survey is not None and hasattr(self.survey, "remove_vertices"):
+                masking_data_obj = self.survey.get_data(uuid.UUID(masking_data))[0]
                 masking_array = masking_data_obj.values
                 if masking_array is not None:
-                    survey_obj.remove_vertices(~masking_array)
-        else:
-            self.workspace = original_workspace
-            self.workspace.open()
+                    self.survey.remove_vertices(~masking_array)
 
         min_value = no_update
         if self.active_channels is not None:
@@ -625,27 +618,17 @@ class PeakFinder(
         :return: Trigger indicating line indices have been updated.
         """
         if (
-            self.survey is None
-            or self.line_field is None
-            or self.ordered_survey_lines is None
-            or selected_line is None
+            isinstance(self.survey, Curve)
+            and isinstance(self.line_field, Data)
+            and hasattr(self.line_field, "values")
+            and selected_line is not None
         ):
-            return no_update
-
-        if (
-            not isinstance(self.line_field, Data)
-            or not isinstance(self.survey, Curve)
-            or not hasattr(self.line_field, "values")
-            or not hasattr(self.survey, "parts")
-        ):
-            return no_update
-
-        survey_lines = self.get_active_line_ids(selected_line, n_lines)
-        self.line_indices = PeakFinderDriver.get_line_indices(
-            self.survey, self.line_field, survey_lines
-        )
-
-        return line_indices_trigger + 1
+            survey_lines = self.get_active_line_ids(selected_line, n_lines)
+            self.line_indices = PeakFinderDriver.get_line_indices(
+                self.survey, self.line_field, survey_lines
+            )
+            line_indices_trigger += 1
+        return line_indices_trigger
 
     def compute_lines(  # pylint: disable=too-many-arguments, too-many-locals
         self,
@@ -1960,9 +1943,7 @@ class PeakFinder(
         max_separation: float,
         selected_line: int,
         ga_group_name: str,
-        live_link: list[bool],
-        monitoring_directory: str,
-    ) -> tuple[list[bool], list[str]]:
+    ) -> list[str]:
         """
         Write output ui.json file and workspace, run driver.
 
@@ -1980,88 +1961,44 @@ class PeakFinder(
         :param max_separation: Maximum separation between peaks to merge.
         :param selected_line: Selected line ID.
         :param ga_group_name: Group name.
-        :param live_link: Whether to use live link.
-        :param monitoring_directory: Monitoring directory.
 
-        :return: Live link status.
         :return: Output save message.
         """
         # Update self.params from dash component values
+        workspace = self.params.geoh5
         param_dict = self.get_params_dict(locals())
-        if (
-            (monitoring_directory is None)
-            or (monitoring_directory == "")
-            or not Path(monitoring_directory).is_dir()
-            or self.property_groups is None
-        ):
-            return no_update, ["Invalid output path."]
-
-        if not live_link:
-            live_link = False  # type: ignore
-        else:
-            live_link = True  # type: ignore
-
-        # Get output path
-        monitoring_directory = Path(monitoring_directory).resolve()
-        # Create a new workspace and copy objects into it
-        temp_geoh5 = f"{ga_group_name}_{time.time():.0f}.geoh5"
-        _, live_link = get_output_workspace(
-            live_link=live_link, workpath=monitoring_directory, name=temp_geoh5
-        )
-        if not live_link:
-            param_dict["monitoring_directory"] = ""
-        else:
-            live_link = False
-
-        # Update self.params from dash component values
-        param_vals = locals()
-        param_vals.update(
+        param_dict.update(
             {
-                "objects": self.survey,
-                "line_field": self.line_field,
+                "geoh5": workspace,
+                "objects": self.params.objects,
+                "line_field": self.params.line_field,
             }
         )
-        param_dict = self.get_params_dict(locals())
-
-        workspace = self.params.ui_json["geoh5"]
-        output_path = workspace.h5file
-
-        # Put entities in output workspace.
-        param_dict["geoh5"] = workspace
 
         if masking_data == "None":
             param_dict["masking_data"] = None
 
-        if not live_link:
-            param_dict["monitoring_directory"] = ""
+        if self.property_groups is not None:
+            with fetch_active_workspace(workspace):
+                p_g_new = {
+                    p_g.name: p_g for p_g in param_dict["objects"].property_groups
+                }
+                for key, value in self.property_groups.items():
+                    param_dict[f"group_{value['param']}_data"] = p_g_new[key]
+                    param_dict[f"group_{value['param']}_color"] = value["color"]
 
-        with workspace as new_workspace:
-            # Put entities in output workspace.
-            param_dict["geoh5"] = new_workspace
-            param_dict["objects"] = param_dict["objects"].copy(
-                parent=new_workspace, copy_children=True
-            )
-            p_g_new = {p_g.name: p_g for p_g in param_dict["objects"].property_groups}
-            # Add property groups
-            for key, value in self.property_groups.items():
-                param_dict[f"group_{value['param']}_data"] = p_g_new[key]
-                param_dict[f"group_{value['param']}_color"] = value["color"]
+        # Write output uijson.
+        new_params = PeakFinderParams(**param_dict)
+        new_params.write_input_file(
+            name=str(workspace.h5file).replace(".geoh5", ".ui.json"),
+            path=workspace.h5file.parent,
+            validate=False,
+        )
 
-            # Write output uijson.
-            new_params = PeakFinderParams(**param_dict)
-            new_params.write_input_file(
-                name=str(new_workspace.h5file).replace(".geoh5", ".ui.json"),
-                path=param_dict["monitoring_directory"],
-                validate=False,
-            )
-            driver = PeakFinderDriver(new_params)
-            driver.run()
+        driver = PeakFinderDriver(new_params)
+        driver.run()
 
-        if live_link:
-            return [True], [
-                "Live link active. Check your ANALYST session for new mesh."
-            ]
-        return [], ["Saved to " + str(output_path)]
+        return ["Saved to " + str(workspace.h5file)]
 
 
 if __name__ == "__main__":

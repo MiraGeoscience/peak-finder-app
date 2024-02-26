@@ -96,12 +96,6 @@ data_selection_layout = html.Div(
                 ),
             ]
         ),
-        dcc.Checklist(
-            id="live_link",
-            options=[{"label": "Geoscience ANALYST Pro - Live link", "value": True}],
-            value=[],
-            style={"margin_bottom": "20px"},
-        ),
         html.Button("Export", id="export"),
         dcc.Markdown(id="output_message"),
     ],
