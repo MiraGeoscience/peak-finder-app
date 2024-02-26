@@ -56,6 +56,10 @@ data_selection_layout = html.Div(
                 ),
             ]
         ),
+        dcc.Checklist(
+            id="trend_lines",
+            options=[{"label": "Create trend lines", "value": True}],
+        ),
         html.Div(
             [
                 dcc.Markdown(

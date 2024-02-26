@@ -236,6 +236,7 @@ class PeakFinder(
             Output(component_id="output_message", component_property="children"),
             Input(component_id="export", component_property="n_clicks"),
             State(component_id="flip_sign", component_property="value"),
+            State(component_id="trend_lines", component_property="value"),
             State(component_id="masking_data", component_property="value"),
             State(component_id="smoothing", component_property="value"),
             State(component_id="min_amplitude", component_property="value"),
@@ -1941,6 +1942,7 @@ class PeakFinder(
         self,
         n_clicks: int,
         flip_sign: list[bool],
+        trend_lines: list[bool],
         masking_data: str | None,
         smoothing: float,
         min_amplitude: float,
@@ -1960,6 +1962,7 @@ class PeakFinder(
 
         :param n_clicks: Trigger for callback.
         :param flip_sign: Whether to flip the sign of the data.
+        :param trend_lines: Whether to export trend lines.
         :param masking_data: Masking data.
         :param smoothing: Smoothing factor.
         :param min_amplitude: Minimum amplitude.
