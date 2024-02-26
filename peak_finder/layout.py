@@ -37,27 +37,6 @@ data_selection_layout = html.Div(
         html.Div(
             [
                 dcc.Markdown(
-                    children="Masking Data",
-                    style={
-                        "width": "30%",
-                        "display": "inline-block",
-                        "vertical-align": "middle",
-                    },
-                ),
-                dcc.Dropdown(
-                    id="masking_data",
-                    style={
-                        "width": "70%",
-                        "display": "inline-block",
-                        "vertical-align": "middle",
-                    },
-                ),
-            ],
-            style={"margin-bottom": "20px"},
-        ),
-        html.Div(
-            [
-                dcc.Markdown(
                     children="N outward lines",
                     style={
                         "width": "30%",
@@ -76,10 +55,6 @@ data_selection_layout = html.Div(
                     },
                 ),
             ]
-        ),
-        dcc.Checklist(
-            id="flip_sign",
-            options=[{"label": "Flip Y (-1x)", "value": True}],
         ),
         html.Div(
             [
@@ -275,6 +250,27 @@ visual_params_layout = html.Div(
 detection_params_layout = html.Div(
     id="detection_params",
     children=[
+        html.Div(
+            [
+                dcc.Markdown(
+                    children="Masking Data",
+                    style={
+                        "width": "30%",
+                        "display": "inline-block",
+                        "vertical-align": "middle",
+                    },
+                ),
+                dcc.Dropdown(
+                    id="masking_data",
+                    style={
+                        "width": "70%",
+                        "display": "inline-block",
+                        "vertical-align": "middle",
+                    },
+                ),
+            ],
+            style={"margin-bottom": "20px"},
+        ),
         dcc.Markdown(
             children="Smoothing",
             style={"width": "30%", "display": "inline-block", "vertical-align": "top"},
@@ -456,6 +452,10 @@ detection_params_layout = html.Div(
                         "width": "70%",
                         "display": "inline-block",
                     },
+                ),
+                dcc.Checklist(
+                    id="flip_sign",
+                    options=[{"label": "Flip Y (-1x)", "value": True}],
                 ),
             ]
         ),
