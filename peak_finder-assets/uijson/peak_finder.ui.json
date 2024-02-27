@@ -25,7 +25,7 @@
     },
     "flip_sign": {
         "main": false,
-        "group": "Data",
+        "group": "Detection Parameters",
         "label": "Flip sign",
         "value": false
     },
