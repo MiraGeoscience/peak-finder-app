@@ -16,17 +16,16 @@ import numpy as np
 import plotly.graph_objects as go
 from dash import Dash, callback_context, ctx, dcc, no_update
 from dash.dependencies import Input, Output, State
+from dash.exceptions import MissingCallbackContextException
 from dask import compute
 from dask.diagnostics import ProgressBar
 from flask import Flask
-from geoapps_utils.application.dash_application import (
-    BaseDashApplication,
-    ObjectSelection,
-)
+from geoapps_utils.application.dash_application import (BaseDashApplication,
+                                                        ObjectSelection)
 from geoapps_utils.plotting import format_axis, symlog
 from geoh5py import Workspace
 from geoh5py.data import BooleanData, Data
-from geoh5py.objects import Curve, ObjectBase
+from geoh5py.objects import Curve
 from geoh5py.shared.utils import fetch_active_workspace, is_uuid
 from geoh5py.ui_json import InputFile
 from tqdm import tqdm
@@ -80,7 +79,8 @@ class PeakFinder(
         self.server = Flask(__name__)
 
         # Getting app layout
-        self.set_initialized_layout()
+        with fetch_active_workspace(self.params.geoh5):
+            self.set_initialized_layout()
 
         # Callbacks for layout
         # Update visibility of plots based on dropdown selection.
@@ -334,22 +334,18 @@ class PeakFinder(
         """
         Current survey object.
         """
-        if self._survey is not None and self._survey not in self.workspace.objects:
-            self._survey = self.workspace.get_entity(self._survey.uid)[0]
+        if self._survey is None:
+            self.workspace: Workspace = Workspace()
+            with fetch_active_workspace(self.params.geoh5):
+                self._survey = self.params.objects.copy(parent=self.workspace)
+                self._line_field = self.workspace.get_entity(
+                    self.params.line_field.uid
+                )[0]
 
-            if self._survey is not None and self._line_field is not None:
-                self._line_field = self._survey.get_entity(self.line_field.uid)[0]
             self._active_channels = None
             self._ordered_survey_lines = None
 
         return self._survey
-
-    @survey.setter
-    def survey(self, value):
-        if is_uuid(value):
-            self._survey = self.workspace.get_entity(uuid.UUID(value))
-        elif isinstance(value, ObjectBase):
-            self._survey = value
 
     @property
     def property_groups(self) -> dict | None:
@@ -369,9 +365,9 @@ class PeakFinder(
         """
         if (
             self._ordered_survey_lines is None
-            and self.line_field is not None
             and self.survey is not None
             and self.survey.vertices is not None
+            and self.line_field is not None
         ):
             self._ordered_survey_lines = get_ordered_survey_lines(
                 self.survey, self.line_field
@@ -392,13 +388,6 @@ class PeakFinder(
             value["properties"] = [str(p) for p in value["properties"]]
 
         trace_map = self.initialize_line_figure(property_groups)
-
-        self.survey = self.workspace.get_entity(
-            uuid.UUID(self._ui_json_data["objects"])
-        )[0]
-        self.line_field = self.workspace.get_entity(
-            uuid.UUID(self._ui_json_data["line_field"])
-        )[0]
 
         self.property_groups = property_groups
 
@@ -537,15 +526,10 @@ class PeakFinder(
         """
         if self.survey is None:
             return no_update, no_update
-        original_workspace = self.params.geoh5
-        original_survey_obj = original_workspace.get_entity(self.params.objects.uid)[0]
-
-        self.workspace: Workspace = Workspace()
-        with fetch_active_workspace(original_workspace):
-            if original_survey_obj is not None and hasattr(original_survey_obj, "copy"):
-                self.survey = original_survey_obj.copy(parent=self.workspace)
 
         if masking_data is not None and masking_data != "None":
+            self._survey = None
+
             if self.survey is not None and hasattr(self.survey, "remove_vertices"):
                 masking_data_obj = self.survey.get_data(uuid.UUID(masking_data))[0]
                 masking_array = masking_data_obj.values
@@ -665,7 +649,11 @@ class PeakFinder(
 
         :return: Trigger indicating line computation has been updated.
         """
-        triggers = [t["prop_id"].split(".")[0] for t in callback_context.triggered]
+        try:
+            triggers = [t["prop_id"].split(".")[0] for t in callback_context.triggered]
+        except MissingCallbackContextException:
+            triggers = []
+
         if (
             self.survey is None
             or self.line_indices is None
@@ -1965,21 +1953,20 @@ class PeakFinder(
         :return: Output save message.
         """
         # Update self.params from dash component values
-        workspace = self.params.geoh5
-        param_dict = self.get_params_dict(locals())
-        param_dict.update(
-            {
-                "geoh5": workspace,
-                "objects": self.params.objects,
-                "line_field": self.params.line_field,
-            }
-        )
+        with fetch_active_workspace(self.params.geoh5) as workspace:
+            param_dict = self.get_params_dict(locals())
+            param_dict.update(
+                {
+                    "geoh5": workspace,
+                    "objects": self.params.objects,
+                    "line_field": self.params.line_field,
+                }
+            )
 
-        if masking_data == "None":
-            param_dict["masking_data"] = None
+            if masking_data == "None":
+                param_dict["masking_data"] = None
 
-        if self.property_groups is not None:
-            with fetch_active_workspace(workspace):
+            if self.property_groups is not None:
                 p_g_new = {
                     p_g.name: p_g for p_g in param_dict["objects"].property_groups
                 }
