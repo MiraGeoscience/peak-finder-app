@@ -838,12 +838,13 @@ tqdm = ["tqdm"]
 
 [[package]]
 name = "geoapps-utils"
-version = "0.3.0-alpha.2"
+version = "0.3.0a2"
 description = "Geoapps Utils"
 optional = false
-python-versions = "^3.9, <3.11"
+python-versions = ">=3.9,<3.11"
 files = [
-    {file = "0.3.0.zip", hash = "sha256:6a02be4070c3413d1e4c6be1d26dab18c501babc3be0dbadbab9a1fe66a2c2de"},
+    {file = "geoapps_utils-0.3.0a2-py3-none-any.whl", hash = "sha256:cf9d091d7f86c860f24369ddd2fbc6f6670369ca56dd35038c1093bd62ef957d"},
+    {file = "geoapps_utils-0.3.0a2.tar.gz", hash = "sha256:4715539ff18b434e65ef51963af4a2cec378219fb2237981251217fb9675411d"},
 ]
 
 [package.dependencies]
@@ -856,10 +857,6 @@ scipy = ">=1.10.1,<1.11.0"
 
 [package.extras]
 dash = ["dash (>=2.12,<2.13)", "plotly (>=5.13.1,<5.14.0)", "pyqtwebengine (>=5.15,<5.16)", "pyside2 (>=5.15,<5.16)"]
-
-[package.source]
-type = "url"
-url = "https://github.com/MiraGeoscience/geoapps-utils/archive/refs/heads/release/0.3.0.zip#sha256="
 
 [[package]]
 name = "geoh5py"
@@ -3161,4 +3158,4 @@ dash = ["dash", "pyqtwebengine", "pyside2"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10, <3.11"
-content-hash = "63f41c3c1d6b26b9fa05308be327b5f33f9ab795c3522c0bbaa633f80e6e1f60"
+content-hash = "999a541e72b6e117da7a0b1f4fd9e592fe36679f16eed0d5cf70dce0f0af38fb"
