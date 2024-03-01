@@ -92,6 +92,7 @@ def test_peak_finder_app(tmp_path: Path):  # pylint: disable=too-many-locals
         name="middle + late",
         properties=[data_map["d1"], data_map["d2"], data_map["d3"], data_map["d4"]],
     )
+    temp_ws.close()
 
     param_names = string.ascii_lowercase[:6]
     property_groups = {}
@@ -141,12 +142,9 @@ def test_peak_finder_app(tmp_path: Path):  # pylint: disable=too-many-locals
         max_separation=100.0,
         selected_line=1,
         ga_group_name="peak_finder",
-        live_link=[],
-        monitoring_directory=str(tmp_path),
     )
 
-    filename = next(tmp_path.glob("peak_finder*.geoh5"))
-    with Workspace(filename) as out_ws:
+    with Workspace(h5file_path) as out_ws:
         anomalies_obj = out_ws.get_entity("Anomaly Groups")[0]
         amplitudes = anomalies_obj.get_data("amplitude")[0].values
         assert len(amplitudes) == 13, f"Expected 13 groups. Found {len(amplitudes)}"
@@ -199,6 +197,7 @@ def test_merging_peaks(tmp_path: Path):  # pylint: disable=too-many-locals
     prop_group = curve.find_or_create_property_group(
         name="prop group", properties=[data.uid]
     )
+    temp_ws.close()
 
     property_groups = {
         "obs": {
@@ -257,21 +256,21 @@ def test_merging_peaks(tmp_path: Path):  # pylint: disable=too-many-locals
             max_separation=max_separation_list[ind],
             selected_line=1,
             ga_group_name="peak_finder_" + str(ind),
-            live_link=[],
-            monitoring_directory=str(tmp_path),
         )
 
-        filename = next(tmp_path.glob(f"peak_finder_{ind}*.geoh5"))
-        with Workspace(filename) as out_ws:
-            anomalies_obj = out_ws.get_entity("Anomaly Groups")[0]
+        with Workspace(h5file_path) as out_ws:
+            group = out_ws.get_entity("peak_finder_" + str(ind))[0]
+            anomalies_obj = [
+                obj for obj in group.children if obj.name == "Anomaly Groups"
+            ]
             if len(expected_peaks[ind]) == 0:  # type: ignore
-                assert anomalies_obj is None
+                assert len(anomalies_obj) == 0
                 continue
-            amplitudes = anomalies_obj.get_data("amplitude")[0].values
+            amplitudes = anomalies_obj[0].get_data("amplitude")[0].values
             assert len(amplitudes) == len(expected_peaks[ind])  # type: ignore
             assert np.all(
                 np.isclose(
-                    np.sort(anomalies_obj.vertices[:, 0]),
+                    np.sort(anomalies_obj[0].vertices[:, 0]),
                     expected_peaks[ind],
                     rtol=0.05,
                 )
@@ -321,6 +320,7 @@ def test_masking_peaks(tmp_path: Path):  # pylint: disable=too-many-locals
     prop_group = curve.find_or_create_property_group(
         name="prop group", properties=[data.uid]
     )
+    temp_ws.close()
 
     property_groups = {
         "obs": {
@@ -350,7 +350,6 @@ def test_masking_peaks(tmp_path: Path):  # pylint: disable=too-many-locals
         },
     )
     app.property_groups = property_groups
-    app.workspace = temp_ws
 
     # Test masking
     app.trigger_click(
@@ -368,12 +367,9 @@ def test_masking_peaks(tmp_path: Path):  # pylint: disable=too-many-locals
         max_separation=350,
         selected_line=1,
         ga_group_name="peak_finder_masking",
-        live_link=[],
-        monitoring_directory=str(tmp_path),
     )
 
-    filename = next(tmp_path.glob("peak_finder_masking*.geoh5"))
-    with Workspace(filename) as out_ws:
+    with Workspace(h5file_path) as out_ws:
         anomalies_obj = out_ws.get_entity("Anomaly Groups")[0]
         vertices = anomalies_obj.vertices[:, 0]
         assert np.all((vertices < 650) | (vertices > 850))

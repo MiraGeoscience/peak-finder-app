@@ -71,28 +71,6 @@ data_selection_layout = html.Div(
                 ),
             ]
         ),
-        html.Div(
-            [
-                dcc.Markdown(
-                    children="Output path",
-                    style={"width": "25%", "display": "inline-block"},
-                ),
-                dcc.Input(
-                    id="monitoring_directory",
-                    style={
-                        "width": "50%",
-                        "display": "inline-block",
-                        "margin_bottom": "20px",
-                    },
-                ),
-            ]
-        ),
-        dcc.Checklist(
-            id="live_link",
-            options=[{"label": "Geoscience ANALYST Pro - Live link", "value": True}],
-            value=[],
-            style={"margin_bottom": "20px"},
-        ),
         html.Button("Export", id="export"),
         dcc.Markdown(id="output_message"),
     ],
