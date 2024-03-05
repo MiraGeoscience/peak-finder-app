@@ -326,12 +326,11 @@ class LineData:
 
         :return: Indices of critical points.
         """
-        locs = self.position.locations_resampled
         return np.median(
             [
                 0,
                 inds.shape[0] - 1,
-                np.searchsorted(locs[inds], locs[peak]) - shift,
+                np.searchsorted(inds, peak) - shift,
             ]
         ).astype(int)
 
@@ -382,7 +381,7 @@ class LineData:
             )
             # Check amplitude and width thresholds
             delta_amp, delta_x, amplitude = self.get_amplitude_and_width(new_anomaly)
-            if (delta_amp > self.min_amplitude) & (delta_x > self.min_width):
+            if (delta_amp > self.min_amplitude) & (np.abs(delta_x) > self.min_width):
                 new_anomaly.amplitude = amplitude
                 anomalies.append(new_anomaly)  # pylint: disable=no-member
 
