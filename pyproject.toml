@@ -10,8 +10,8 @@ homepage = "https://mirageoscience.com"
 python = "^3.10, <3.11"
 numpy = "~1.23.5"  # also in geoapps-utils and geoh5py
 geoh5py = {version = "~0.9.0a2", source = "pypi", allow-prereleases = true}  # also in geoapps-utils
-#geoapps-utils = {version = "~0.3.0a2", source = "pypi", allow-prereleases = true}
-geoapps-utils = { url = "https://github.com/MiraGeoscience/geoapps-utils/archive/refs/heads/release/0.3.0.zip#sha256=" }
+geoapps-utils = {version = "~0.3.0a3", source = "pypi", allow-prereleases = true}
+#geoapps-utils = { url = "https://github.com/MiraGeoscience/geoapps-utils/archive/refs/heads/release/0.3.0.zip#sha256=" }
 curve-apps = { url = "https://github.com/MiraGeoscience/curve-apps/archive/refs/heads/develop.zip#sha256=" }
 dash-daq = {version = "~0.5.0"}
 dask = {version = "2022.10.0", extras = ["distributed"]}
