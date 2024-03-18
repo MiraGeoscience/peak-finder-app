@@ -91,7 +91,6 @@ class PeakFinder(
         )(PeakFinder.update_plot_visibility)
         # Update visibility of widgets based on dropdown selection.
         self.app.callback(
-            Output(component_id="data_selection", component_property="style"),
             Output(component_id="visual_params", component_property="style"),
             Output(component_id="detection_params", component_property="style"),
             Output(component_id="color_picker_visibility", component_property="value"),
@@ -457,20 +456,19 @@ class PeakFinder(
         :return: Visibility of data selection widgets.
         """
         if widget_selection is None:
-            return no_update, no_update, no_update, no_update
+            return no_update, no_update, no_update
 
-        if widget_selection == "Data selection":
-            return {"display": "block"}, {"display": "none"}, {"display": "none"}, []
         if widget_selection == "Visual parameters":
             return (
-                {"display": "none"},
                 {"display": "block"},
                 {"display": "none"},
                 no_update,
             )
+
         if widget_selection == "Detection parameters":
-            return {"display": "none"}, {"display": "none"}, {"display": "block"}, []
-        return no_update, no_update, no_update, no_update
+            return {"display": "none"}, {"display": "block"}, []
+
+        return no_update, no_update, no_update
 
     @staticmethod
     def update_group_selection(widget_selection: str) -> list[bool]:
