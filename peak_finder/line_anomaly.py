@@ -71,9 +71,9 @@ class LineAnomaly:  # pylint: disable=R0902, duplicate-code
         :param use_residual: Whether to use the residual of the smoothing data.
         :param minimal_output: Whether to return minimal output.
         """
-        self._position: LinePosition | None = None  # type: ignore
-        self._anomalies: list[LineGroup] | None = None  # type: ignore
-        self._locations: np.ndarray | None = None  # type: ignore
+        self._position: LinePosition | None = None
+        self._anomalies: list[LineGroup] | None = None
+        self._locations: np.ndarray | None = None
 
         self.entity = entity
         self.line_id = line_id

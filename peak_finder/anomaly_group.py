@@ -21,23 +21,6 @@ class AnomalyGroup:  # pylint: disable=too-many-public-methods
     Group of anomalies. Contains list with a subset of anomalies.
     """
 
-    _position: LinePosition
-    _anomalies: list[Anomaly]
-    _property_group: PropertyGroup
-    _full_azimuth: np.ndarray
-    _channels: dict
-    _full_peak_values: np.ndarray
-    _linear_fit: list | None = None
-    _amplitude: float | None = None
-    _migration: float | None = None
-    _azimuth: float | None = None
-    _group_center: np.ndarray | None = None
-    _group_center_sort: np.ndarray | None = None
-    _peak: np.ndarray | None = None
-    _peaks: np.ndarray | None = None
-    _start: int | None = None
-    _end: int | None = None
-
     def __init__(
         self,
         position: LinePosition,
@@ -48,6 +31,17 @@ class AnomalyGroup:  # pylint: disable=too-many-public-methods
         full_peak_values: np.ndarray,
         subgroups: set[AnomalyGroup],
     ):
+        self._linear_fit: list | None = None
+        self._amplitude: float | None = None
+        self._migration: float | None = None
+        self._azimuth: float | None = None
+        self._group_center: np.ndarray | None = None
+        self._group_center_sort: np.ndarray | None = None
+        self._peak: np.ndarray | None = None
+        self._peaks: np.ndarray | None = None
+        self._start: int | None = None
+        self._end: int | None = None
+
         self.anomalies = anomalies
         self.channels = channels
         self.full_azimuth = full_azimuth
