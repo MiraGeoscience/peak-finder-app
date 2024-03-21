@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import os
+import sys
 import uuid
 
 import numpy as np
@@ -695,7 +696,7 @@ class PeakFinder(
         )
 
         with ProgressBar():
-            results = compute(line_computation)
+            results = compute(line_computation)[0]
 
         # Remove un-needed lines
         if self.computed_lines is not None and "n_lines" in triggers:
@@ -708,36 +709,35 @@ class PeakFinder(
             self.computed_lines = {}
 
         # Add new lines
-        for result in tqdm(results):
-            for line_anomaly in result:
-                # Add anomalies to self.lines
-                line_groups = line_anomaly.anomalies
-                line_anomalies: list[AnomalyGroup] = []
-                if line_groups is not None:
-                    for line_group in line_groups:
-                        line_anomalies += line_group.groups
-                if line_anomaly.line_id not in self.computed_lines:
-                    self.computed_lines[line_anomaly.line_id] = {
-                        "position": [],
-                        "anomalies": [],
-                        "plot_line_start": np.inf,
-                    }
+        for line_anomaly in tqdm(results):
+            # Add anomalies to self.lines
+            line_groups = line_anomaly.anomalies
+            line_anomalies: list[AnomalyGroup] = []
+            if line_groups is not None:
+                for line_group in line_groups:
+                    line_anomalies += line_group.groups
+            if line_anomaly.line_id not in self.computed_lines:
+                self.computed_lines[line_anomaly.line_id] = {
+                    "position": [],
+                    "anomalies": [],
+                    "plot_line_start": np.inf,
+                }
 
-                if not line_anomalies:
-                    continue
+            if not line_anomalies:
+                continue
 
-                self.computed_lines[line_anomaly.line_id]["anomalies"].append(
-                    line_anomalies
-                )
-                # Add position to self.lines
-                self.computed_lines[line_anomaly.line_id]["position"].append(
-                    line_anomaly.position
-                )
+            self.computed_lines[line_anomaly.line_id]["anomalies"].append(
+                line_anomalies
+            )
+            # Add position to self.lines
+            self.computed_lines[line_anomaly.line_id]["position"].append(
+                line_anomaly.position
+            )
 
-                self.computed_lines[line_anomaly.line_id]["plot_line_start"] = min(
-                    np.min(line_anomaly.position.locations_resampled),
-                    self.computed_lines[line_anomaly.line_id]["plot_line_start"],
-                )
+            self.computed_lines[line_anomaly.line_id]["plot_line_start"] = min(
+                np.min(line_anomaly.position.locations_resampled),
+                self.computed_lines[line_anomaly.line_id]["plot_line_start"],
+            )
 
         return lines_computation_trigger + 1
 
@@ -1992,8 +1992,7 @@ class PeakFinder(
 
 if __name__ == "__main__":
     print("Loading geoh5 file . . .")
-    # FILE = sys.argv[1]
-    FILE = r"C:\Users\dominiquef\Desktop\Tests\peakfinders.ui.json"
+    FILE = sys.argv[1]
     ifile = InputFile.read_ui_json(FILE)
     if ifile.data["launch_dash"]:
         ifile.workspace.open("r")

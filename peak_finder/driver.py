@@ -14,7 +14,7 @@ import sys
 import numpy as np
 from curve_apps.trend_lines.driver import TrendLinesDriver
 from curve_apps.trend_lines.params import Parameters
-from dask import compute, delayed
+from dask import compute
 from dask.diagnostics import ProgressBar
 from geoapps_utils.conversions import hex_to_rgb
 from geoapps_utils.driver.driver import BaseDriver
@@ -71,30 +71,34 @@ class PeakFinderDriver(BaseDriver):
         :param n_groups: Number of groups to use for grouping anomalies.
         :param max_separation: Maximum separation between anomalies in meters.
         """
-        line_computation = delayed(LineAnomaly, pure=True)
+
+        # @delayed
+        # def line_computation(line_anomaly):
+        #     line_anomaly._anomalies = line_anomaly.find_anomalies()
+        #     return line_anomaly
 
         anomalies = []
         for line_id in tqdm(list(line_ids)):
             line_start = line_indices_dict[line_id]["line_start"]
-            for indices in line_indices_dict[line_id]["line_indices"]:  # type: ignore
-                anomalies += [
-                    line_computation(
-                        entity=survey,
-                        line_id=line_id,
-                        line_indices=indices,
-                        line_start=line_start,
-                        property_groups=property_groups,
-                        smoothing=smoothing,
-                        min_amplitude=min_amplitude,
-                        min_value=min_value,
-                        min_width=min_width,
-                        max_migration=max_migration,
-                        min_channels=min_channels,
-                        n_groups=n_groups,
-                        max_separation=max_separation,
-                        minimal_output=True,
-                    )
-                ]
+            for indices in line_indices_dict[line_id]["line_indices"]:
+                line_class = LineAnomaly(
+                    entity=survey,
+                    line_id=line_id,
+                    line_indices=indices,
+                    line_start=line_start,
+                    property_groups=property_groups,
+                    smoothing=smoothing,
+                    min_amplitude=min_amplitude,
+                    min_value=min_value,
+                    min_width=min_width,
+                    max_migration=max_migration,
+                    min_channels=min_channels,
+                    n_groups=n_groups,
+                    max_separation=max_separation,
+                    minimal_output=True,
+                )  # type: ignore
+
+                anomalies += [line_class]
 
         return anomalies
 
@@ -225,7 +229,6 @@ class PeakFinderDriver(BaseDriver):
 
             (
                 channel_group,
-                tau,
                 amplitude,
                 group_center,
                 group_start,
@@ -237,47 +240,39 @@ class PeakFinderDriver(BaseDriver):
                 anom_end,
                 peaks,
                 line_ids,
-            ) = ([], [], [], [], [], [], [], [], [], [], [], [], [])
+            ) = ([], [], [], [], [], [], [], [], [], [], [], [])
 
             print("Processing and collecting results:")
             with ProgressBar():
-                results = compute(anomalies)
+                results = compute(anomalies)[0]
+            # pylint: disable=R1702
+            for line_anomaly in tqdm(results):
+                if line_anomaly.anomalies is None:
+                    continue
+                for line_group in line_anomaly.anomalies:
+                    for group in line_group.groups:
+                        channel_group.append(
+                            property_groups.index(group.property_group) + 1
+                        )
+                        amplitude.append(group.amplitude)
 
-            for line in tqdm(results):  # pylint: disable=R1702
-                for line_anomaly in line:
-                    if line_anomaly.anomalies is None:
-                        continue
-                    for line_group in line_anomaly.anomalies:
-                        for group in line_group.groups:
-                            if group.linear_fit is None:
-                                tau += [0]
-                            else:
-                                tau += [np.abs(group.linear_fit[0] ** -1.0)]
-                            channel_group.append(
-                                property_groups.index(group.property_group) + 1
-                            )
-                            amplitude.append(group.amplitude)
+                        locs = np.vstack(
+                            [getattr(group.position, f"{k}_locations") for k in "xyz"]
+                        ).T
 
-                            locs = np.vstack(
-                                [
-                                    getattr(group.position, f"{k}_locations")
-                                    for k in "xyz"
-                                ]
-                            ).T
-
-                            _, ind = KDTree(locs).query(group.group_center)
-                            group_center.append(locs[ind])
-                            group_start.append(group.start)
-                            group_end.append(group.end)
-                            line_ids.append(line_anomaly.line_id)
-                            inds_map = group.position.map_locations
-                            for anom in group.anomalies:
-                                anom_locs.append(locs[inds_map[anom.peak]])
-                                inflect_down.append(inds_map[anom.inflect_down])
-                                inflect_up.append(inds_map[anom.inflect_up])
-                                anom_start.append(inds_map[anom.start])
-                                anom_end.append(inds_map[anom.end])
-                                peaks.append(inds_map[anom.peak])
+                        _, ind = KDTree(locs).query(group.group_center)
+                        group_center.append(locs[ind])
+                        group_start.append(group.start)
+                        group_end.append(group.end)
+                        line_ids.append(line_anomaly.line_id)
+                        inds_map = group.position.map_locations
+                        for anom in group.anomalies:
+                            anom_locs.append(locs[inds_map[anom.peak]])
+                            inflect_down.append(inds_map[anom.inflect_down])
+                            inflect_up.append(inds_map[anom.inflect_up])
+                            anom_start.append(inds_map[anom.start])
+                            anom_end.append(inds_map[anom.end])
+                            peaks.append(inds_map[anom.peak])
 
             print("Exporting . . .")
             group_points = None
