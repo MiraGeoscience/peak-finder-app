@@ -9,7 +9,6 @@
 from __future__ import annotations
 
 import os
-import sys
 import uuid
 
 import numpy as np
@@ -723,6 +722,10 @@ class PeakFinder(
                         "anomalies": [],
                         "plot_line_start": np.inf,
                     }
+
+                if not line_anomalies:
+                    continue
+
                 self.computed_lines[line_anomaly.line_id]["anomalies"].append(
                     line_anomalies
                 )
@@ -813,20 +816,18 @@ class PeakFinder(
             if "values" not in channel_dict:
                 continue
             full_values = sign * np.array(channel_dict["values"])
-            line_indices = self.line_indices[selected_line]["line_indices"]
 
-            inds = range(len(line_indices))
-            for ind in inds:
-                position = self.computed_lines[selected_line]["position"][ind]
-                anomalies = self.computed_lines[selected_line]["anomalies"][ind]
-                indices = line_indices[ind]
+            for position, anomalies in zip(
+                self.computed_lines[selected_line]["position"],
+                self.computed_lines[selected_line]["anomalies"],
+            ):
 
                 locs = position.locations_resampled
 
-                if len(indices) < 2 or locs is None:
+                if position.line_indices.sum() < 2 or locs is None:
                     continue
 
-                values = full_values[indices]
+                values = full_values[position.line_indices]
                 values, _ = position.resample_values(values)
                 all_values += list(values.flatten())
 
@@ -1113,15 +1114,14 @@ class PeakFinder(
                 },
             },
         }
-        line_indices = self.line_indices[selected_line]["line_indices"]
 
-        inds = range(len(line_indices))
-        for ind in inds:
-            position = self.computed_lines[selected_line]["position"][ind]
-            anomalies = self.computed_lines[selected_line]["anomalies"][ind]
-            indices = line_indices[ind]
+        for position, anomalies in zip(
+            self.computed_lines[selected_line]["position"],
+            self.computed_lines[selected_line]["anomalies"],
+        ):
+            indices = position.line_indices
 
-            if len(indices) < 2:
+            if indices.sum() < 2:
                 continue
             locs = position.locations_resampled
 
@@ -1360,15 +1360,13 @@ class PeakFinder(
         log = y_scale == "symlog"
         threshold = np.float_power(10, linear_threshold)
 
-        line_indices = self.line_indices[selected_line]["line_indices"]
+        for position, anomalies in zip(
+            self.computed_lines[selected_line]["position"],
+            self.computed_lines[selected_line]["anomalies"],
+        ):
+            indices = position.line_indices
 
-        inds = range(len(line_indices))
-        for ind in inds:
-            position = self.computed_lines[selected_line]["position"][ind]
-            anomalies = self.computed_lines[selected_line]["anomalies"][ind]
-            indices = line_indices[ind]
-
-            if len(indices) < 2:
+            if indices.sum() < 2:
                 continue
             locs = position.locations_resampled
 
@@ -1868,8 +1866,9 @@ class PeakFinder(
                     line_dict[line]["x"] += [None] + list(x_locs)  # type: ignore
                     line_dict[line]["y"] += [None] + list(y_locs)  # type: ignore
 
-                x_min = np.min(position.x_locations)
                 if anomalies is not None:
+                    x_min = np.min(position.x_locations)
+
                     for anom in anomalies:
                         peak = position.locations[anom.peaks[0]]
                         x_val = x_min + peak
@@ -1993,7 +1992,8 @@ class PeakFinder(
 
 if __name__ == "__main__":
     print("Loading geoh5 file . . .")
-    FILE = sys.argv[1]
+    # FILE = sys.argv[1]
+    FILE = r"C:\Users\dominiquef\Desktop\Tests\peakfinders.ui.json"
     ifile = InputFile.read_ui_json(FILE)
     if ifile.data["launch_dash"]:
         ifile.workspace.open("r")

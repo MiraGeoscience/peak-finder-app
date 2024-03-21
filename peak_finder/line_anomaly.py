@@ -314,6 +314,10 @@ class LineAnomaly:  # pylint: disable=R0902, duplicate-code
             bool_cells = np.all(self.line_indices[self.entity.cells], axis=1)
 
             active_cells = self.entity.cells[bool_cells]
+
+            if active_cells.size == 0:
+                return None
+
             sorting = np.concatenate((active_cells[:, 0], [active_cells[-1, 1]]))
 
             self._position = LinePosition(
