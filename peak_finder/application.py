@@ -26,7 +26,7 @@ from geoapps_utils.application.dash_application import (
 )
 from geoapps_utils.plotting import format_axis, symlog
 from geoh5py import Workspace
-from geoh5py.data import BooleanData, Data
+from geoh5py.data import BooleanData, Data, ReferencedData
 from geoh5py.objects import Curve
 from geoh5py.shared.utils import fetch_active_workspace, is_uuid
 from geoh5py.ui_json import InputFile
@@ -49,15 +49,6 @@ class PeakFinder(
     _param_class = PeakFinderParams
     _driver_class = PeakFinderDriver
 
-    _active_channels: dict | None = None
-    _figure = None
-    _line_field = None
-    _line_indices = None
-    _computed_lines = None
-    _survey = None
-    _property_groups = None
-    _ordered_survey_lines = None
-
     def __init__(
         self,
         ui_json: InputFile | None = None,
@@ -71,6 +62,13 @@ class PeakFinder(
         :param ui_json_data: Data from ui.json file.
         :param params: Peak finder params.
         """
+        self._active_channels: dict | None = None
+        self._figure = None
+        self._line_indices = None
+        self._computed_lines = None
+        self._survey = None
+        self._property_groups = None
+        self._ordered_survey_lines: dict | None = None
 
         super().__init__(ui_json, ui_json_data, params)
 
@@ -305,7 +303,7 @@ class PeakFinder(
         self._line_indices = value
 
     @property
-    def line_field(self) -> Data | None:
+    def line_field(self) -> ReferencedData | None:
         """
         Line labels for survey.
         """
@@ -315,7 +313,7 @@ class PeakFinder(
     def line_field(self, value):
         if is_uuid(value):
             self._line_field = self.workspace.get_entity(uuid.UUID(value))
-        elif isinstance(value, Data):
+        elif isinstance(value, ReferencedData):
             self._line_field = value
         else:
             self._line_field = None
@@ -340,9 +338,10 @@ class PeakFinder(
             self.workspace: Workspace = Workspace()
             with fetch_active_workspace(self.params.geoh5):
                 self._survey = self.params.objects.copy(parent=self.workspace)
-                self._line_field = self.workspace.get_entity(
-                    self.params.line_field.uid
-                )[0]
+                line_field = self.workspace.get_entity(self.params.line_field.uid)[0]
+
+                if isinstance(line_field, ReferencedData):
+                    self._line_field = line_field
 
             self._active_channels = None
             self._ordered_survey_lines = None
@@ -608,6 +607,7 @@ class PeakFinder(
             and isinstance(self.line_field, Data)
             and hasattr(self.line_field, "values")
             and selected_line is not None
+            and n_lines is not None
         ):
             survey_lines = self.get_active_line_ids(selected_line, n_lines)
             self.line_indices = PeakFinderDriver.get_line_indices(
@@ -696,7 +696,7 @@ class PeakFinder(
         )
 
         with ProgressBar():
-            results = compute(line_computation)
+            results = compute(line_computation)[0]
 
         # Remove un-needed lines
         if self.computed_lines is not None and "n_lines" in triggers:
@@ -709,32 +709,35 @@ class PeakFinder(
             self.computed_lines = {}
 
         # Add new lines
-        for result in tqdm(results):
-            for line_anomaly in result:
-                # Add anomalies to self.lines
-                line_groups = line_anomaly.anomalies
-                line_anomalies: list[AnomalyGroup] = []
-                if line_groups is not None:
-                    for line_group in line_groups:
-                        line_anomalies += line_group.groups  # type: ignore
-                if line_anomaly.line_id not in self.computed_lines:
-                    self.computed_lines[line_anomaly.line_id] = {
-                        "position": [],
-                        "anomalies": [],
-                        "plot_line_start": np.inf,
-                    }
-                self.computed_lines[line_anomaly.line_id]["anomalies"].append(
-                    line_anomalies
-                )
-                # Add position to self.lines
-                self.computed_lines[line_anomaly.line_id]["position"].append(
-                    line_anomaly.position
-                )
+        for line_anomaly in tqdm(results):
+            # Add anomalies to self.lines
+            line_groups = line_anomaly.anomalies
+            line_anomalies: list[AnomalyGroup] = []
+            if line_groups is not None:
+                for line_group in line_groups:
+                    line_anomalies += line_group.groups
+            if line_anomaly.line_id not in self.computed_lines:
+                self.computed_lines[line_anomaly.line_id] = {
+                    "position": [],
+                    "anomalies": [],
+                    "plot_line_start": np.inf,
+                }
 
-                self.computed_lines[line_anomaly.line_id]["plot_line_start"] = min(
-                    np.min(line_anomaly.position.locations_resampled),
-                    self.computed_lines[line_anomaly.line_id]["plot_line_start"],
-                )
+            if not line_anomalies:
+                continue
+
+            self.computed_lines[line_anomaly.line_id]["anomalies"].append(
+                line_anomalies
+            )
+            # Add position to self.lines
+            self.computed_lines[line_anomaly.line_id]["position"].append(
+                line_anomaly.position
+            )
+
+            self.computed_lines[line_anomaly.line_id]["plot_line_start"] = min(
+                np.min(line_anomaly.position.locations_resampled),
+                self.computed_lines[line_anomaly.line_id]["plot_line_start"],
+            )
 
         return lines_computation_trigger + 1
 
@@ -813,20 +816,18 @@ class PeakFinder(
             if "values" not in channel_dict:
                 continue
             full_values = sign * np.array(channel_dict["values"])
-            line_indices = self.line_indices[selected_line]["line_indices"]
 
-            inds = range(len(line_indices))
-            for ind in inds:
-                position = self.computed_lines[selected_line]["position"][ind]
-                anomalies = self.computed_lines[selected_line]["anomalies"][ind]
-                indices = line_indices[ind]
+            for position, anomalies in zip(
+                self.computed_lines[selected_line]["position"],
+                self.computed_lines[selected_line]["anomalies"],
+            ):
 
                 locs = position.locations_resampled
 
-                if len(indices) < 2 or locs is None:
+                if position.line_indices.sum() < 2 or locs is None:
                     continue
 
-                values = full_values[indices]
+                values = full_values[position.line_indices]
                 values, _ = position.resample_values(values)
                 all_values += list(values.flatten())
 
@@ -1113,15 +1114,14 @@ class PeakFinder(
                 },
             },
         }
-        line_indices = self.line_indices[selected_line]["line_indices"]
 
-        inds = range(len(line_indices))
-        for ind in inds:
-            position = self.computed_lines[selected_line]["position"][ind]
-            anomalies = self.computed_lines[selected_line]["anomalies"][ind]
-            indices = line_indices[ind]
+        for position, anomalies in zip(
+            self.computed_lines[selected_line]["position"],
+            self.computed_lines[selected_line]["anomalies"],
+        ):
+            indices = position.line_indices
 
-            if len(indices) < 2:
+            if indices.sum() < 2:
                 continue
             locs = position.locations_resampled
 
@@ -1360,15 +1360,13 @@ class PeakFinder(
         log = y_scale == "symlog"
         threshold = np.float_power(10, linear_threshold)
 
-        line_indices = self.line_indices[selected_line]["line_indices"]
+        for position, anomalies in zip(
+            self.computed_lines[selected_line]["position"],
+            self.computed_lines[selected_line]["anomalies"],
+        ):
+            indices = position.line_indices
 
-        inds = range(len(line_indices))
-        for ind in inds:
-            position = self.computed_lines[selected_line]["position"][ind]
-            anomalies = self.computed_lines[selected_line]["anomalies"][ind]
-            indices = line_indices[ind]
-
-            if len(indices) < 2:
+            if indices.sum() < 2:
                 continue
             locs = position.locations_resampled
 
@@ -1868,8 +1866,9 @@ class PeakFinder(
                     line_dict[line]["x"] += [None] + list(x_locs)  # type: ignore
                     line_dict[line]["y"] += [None] + list(y_locs)  # type: ignore
 
-                x_min = np.min(position.x_locations)
                 if anomalies is not None:
+                    x_min = np.min(position.x_locations)
+
                     for anom in anomalies:
                         peak = position.locations[anom.peaks[0]]
                         x_val = x_min + peak
@@ -1978,8 +1977,9 @@ class PeakFinder(
 
         # Write output uijson.
         new_params = PeakFinderParams(**param_dict)
+        name = workspace.h5file.stem.replace(".ui", "")
         new_params.write_input_file(
-            name=str(workspace.h5file).replace(".geoh5", ".ui.json"),
+            name=name + ".ui.json",
             path=workspace.h5file.parent,
             validate=False,
         )

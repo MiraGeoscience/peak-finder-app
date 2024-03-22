@@ -307,18 +307,18 @@ class LineGroup:
 
     def compute(  # pylint: disable=R0913, R0914
         self,
-    ) -> list[AnomalyGroup] | None:
+    ) -> list[AnomalyGroup] | list:
         """
         Group anomalies.
 
         :return: List of groups of anomalies.
         """
-        groups = []
+        groups: list = []
         group_id = -1
         azimuth = self.position.compute_azimuth()
 
-        if self.channels is None:
-            return None
+        if self.channels is None or self.n_groups is None:
+            return groups
 
         # Get full lists of anomaly attributes
         (
