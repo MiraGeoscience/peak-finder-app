@@ -32,4 +32,4 @@ sphinx:
   fail_on_warning: true
 
 conda:
-  environment: environments/conda-py-3.10-win-64-dev.lock.yml
+  environment: environments/conda-py-3.10-linux-64-dev.lock.yml
