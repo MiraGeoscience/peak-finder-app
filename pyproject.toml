@@ -62,6 +62,8 @@ pylint = "*"
 pytest = "*"
 pytest-cov = "*"
 tomli = "*" # for tests only
+sphinx = "^5.0"
+readthedocs-sphinx-ext = "*"
 
 [tool.poetry.extras]
 dash = [
