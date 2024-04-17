@@ -9,12 +9,6 @@ along with various metrics for characterization and targeting.
 .. figure:: /images/interactive/visualizations.png
     :scale: 40%
 
-
-* Amplitude
-* Dip direction
-* Mad Tau (TEM data only)
-* Anomaly skewness
-
 While initially designed for TEM data, the same application can be used for
 characterization of anomalies of mixed data types (eg. magnetics, gravity,
 topography, etc..).
