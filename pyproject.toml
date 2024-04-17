@@ -8,8 +8,8 @@ repository = "https://github.com/MiraGeoscience/peak-finder-app"
 homepage = "https://mirageoscience.com"
 readme = "README.rst"
 packages = [
-     { include = "curve_apps" },
-     { include = "curve_apps-assets" },
+     { include = "peak_finder" },
+     { include = "peak_finder-assets" },
 ]
 
 classifiers = [
@@ -28,8 +28,8 @@ classifiers = [
 [tool.poetry.dependencies]
 python = "^3.10, <3.11"
 numpy = "~1.23.5"  # also in geoapps-utils and geoh5py
-geoh5py = {version = "~0.9.0a2", source = "pypi", allow-prereleases = true}  # also in geoapps-utils
-geoapps-utils = {version = "~0.3.0a3", source = "pypi", allow-prereleases = true}
+geoh5py = {version = "~0.9.0-alpha.3", source = "pypi", allow-prereleases = true}  # also in geoapps-utils
+geoapps-utils = {version = "~0.3.0-alpha.3", source = "pypi", allow-prereleases = true}
 #geoapps-utils = { url = "https://github.com/MiraGeoscience/geoapps-utils/archive/refs/heads/release/0.3.0.zip#sha256=" }
 curve-apps = {version = "~0.1.0-alpha.1", source = "pypi", allow-prereleases = true}
 dash-daq = {version = "~0.5.0"}
