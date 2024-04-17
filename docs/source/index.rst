@@ -27,7 +27,7 @@ pages for information on how the application parameters may be set in an
 interactive mode or through the ui.json directly.
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
 
    getting_started
    usage
