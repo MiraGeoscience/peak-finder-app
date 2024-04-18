@@ -5,11 +5,6 @@ Getting Started
 
 Whether you are developer or an end-user, this page will help you get started with the **peak-finder**.
 
-.. contents::
-
-.. sectnum::
-    :depth: 2
-
 Installation
 ------------
 
