@@ -36,7 +36,7 @@ flask = "~3.0.3"
 jupyter-server = "~1.23.6"
 notebook = "~6.5.3"
 numpy = "~1.23.5"  # also in geoapps-utils, geoh5py
-plotly = "~5.13.1"  # also in geoapps-utils
+plotly = "~5.13.1"
 scipy = "~1.10.1"
 tqdm = "^4.66.1"
 
