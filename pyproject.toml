@@ -76,9 +76,6 @@ dash = [
 platforms = ['win-64', 'linux-64']
 channels = ['conda-forge']
 
-[tool.conda-lock.dependencies]
-libblas = "*=*mkl"
-
 [tool.isort]
 # settings for compatibility between ``isort`` and ``black`` formatting
 multi_line_output = 3
