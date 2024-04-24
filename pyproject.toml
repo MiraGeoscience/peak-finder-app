@@ -30,7 +30,7 @@ python = "^3.10, <3.11"
 
 dash = "~2.12"  # also in geoapps-utils
 dash-daq = "~0.5.0"
-dask = {version = "2022.10.0", extras = ["distributed"]}
+dask = {version = "2022.10.*", extras = ["distributed"]}
 distributed = "2022.10.*"  # because conda-lock doesn't take dask extras into account
 flask = "~3.0.3"
 numpy = "~1.23.5"  # also in geoapps-utils, geoh5py
