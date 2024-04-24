@@ -27,25 +27,36 @@ classifiers = [
 
 [tool.poetry.dependencies]
 python = "^3.10, <3.11"
-numpy = "~1.23.5"  # also in geoapps-utils and geoh5py
-geoh5py = {version = "~0.9.0-alpha.3", source = "pypi", allow-prereleases = true}  # also in geoapps-utils
-geoapps-utils = {version = "~0.3.0-alpha.3", source = "pypi", allow-prereleases = true}
-#geoapps-utils = { url = "https://github.com/MiraGeoscience/geoapps-utils/archive/refs/heads/release/0.3.0.zip#sha256=" }
-curve-apps = {version = "~0.1.0-alpha.1", source = "pypi", allow-prereleases = true}
-dash-daq = {version = "~0.5.0"}
+
+dash = "~2.12"  # also in geoapps-utils
+dash-daq = "~0.5.0"
 dask = {version = "2022.10.0", extras = ["distributed"]}
-jupyter-server = {version = "~1.23.6"}
-notebook = {version = "~6.5.3"}
-scipy = {version = "~1.10.1"}
-tqdm = {version = "^4.64.0"}
+distributed = "2022.10.*"  # because conda-lock doesn't take dask extras into account
+flask = "~3.0.3"
+jupyter-server = "~1.23.6"
+notebook = "~6.5.3"
+numpy = "~1.23.5"  # also in geoapps-utils, geoh5py
+plotly = "~5.13.1"  # also in geoapps-utils
+scipy = "~1.10.1"
+tqdm = "^4.66.1"
+
+## Pip dependencies from Git repositories
+#----------------------------------------
+geoh5py = {version = "~0.9.0a4", source = "pypi", allow-prereleases = true}  # also in geoapps-utils
+#geoh5py = {url = "https://github.com/MiraGeoscience/geoh5py/archive/refs/heads/release/0.9.0.zip#sha256="}
+
+geoapps-utils = {version = "~0.3.0a3", source = "pypi", allow-prereleases = true}
+#geoapps-utils = { url = "https://github.com/MiraGeoscience/geoapps-utils/archive/refs/heads/release/0.3.0.zip#sha256=" }
+
+curve-apps = {version = "~0.1.0a1", source = "pypi", allow-prereleases = true}
+#curve-apps = {url = "https://github.com/MiraGeoscience/curve-apps/archive/refs/heads/release/0.1.0.zip#sha256=", optional = true}
 
 ## indirect dependencies, forcing them here for installation through Conda not pip
-Pillow = "^10.0.1"  # from geoh5py
+#---------------------------------------------------------------------------------
 h5py = "~3.8.0"  # from geoh5py
-dash = {version = "~2.12", optional = true}  # from geoapps-utils
-plotly = {version = "~5.13.1"}  # from geoapps-utils
-pyqtwebengine = {version = "~5.15", optional = true}  # from geoapps-utils
-pyside2 = {version = "~5.15", optional = true}  # from geoapps-utils
+Pillow = "^10.0.1"  # from geoh5py
+pyqtwebengine = {version = "~5.15.2", optional = true}  # from geoapps-utils
+pyside2 = {version = "~5.15.2.1", optional = true}  # from geoapps-utils
 
 ## about pip dependencies
 # to be specified to work with conda-lock
@@ -62,9 +73,9 @@ Pygments = "*"
 pylint = "*"
 pytest = "*"
 pytest-cov = "*"
-tomli = "*" # for tests only
-sphinx = "^5.0"
 readthedocs-sphinx-ext = "*"
+sphinx = "^5.0"
+tomli = "*" # for tests only
 
 [tool.poetry.extras]
 dash = [
