@@ -58,6 +58,7 @@ pyside2 = {version = "~5.15", optional = true}  # from geoapps-utils
 
 
 [tool.poetry.group.dev.dependencies]
+Pygments = "*"
 pylint = "*"
 pytest = "*"
 pytest-cov = "*"
