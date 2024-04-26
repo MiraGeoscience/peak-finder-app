@@ -61,7 +61,9 @@ curve-apps = {version = "~0.1.0a1", source = "pypi", allow-prereleases = true}
 #---------------------------------------------------------------------------------
 h5py = "^3.2.1"  # from geoh5py
 Pillow = "^10.1.0"  # from geoh5py
-pyqtwebengine = {version = "~5.15.2", optional = true}  # from geoapps-utils[dash]
+pyqt5-qt5 = {version = "5.15.2", optional = true}  # force version or poetry resolves to 5.15.12 with no wheels for Windows!
+pyqtwebengine = {version = "~5.15.2, <5.15.7", optional = true}  # 5.15.7 and newer on conda-forge, but not in PyPI
+pyqtwebengine-qt5 = {version = "5.15.2", optional = true}  # force version or poetry resolves to 5.15.12 with no wheels for Windows!
 pyside2 = {version = "~5.15.2.1, <5.15.3", optional = true}  # from geoapps-utils[dash]
 
 ## about pip dependencies
@@ -88,7 +90,9 @@ dash = [
     "dash",
     "dash-daq",
     "flask",
+    "pyqt5-qt5",
     "pyqtwebengine",
+    "pyqtwebengine-qt5",
     "pyside2",
 ]
 
