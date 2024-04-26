@@ -54,7 +54,7 @@ curve-apps = {version = "~0.1.0a1", source = "pypi", allow-prereleases = true}
 h5py = "^3.2.1"  # from geoh5py
 Pillow = "^10.1.0"  # from geoh5py
 pyqtwebengine = {version = "~5.15.2", optional = true}  # from geoapps-utils[dash]
-pyside2 = {version = "~5.15.2.1", optional = true}  # from geoapps-utils[dash]
+pyside2 = {version = "~5.15.2.1, <5.15.3", optional = true}  # from geoapps-utils[dash]
 
 ## about pip dependencies
 # to be specified to work with conda-lock
