@@ -34,7 +34,7 @@ dask = {version = "2022.10.*", extras = ["distributed"]}
 distributed = "2022.10.*"  # because conda-lock doesn't take dask extras into account
 flask = "~3.0.3"
 numpy = "~1.23.5"  # also in geoapps-utils, geoh5py
-plotly = "~5.13.1"
+plotly = "~5.19.0"
 scipy = "~1.10.1"
 tqdm = "^4.66.1"
 
@@ -51,8 +51,8 @@ curve-apps = {version = "~0.1.0a1", source = "pypi", allow-prereleases = true}
 
 ## indirect dependencies, forcing them here for installation through Conda not pip
 #---------------------------------------------------------------------------------
-h5py = "~3.8.0"  # from geoh5py
-Pillow = "^10.0.1"  # from geoh5py
+h5py = "^3.2.1"  # from geoh5py
+Pillow = "^10.1.0"  # from geoh5py
 pyqtwebengine = {version = "~5.15.2", optional = true}  # from geoapps-utils
 pyside2 = {version = "~5.15.2.1", optional = true}  # from geoapps-utils
 
