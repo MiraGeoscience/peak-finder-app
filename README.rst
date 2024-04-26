@@ -1,4 +1,4 @@
-|coverage| |maintainability| |precommit_ci| |docs| |style| |version| |status| |pyversions|
+|coverage| |precommit_ci| |docs| |style| |version| |status| |pyversions|
 
 
 .. |docs| image:: https://readthedocs.org/projects/peak-finder-app/badge/
@@ -29,19 +29,16 @@
     :alt: pre-commit.ci status
     :target: https://results.pre-commit.ci/latest/github/MiraGeoscience/peak-finder-app/develop
 
-.. |maintainability| image:: https://api.codeclimate.com/v1/badges/_token_/maintainability
-   :target: https://codeclimate.com/github/MiraGeoscience/peak-finder-app/maintainability
-   :alt: Maintainability
+.. .. |maintainability| image:: https://api.codeclimate.com/v1/badges/_token_/maintainability
+..    :target: https://codeclimate.com/github/MiraGeoscience/peak-finder-app/maintainability
+..    :alt: Maintainability
 
 
-peak-finder-app: # TODO: SHORT DESCRIPTION
-=========================================================================
+Peak-Finder-App
+===============
 **peak-finder-app** is a package for the detection and grouping of time-domain
 electromagnetic (TEM) anomalies measured along flight lines.
 
-.. contents:: Table of Contents
-   :local:
-   :depth: 3
 
 Documentation
 ^^^^^^^^^^^^^
@@ -51,6 +48,7 @@ Documentation
 Installation
 ^^^^^^^^^^^^
 **peak-finder-app** is currently written for Python 3.10 or higher.
+
 
 Install Conda
 -------------
@@ -126,15 +124,31 @@ Or in **editable mode**, so that you can edit the sources and see the effect imm
 
     pip install -e -U --force-reinstall path/to/project_folder_with_pyproject_toml
 
-Setup for development
-^^^^^^^^^^^^^^^^^^^^^
-To configure the development environment and tools, please see `README-dev.rst`_.
-
-.. _README-dev.rst: README-dev.rst
 
 License
 ^^^^^^^
-# TODO: ADD LICENSE TERMS
+MIT License
+
+Copyright (c) 2024 Mira Geoscience
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
 
 Third Party Software
 ^^^^^^^^^^^^^^^^^^^^
@@ -145,7 +159,3 @@ Third Party Software notices and/or additional terms and conditions are located 
 `THIRD_PARTY_SOFTWARE.rst`_ file.
 
 .. _THIRD_PARTY_SOFTWARE.rst: THIRD_PARTY_SOFTWARE.rst
-
-Copyright
-^^^^^^^^^
-Copyright (c) 2024 Mira Geoscience Ltd.
