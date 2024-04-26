@@ -61,7 +61,7 @@ curve-apps = {version = "~0.1.0a1", source = "pypi", allow-prereleases = true}
 ## indirect dependencies, forcing them here for installation through Conda not pip
 #---------------------------------------------------------------------------------
 h5py = "^3.2.1"  # from geoh5py
-Pillow = "^10.1.0"  # from geoh5py
+Pillow = "~10.1.0"  # from geoh5py
 pyqt5-qt5 = {version = "5.15.2", optional = true}  # force version or poetry resolves to 5.15.12 with no wheels for Windows!
 pyqtwebengine = {version = "~5.15.2, <5.15.7", optional = true}  # 5.15.7 and newer on conda-forge, but not in PyPI
 pyqtwebengine-qt5 = {version = "5.15.2", optional = true}  # force version or poetry resolves to 5.15.12 with no wheels for Windows!
