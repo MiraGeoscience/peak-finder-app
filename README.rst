@@ -1,4 +1,4 @@
-|coverage| |maintainability| |precommit_ci| |docs| |style| |version| |status| |pyversions|
+|coverage| |precommit_ci| |docs| |style| |version| |status| |pyversions|
 
 
 .. |docs| image:: https://readthedocs.org/projects/peak-finder-app/badge/
@@ -29,19 +29,16 @@
     :alt: pre-commit.ci status
     :target: https://results.pre-commit.ci/latest/github/MiraGeoscience/peak-finder-app/develop
 
-.. |maintainability| image:: https://api.codeclimate.com/v1/badges/_token_/maintainability
-   :target: https://codeclimate.com/github/MiraGeoscience/peak-finder-app/maintainability
-   :alt: Maintainability
+.. .. |maintainability| image:: https://api.codeclimate.com/v1/badges/_token_/maintainability
+..    :target: https://codeclimate.com/github/MiraGeoscience/peak-finder-app/maintainability
+..    :alt: Maintainability
 
 
-peak-finder-app: # TODO: SHORT DESCRIPTION
-=========================================================================
+Peak-Finder-App
+===============
 **peak-finder-app** is a package for the detection and grouping of time-domain
 electromagnetic (TEM) anomalies measured along flight lines.
 
-.. contents:: Table of Contents
-   :local:
-   :depth: 3
 
 Documentation
 ^^^^^^^^^^^^^
@@ -51,6 +48,7 @@ Documentation
 Installation
 ^^^^^^^^^^^^
 **peak-finder-app** is currently written for Python 3.10 or higher.
+
 
 Install Conda
 -------------
@@ -126,11 +124,6 @@ Or in **editable mode**, so that you can edit the sources and see the effect imm
 
     pip install -e -U --force-reinstall path/to/project_folder_with_pyproject_toml
 
-Setup for development
-^^^^^^^^^^^^^^^^^^^^^
-To configure the development environment and tools, please see `README-dev.rst`_.
-
-.. _README-dev.rst: README-dev.rst
 
 License
 ^^^^^^^
