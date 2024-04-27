@@ -2,6 +2,7 @@ name: static analysis
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
     branches:
       - develop
       - main
@@ -26,6 +27,7 @@ env:
 jobs:
   pre-commit:
     name: pre-commit
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     strategy:
       fail-fast: false
     runs-on: ubuntu-latest
@@ -53,6 +55,7 @@ jobs:
           extra_args: --hook-stage push --all-files
   pylint:
     name: pylint
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     defaults:
       run:
