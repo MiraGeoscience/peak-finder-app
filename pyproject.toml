@@ -2,10 +2,13 @@
 name = "peak-finder-app"
 version = "0.1.0-alpha.1"
 license = "MIT"
-authors = ["Mira Geoscience <support@mirageoscience.com>"]
 description = "Peak Finder App"
+authors = ["Mira Geoscience <support@mirageoscience.com>"]
+maintainers = ["Dominique Fournier <dominiquef@mirageoscience.com>"]
 repository = "https://github.com/MiraGeoscience/peak-finder-app"
-homepage = "https://mirageoscience.com"
+documentation = "https://mirageoscience-peak-finder-app.readthedocs-hosted.com/"
+homepage = "https://www.mirageoscience.com/mining-industry-software/python-integration/"
+
 readme = "README.rst"
 packages = [
      { include = "peak_finder" },
