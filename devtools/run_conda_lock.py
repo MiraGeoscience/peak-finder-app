@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 
-#  Copyright (c) 2024 Mira Geoscience Ltd.
-#
-#  This file is part of peak-finder-app.
-#
-#  All rights reserved.
+# ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+#  Copyright (c) 2023-2024 Mira Geoscience Ltd.                                '
+#                                                                              '
+#  This file is part of peak-finder-app package.                               '
+#                                                                              '
+#  All rights reserved.                                                        '
+# ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 """
 Creates cross-platform lock files for each python version and per-platform conda environment files.

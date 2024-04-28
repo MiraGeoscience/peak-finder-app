@@ -52,20 +52,20 @@ geoh5py = {version = "~0.9.0rc1", source = "pypi", allow-prereleases = true}  # 
 #geoh5py = {url = "https://github.com/MiraGeoscience/geoh5py/archive/refs/heads/release/0.9.0.zip#sha256="}
 #geoh5py = {url = "http://localhost:8888/geoh5py.tar.gz#sha256="}
 
-geoapps-utils = {version = "~0.3.0a3", source = "pypi", allow-prereleases = true}
+geoapps-utils = {version = "~0.3.0rc1", source = "pypi", allow-prereleases = true}
 #geoapps-utils = { url = "https://github.com/MiraGeoscience/geoapps-utils/archive/refs/heads/release/0.3.0.zip#sha256=" }
+#geoapps-utils = {url = "http://localhost:8888/geoapps-utils.tar.gz#sha256="}
 
-curve-apps = {version = "~0.1.0a1", source = "pypi", allow-prereleases = true}
-#curve-apps = {url = "https://github.com/MiraGeoscience/curve-apps/archive/refs/heads/release/0.1.0.zip#sha256=", optional = true}
+curve-apps = {version = "~0.1.0rc1", source = "pypi", allow-prereleases = true}
+#curve-apps = {url = "https://github.com/MiraGeoscience/curve-apps/archive/refs/heads/release/0.1.0.zip#sha256="}
+#curve-apps = {url = "http://localhost:8888/curve-apps.tar.gz#sha256="}
 
 ## indirect dependencies, forcing them here for installation through Conda not pip
 #---------------------------------------------------------------------------------
 h5py = "^3.2.1"  # from geoh5py
 Pillow = "~10.1.0"  # from geoh5py
-pyqt5-qt5 = {version = "5.15.2", optional = true}  # force version or poetry resolves to 5.15.12 with no wheels for Windows!
 pyqtwebengine = {version = "~5.15.2, <5.15.7", optional = true}  # 5.15.7 and newer on conda-forge, but not in PyPI
-pyqtwebengine-qt5 = {version = "5.15.2", optional = true}  # force version or poetry resolves to 5.15.12 with no wheels for Windows!
-pyside2 = {version = "~5.15.2.1, <5.15.3", optional = true}  # from geoapps-utils[dash]
+pyside2 = {version = "~5.15.2.1", optional = true}  # from geoapps-utils[dash]
 
 ## about pip dependencies
 # to be specified to work with conda-lock
@@ -75,7 +75,6 @@ pyside2 = {version = "~5.15.2.1, <5.15.3", optional = true}  # from geoapps-util
 #   - for a branch: my_package = { url = "https://github.com/ORGANISATION/REPO/archive/refs/heads/BRANCH.zip#sha256=" }
 # Note - conda-lock does not support the syntax: my_package = { git = ... }
 #        while poetry2conda supports only { git = "...", tag = "..." }, and not { url = ... }
-
 
 [tool.poetry.group.dev.dependencies]
 Pygments = "*"
@@ -111,6 +110,37 @@ line_length = 88
 
 [tool.black]
 # defaults are just fine
+
+[tool.mypy]
+warn_unused_configs = true
+ignore_missing_imports = true
+scripts_are_modules = true
+show_error_context = true
+show_column_numbers = true
+check_untyped_defs = true
+
+plugins = [
+    "numpy.typing.mypy_plugin"
+]
+
+[tool.pytest.ini_options]
+#addopts =
+
+[tool.coverage.run]
+branch = true
+source = ["peak_finder"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "raise NotImplementedError",
+    "pass",
+    "if TYPE_CHECKING",
+    "pragma: no cover"
+]
+
+[tool.coverage.html]
+skip_empty = true
+skip_covered = true
 
 [build-system]
 requires = ["poetry-core>=1.0.0", "setuptools"]
