@@ -1,7 +1,7 @@
 
 default_language_version:
     python: python3
-exclude: (^docs/(conf.py|_ext/)|^peak_finder-assets/)
+exclude: (^docs/(source/conf.py|_ext/)|^peak_finder-assets/)
 default_stages: [commit,push]
 fail_fast: false
 
@@ -40,7 +40,6 @@ repos:
             types-PyYAML,
             tomli # to read config from pyproject.toml
         ]
-        exclude: ^docs/
 -   repo: https://github.com/codingjoe/relint
     rev: 3.1.1
     hooks:
