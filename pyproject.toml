@@ -95,9 +95,7 @@ dash = [
     "dash",
     "dash-daq",
     "flask",
-    "pyqt5-qt5",
     "pyqtwebengine",
-    "pyqtwebengine-qt5",
     "pyside2",
 ]
 
