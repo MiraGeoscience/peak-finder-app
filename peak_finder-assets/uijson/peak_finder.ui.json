@@ -1,18 +1,18 @@
 {
+    "version": "0.1.0",
     "title": "Peak Finder Parameters",
-    "geoh5": "",
+    "conda_environment": "peak-finder-app",
     "run_command": "peak_finder.application",
+    "geoh5": "",
+    "monitoring_directory": "",
     "run_command_boolean": {
         "value": false,
         "label": "Run python module ",
         "tooltip": "Warning: launches process to run python model on save",
         "main": true
     },
-    "monitoring_directory": "",
-    "conda_environment": "peak-finder-app",
     "conda_environment_boolean": false,
     "workspace": "",
-    "version": "0.1.0",
     "objects": {
         "main": true,
         "group": "Data",
