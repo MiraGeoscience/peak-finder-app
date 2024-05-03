@@ -5,7 +5,7 @@
 #  All rights reserved.
 #
 
-__version__ = "0.1.0-beta.1"
+__version__ = "0.1.0-beta.2"
 import os
 import warnings
 from pathlib import Path
