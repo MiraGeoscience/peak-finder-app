@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "peak-finder-app"
-version = "0.1.0-beta.1"
+version = "0.1.0-beta.2"
 license = "MIT"
 description = "Peak Finder App"
 authors = ["Mira Geoscience <support@mirageoscience.com>"]
@@ -80,6 +80,9 @@ scikit-image = "~0.20.0"  # from curve-apps, also used by geo-unsup-mapper
 #   - for a branch: my_package = { url = "https://github.com/ORGANISATION/REPO/archive/refs/heads/BRANCH.zip#sha256=" }
 # Note - conda-lock does not support the syntax: my_package = { git = ... }
 #        while poetry2conda supports only { git = "...", tag = "..." }, and not { url = ... }
+
+[tool.conda-lock.dependencies]
+pyside2 = {version = "5.15.*", optional = true}  # allow Conda to resolve to a higher existing version than in PyPI
 
 [tool.poetry.group.dev.dependencies]
 Pygments = "*"

@@ -46,7 +46,7 @@ dependencies:
   - gst-plugins-base=1.22.9=h001b923_1
   - gstreamer=1.22.9=hb4038d2_1
   - h5py=3.11.0=nompi_py310hde4a0ea_100
-  - hdf5=1.14.3=nompi_h73e8ff5_100
+  - hdf5=1.14.3=nompi_h73e8ff5_101
   - icu=73.2=h63175ca_0
   - idna=3.7=pyhd8ed1ab_0
   - imagecodecs=2024.1.1=py310h6c328c2_6
@@ -72,7 +72,7 @@ dependencies:
   - libbrotlidec=1.1.0=hcfcfb64_1
   - libbrotlienc=1.1.0=hcfcfb64_1
   - libcblas=3.9.0=22_win64_mkl
-  - libclang13=18.1.3=default_hf64faad_0
+  - libclang13=18.1.4=default_hf64faad_0
   - libcurl=8.7.1=hd5e4a3a_0
   - libdeflate=1.20=hcfcfb64_0
   - libffi=3.4.2=h8ffe710_5
@@ -91,8 +91,8 @@ dependencies:
   - libssh2=1.11.0=h7dfc565_0
   - libtiff=4.6.0=hddb2be6_3
   - libvorbis=1.3.7=h0e60522_0
-  - libwebp=1.3.2=hcfcfb64_1
-  - libwebp-base=1.3.2=hcfcfb64_1
+  - libwebp=1.4.0=h2466b09_0
+  - libwebp-base=1.4.0=hcfcfb64_0
   - libxcb=1.15=hcd874cb_0
   - libxml2=2.12.6=hc3477c8_2
   - libxslt=1.1.39=h3df6e99_0
@@ -114,7 +114,7 @@ dependencies:
   - networkx=3.3=pyhd8ed1ab_1
   - numpy=1.23.5=py310h4a8f9c9_0
   - openjpeg=2.5.2=h3d672ee_0
-  - openssl=3.2.1=hcfcfb64_1
+  - openssl=3.3.0=hcfcfb64_0
   - packaging=24.0=pyhd8ed1ab_0
   - partd=1.4.1=pyhd8ed1ab_0
   - pcre2=10.43=h17e33f8_0
@@ -195,11 +195,11 @@ dependencies:
   - zict=3.0.0=pyhd8ed1ab_0
   - zipp=3.17.0=pyhd8ed1ab_0
   - zlib-ng=2.0.7=hcfcfb64_0
-  - zstd=1.5.5=h12be248_0
+  - zstd=1.5.6=h0ea2cb4_0
   - pip:
       - curve-apps === 0.1.0rc2 --hash=sha256:46b2b5daccadc9ab5e962c2885af0cb0d84921bec24eb75654eb1f2c3c87faf8
       - geoapps-utils === 0.3.0rc1 --hash=sha256:fd3a07c8cc9197647f017325e24bc8946d9e2ca65cff3c110f96983f20a39f25
-      - geoh5py === 0.9.0rc1 --hash=sha256:eaab844632c242c8f60716fc6d274750398b59d5de5264c3e85366918f37a293
+      - geoh5py === 0.9.0rc2 --hash=sha256:7cf9681b8d998445119fdec834afa00962f77aa4da9582552d1cb9e7de548c18
 
 variables:
   KMP_WARNINGS: 0
