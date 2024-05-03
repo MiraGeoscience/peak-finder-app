@@ -50,7 +50,7 @@ dependencies:
   - font-ttf-dejavu-sans-mono=2.37=hab24e00_0
   - font-ttf-inconsolata=3.000=h77eed37_0
   - font-ttf-source-code-pro=2.038=h77eed37_0
-  - font-ttf-ubuntu=0.83=h77eed37_1
+  - font-ttf-ubuntu=0.83=h77eed37_2
   - fontconfig=2.14.2=h14ed4e7_0
   - fonts-conda-ecosystem=1=0
   - fonts-conda-forge=1=0
@@ -66,7 +66,7 @@ dependencies:
   - gstreamer=1.22.9=h98fc4e7_1
   - h5py=3.11.0=nompi_py310h65828d5_100
   - harfbuzz=8.4.0=h3d44ed6_0
-  - hdf5=1.14.3=nompi_h4f84152_100
+  - hdf5=1.14.3=nompi_h4f84152_101
   - icu=73.2=h59595ed_0
   - idna=3.7=pyhd8ed1ab_0
   - imagecodecs=2024.1.1=py310h06b5df7_6
@@ -96,7 +96,7 @@ dependencies:
   - libcap=2.69=h0f662aa_0
   - libcblas=3.9.0=20_linux64_openblas
   - libclang-cpp15=15.0.7=default_h127d8a8_5
-  - libclang13=18.1.3=default_h5d6823c_0
+  - libclang13=18.1.4=default_h5d6823c_0
   - libcups=2.3.3=h4637d8d_4
   - libcurl=8.7.1=hca28451_0
   - libdeflate=1.20=hd590300_0
@@ -106,14 +106,14 @@ dependencies:
   - libexpat=2.6.2=h59595ed_0
   - libffi=3.4.2=h7f98852_5
   - libflac=1.4.3=h59595ed_0
-  - libgcc-ng=13.2.0=hc881cc4_6
+  - libgcc-ng=13.2.0=h77fa898_6
   - libgcrypt=1.10.3=hd590300_0
   - libgettextpo=0.22.5=h59595ed_2
   - libgettextpo-devel=0.22.5=h59595ed_2
   - libgfortran-ng=13.2.0=h69a702a_6
   - libgfortran5=13.2.0=h43f5ff8_6
   - libglib=2.80.0=hf2295e7_6
-  - libgomp=13.2.0=hc881cc4_6
+  - libgomp=13.2.0=h77fa898_6
   - libgpg-error=1.49=h4f305b6_0
   - libhwy=1.1.0=h00ab1b0_0
   - libiconv=1.17=hd590300_2
@@ -121,7 +121,7 @@ dependencies:
   - libjxl=0.10.2=hcae5a98_0
   - liblapack=3.9.0=20_linux64_openblas
   - libllvm15=15.0.7=hb3ce162_4
-  - libllvm18=18.1.3=h2448989_0
+  - libllvm18=18.1.4=h2448989_0
   - libnghttp2=1.58.0=h47da74e_1
   - libnsl=2.0.1=hd590300_0
   - libogg=1.3.4=h7f98852_1
@@ -132,13 +132,13 @@ dependencies:
   - libsndfile=1.2.2=hc60ed4a_1
   - libsqlite=3.45.3=h2797004_0
   - libssh2=1.11.0=h0841786_0
-  - libstdcxx-ng=13.2.0=h95c4c6d_6
+  - libstdcxx-ng=13.2.0=hc0a3c3a_6
   - libsystemd0=255=h3516f8a_1
   - libtiff=4.6.0=h1dd3fc0_3
   - libuuid=2.38.1=h0b41bf4_0
   - libvorbis=1.3.7=h9c3ff4c_0
-  - libwebp=1.3.2=h658648e_1
-  - libwebp-base=1.3.2=hd590300_1
+  - libwebp=1.4.0=h2c329e2_0
+  - libwebp-base=1.4.0=hd590300_0
   - libxcb=1.15=h0b41bf4_0
   - libxcrypt=4.4.36=hd590300_1
   - libxkbcommon=1.7.0=h662e7e4_0
@@ -161,7 +161,7 @@ dependencies:
   - nss=3.98=h1d7d5a4_0
   - numpy=1.23.5=py310h53a5b5f_0
   - openjpeg=2.5.2=h488ebb8_0
-  - openssl=3.2.1=hd590300_1
+  - openssl=3.3.0=hd590300_0
   - packaging=24.0=pyhd8ed1ab_0
   - partd=1.4.1=pyhd8ed1ab_0
   - pcre2=10.43=hcad00b1_0
@@ -268,11 +268,11 @@ dependencies:
   - zipp=3.17.0=pyhd8ed1ab_0
   - zlib=1.2.13=hd590300_5
   - zlib-ng=2.0.7=h0b41bf4_0
-  - zstd=1.5.5=hfc55251_0
+  - zstd=1.5.6=ha6fb4c9_0
   - pip:
       - curve-apps === 0.1.0rc2 --hash=sha256:46b2b5daccadc9ab5e962c2885af0cb0d84921bec24eb75654eb1f2c3c87faf8
       - geoapps-utils === 0.3.0rc1 --hash=sha256:fd3a07c8cc9197647f017325e24bc8946d9e2ca65cff3c110f96983f20a39f25
-      - geoh5py === 0.9.0rc1 --hash=sha256:eaab844632c242c8f60716fc6d274750398b59d5de5264c3e85366918f37a293
+      - geoh5py === 0.9.0rc2 --hash=sha256:7cf9681b8d998445119fdec834afa00962f77aa4da9582552d1cb9e7de548c18
 
 variables:
   KMP_WARNINGS: 0
