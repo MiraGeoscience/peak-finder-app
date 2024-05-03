@@ -81,6 +81,9 @@ scikit-image = "~0.20.0"  # from curve-apps, also used by geo-unsup-mapper
 # Note - conda-lock does not support the syntax: my_package = { git = ... }
 #        while poetry2conda supports only { git = "...", tag = "..." }, and not { url = ... }
 
+[tool.conda-lock.dependencies]
+pyside2 = {version = "5.15.*", optional = true}  # allow Conda to resolve to a higher existing version than in PyPI
+
 [tool.poetry.group.dev.dependencies]
 Pygments = "*"
 pylint = "*"
