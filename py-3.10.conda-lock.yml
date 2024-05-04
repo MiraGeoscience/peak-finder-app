@@ -17,8 +17,8 @@
 version: 1
 metadata:
   content_hash:
-    win-64: d4e28ad03b070bc5c60b9f6f64eb68e853364a9adee87888d13bb5733052a25b
-    linux-64: 5fb5ea51f55ff0498142dbc1fc3775c05250eedbc2811a0d4b52bbf4031ef976
+    win-64: 894ab57d6b11ef0f94cadf32eca8c9f3f2350c1bcc607715783fdcb92e73a2a8
+    linux-64: c0d69fa9d5bbde6f5d474dfd737a89a4489492c8e476515162787f5ef986b82e
   channels:
   - url: conda-forge
     used_env_vars: []
@@ -2861,7 +2861,7 @@ package:
   category: dash
   optional: true
 - name: libllvm18
-  version: 18.1.4
+  version: 18.1.5
   manager: conda
   platform: linux-64
   dependencies:
@@ -2869,11 +2869,11 @@ package:
     libstdcxx-ng: '>=12'
     libxml2: '>=2.12.6,<3.0a0'
     libzlib: '>=1.2.13,<1.3.0a0'
-    zstd: '>=1.5.5,<1.6.0a0'
-  url: https://conda.anaconda.org/conda-forge/linux-64/libllvm18-18.1.4-h2448989_0.conda
+    zstd: '>=1.5.6,<1.6.0a0'
+  url: https://conda.anaconda.org/conda-forge/linux-64/libllvm18-18.1.5-hb77312f_0.conda
   hash:
-    md5: fc46f35def3d50b071c138fe8b84bc72
-    sha256: fce6d29c7e5771858a653653475366a9742b06ef725d85cf062e855fe3eba5c5
+    md5: efd221d3668077ca067a206269418dec
+    sha256: 2e0a7c023b2df11bd316baad7c409bc95f2e7a92a322ab7973c08d72d03653d2
   category: dash
   optional: true
 - name: libnghttp2
@@ -5613,31 +5613,31 @@ package:
   category: main
   optional: false
 - name: tifffile
-  version: 2024.4.18
+  version: 2024.4.24
   manager: conda
   platform: linux-64
   dependencies:
     imagecodecs: '>=2023.8.12'
     numpy: '>=1.19.2'
     python: '>=3.9'
-  url: https://conda.anaconda.org/conda-forge/noarch/tifffile-2024.4.18-pyhd8ed1ab_0.conda
+  url: https://conda.anaconda.org/conda-forge/noarch/tifffile-2024.4.24-pyhd8ed1ab_0.conda
   hash:
-    md5: 9640ec921dce12e87e589ac634c7bd8a
-    sha256: f82fecb3daceb55a4dd856edd9c40c0d68a08b4b8ebb94dac24bf16b13f67e16
+    md5: 1e444141f0dd100e18eed96bcdcb0e1b
+    sha256: d25df6c9d3be2cc0262e48871e53df8ee4ecc6b2b8aec6ca284d4a798299c0d3
   category: main
   optional: false
 - name: tifffile
-  version: 2024.4.18
+  version: 2024.4.24
   manager: conda
   platform: win-64
   dependencies:
     python: '>=3.9'
     numpy: '>=1.19.2'
     imagecodecs: '>=2023.8.12'
-  url: https://conda.anaconda.org/conda-forge/noarch/tifffile-2024.4.18-pyhd8ed1ab_0.conda
+  url: https://conda.anaconda.org/conda-forge/noarch/tifffile-2024.4.24-pyhd8ed1ab_0.conda
   hash:
-    md5: 9640ec921dce12e87e589ac634c7bd8a
-    sha256: f82fecb3daceb55a4dd856edd9c40c0d68a08b4b8ebb94dac24bf16b13f67e16
+    md5: 1e444141f0dd100e18eed96bcdcb0e1b
+    sha256: d25df6c9d3be2cc0262e48871e53df8ee4ecc6b2b8aec6ca284d4a798299c0d3
   category: main
   optional: false
 - name: tk
@@ -6705,7 +6705,7 @@ package:
   category: main
   optional: false
 - name: geoapps-utils
-  version: 0.3.0rc1
+  version: 0.3.0rc2
   manager: pip
   platform: linux-64
   dependencies:
@@ -6715,13 +6715,13 @@ package:
     numpy: '>=1.23.5,<1.24.0'
     pydantic: '>=2.5.2,<2.6.0'
     scipy: '>=1.10.1,<1.11.0'
-  url: https://mirageoscienceltd.jfrog.io/artifactory/api/pypi/analyst-pypi-local/geoapps-utils/0.3.0rc1/geoapps_utils-0.3.0rc1-py3-none-any.whl
+  url: https://mirageoscienceltd.jfrog.io/artifactory/api/pypi/analyst-pypi-local/geoapps-utils/0.3.0rc2/geoapps_utils-0.3.0rc2-py3-none-any.whl
   hash:
-    sha256: fd3a07c8cc9197647f017325e24bc8946d9e2ca65cff3c110f96983f20a39f25
+    sha256: e088a29b1013280c2b3686299d9c3b64cea69530cf09e7b684321dc7bcf9c0cd
   category: main
   optional: false
 - name: geoapps-utils
-  version: 0.3.0rc1
+  version: 0.3.0rc2
   manager: pip
   platform: win-64
   dependencies:
@@ -6731,9 +6731,9 @@ package:
     numpy: '>=1.23.5,<1.24.0'
     pydantic: '>=2.5.2,<2.6.0'
     scipy: '>=1.10.1,<1.11.0'
-  url: https://mirageoscienceltd.jfrog.io/artifactory/api/pypi/analyst-pypi-local/geoapps-utils/0.3.0rc1/geoapps_utils-0.3.0rc1-py3-none-any.whl
+  url: https://mirageoscienceltd.jfrog.io/artifactory/api/pypi/analyst-pypi-local/geoapps-utils/0.3.0rc2/geoapps_utils-0.3.0rc2-py3-none-any.whl
   hash:
-    sha256: fd3a07c8cc9197647f017325e24bc8946d9e2ca65cff3c110f96983f20a39f25
+    sha256: e088a29b1013280c2b3686299d9c3b64cea69530cf09e7b684321dc7bcf9c0cd
   category: main
   optional: false
 - name: geoh5py
