@@ -39,11 +39,11 @@ classifiers = [
 [tool.poetry.dependencies]
 python = "^3.10, <3.11"
 
-dash = {version="~2.12", optional = true}  # also in geoapps-utils[dash]
+dash = {version="^2.12", optional = true}  # also in geoapps-utils[dash]
 dash-daq = {version="~0.5.0", optional = true}
 dask = {version = "2022.10.*", extras = ["distributed"]}
 distributed = "2022.10.*"  # because conda-lock doesn't take dask extras into account
-flask = {version="~3.0.3", optional = true}  # also in geoapps-utils[dash]
+flask = {version="^3.0.3", optional = true}  # also in geoapps-utils[dash]
 numpy = "~1.23.5"  # also in geoapps-utils, geoh5py
 plotly = "~5.19.0"
 scipy = "~1.10.1"
