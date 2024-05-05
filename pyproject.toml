@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "peak-finder-app"
-version = "0.1.0-beta.2"
+version = "0.1.0-beta.3"
 license = "MIT"
 description = "Peak Finder App"
 authors = ["Mira Geoscience <support@mirageoscience.com>"]
@@ -72,6 +72,13 @@ pyqtwebengine = {version = "~5.15.2, <5.15.7", optional = true}  # from geoapps-
 pyside2 = {version = "~5.15.2.1", optional = true}  # from geoapps-utils[dash]
 scikit-image = "~0.20.0"  # from curve-apps, also used by geo-unsup-mapper
 
+## force some versions to resolve incompatible resolution between PyPI and Conda
+#-------------------------------------------------------------------------------
+# these two *-qt5 dependencies are not relevant for Conda and will be discarded,
+# but conda-lock still look for them in PyPI during its dependency resolution
+pyqt5-qt5 = {version="5.15.2", source = "pypi", optional=true}  # to avoid conda-lock resolving to a dependency version not available on PyPI
+pyqtwebengine-qt5 = {version="5.15.2", source = "pypi", optional=true}  # to avoid conda-lock resolving to a dependency version not available on PyPI
+
 ## about pip dependencies
 # to be specified to work with conda-lock
 # - from PyPI: my_package = { version = "1.2.3", source = "pypi" }
@@ -98,7 +105,9 @@ dash = [
     "dash",
     "dash-daq",
     "flask",
+    "pyqt5-qt5",
     "pyqtwebengine",
+    "pyqtwebengine-qt5",
     "pyside2",
 ]
 
