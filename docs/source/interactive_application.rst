@@ -11,7 +11,7 @@ adjacent lines and anomaly picks in cartesian space.
 .. figure:: /images/interactive/visualizations.png
     :scale: 40%
 
-The ui controls section is divided into three subsections: 
+The ui controls section is divided into three subsections:
 
 - `Visual Parameters`_
 - `Data Selection`_
