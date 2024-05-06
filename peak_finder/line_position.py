@@ -21,10 +21,6 @@ class LinePosition:  # pylint: disable=R0902
         For 3D coordinates, the locations are automatically converted and sorted as distance from
         the origin.
     :param values: Data values used to compute derivatives over, shape(locations.shape[0],).
-    :param epsilon: Adjustable constant used in :obj:`scipy.interpolate.Rbf`. Defaults to 20x the
-        average sampling
-    :param interpolation: Type on interpolation accepted by the :obj:`scipy.interpolate.Rbf`
-        routine: 'multiquadric', 'inverse', 'gaussian', 'linear', 'cubic', 'quintic', 'thin_plate'
     :param smoothing: Number of neighbours used by the :obj:`geoapps.utils.running_mean` routine.
     :param residual: Use the residual between the values and the running mean to compute
         derivatives.
@@ -34,62 +30,32 @@ class LinePosition:  # pylint: disable=R0902
 
     def __init__(  # pylint: disable=R0913
         self,
-        locations: np.ndarray | None = None,
-        line_indices: np.ndarray | None = None,
-        line_start: list[int] | None = None,
-        sorting: np.ndarray | None = None,
-        epsilon: float | None = None,
-        interpolation: str = "gaussian",
+        locations: np.ndarray,
+        line_indices: np.ndarray,
+        line_start: np.ndarray,
+        sorting: np.ndarray,
         smoothing: int = 0,
         residual: bool = False,
-        sampling: float | None = None,
         **kwargs,
     ):
-        self._locations_resampled = None
-        self.x_locations = None
-        self.y_locations = None
-        self.z_locations = None
+        self._locations: np.ndarray
+        self._locations_resampled: np.ndarray
+        self._sampling: float
+        self._sampling_width: int
         self._map_locations = None
         self.line_indices = line_indices
         self.line_start = line_start
         self.sorting = sorting
         self.locations = locations
-        self._epsilon = epsilon
-        self._interpolation = interpolation
         self._smoothing = smoothing
         self._residual = residual
-        self._sampling = sampling
-        self.Fx = None  # pylint: disable=C0103
-        self.Fy = None  # pylint: disable=C0103
-        self.Fz = None  # pylint: disable=C0103
+        self._x_interp: interp1d | None = None
+        self._y_interp: interp1d | None = None
+        self._z_interp: interp1d | None = None
 
         for key, value in kwargs.items():
             if getattr(self, key, None) is not None:
                 setattr(self, key, value)
-
-    @property
-    def epsilon(self) -> float | None:
-        """
-        Adjustable constant used by :obj:`scipy.interpolate.Rbf`
-        """
-        if getattr(self, "_epsilon", None) is None and self.locations is not None:
-            width = self.locations[-1] - self.locations[0]
-            self._epsilon = width / 5.0
-
-        return self._epsilon
-
-    @property
-    def sampling_width(self) -> int:
-        """
-        Number of padding cells added for the FFT
-        """
-        if (
-            getattr(self, "_sampling_width", None) is None
-            and self.locations_resampled is not None
-        ):
-            self._sampling_width = int(np.floor(len(self.locations_resampled)))
-
-        return self._sampling_width
 
     @property
     def locations(self) -> np.ndarray:
@@ -99,46 +65,44 @@ class LinePosition:  # pylint: disable=R0902
         return self._locations
 
     @locations.setter
-    def locations(self, locations):
-        self._locations = None
-        self.x_locations = None
+    def locations(self, locations: np.ndarray):
         self.y_locations = None
         self.z_locations = None
-        self._locations_resampled = None
-        self._map_locations = None
 
-        if locations is not None and len(locations) > 0:
-            if locations.ndim > 1:
-                self.x_locations = locations[self.sorting, 0]
-                self.y_locations = locations[self.sorting, 1]
-                if locations.shape[1] == 3:
-                    self.z_locations = locations[self.sorting, 2]
+        if locations is None or len(locations) < 2:
+            raise ValueError("Locations must be an array of at least 2 points.")
 
-                distances = np.linalg.norm(
-                    np.c_[
-                        self.line_start[0] - locations[self.sorting, 0],
-                        self.line_start[1] - locations[self.sorting, 1],
-                    ],
-                    axis=1,
-                )
-            else:
-                self.x_locations = locations
-                distances = locations[self.sorting]
+        if locations.ndim > 1:
+            self.x_locations = locations[self.sorting, 0]
+            self.y_locations = locations[self.sorting, 1]
 
-            self._locations = distances
+            if locations.shape[1] == 3:
+                self.z_locations = locations[self.sorting, 2]
 
-            if self._locations[0] == self._locations[-1]:
-                return
+            xy_locations = locations[self.sorting, :2] + self.line_start[None, :2]
 
-            dx = np.mean(  # pylint: disable=C0103
-                np.abs(self.locations[1:] - self.locations[:-1])
-            )
-            self._sampling_width = np.abs(
-                np.ceil((self._locations[-1] - self._locations[0]) / dx).astype(int)
-            )
-            self._locations_resampled = np.linspace(
-                self._locations[0], self._locations[-1], self.sampling_width
-            )
+            distances = np.linalg.norm(xy_locations, axis=1)
+        else:
+            self.x_locations = locations
+            distances = locations[self.sorting]
+
+        self._locations = distances
+
+        if self._locations[0] == self._locations[-1]:
+            raise ValueError("Locations must be unique.")
+
+        dx = np.mean(  # pylint: disable=C0103
+            np.abs(self.locations[1:] - self.locations[:-1])
+        )
+        self._sampling_width = np.abs(
+            np.ceil((self._locations[-1] - self._locations[0]) / dx).astype(int)
+        )
+        self._locations_resampled = np.linspace(
+            distances[0], distances[-1], self._sampling_width
+        )
+        self._sampling = np.mean(
+            np.abs(self.locations_resampled[1:] - self.locations_resampled[:-1])
+        )
 
     @property
     def line_indices(self) -> np.ndarray:
@@ -152,15 +116,18 @@ class LinePosition:  # pylint: disable=R0902
         self._line_indices = value
 
     @property
-    def line_start(self) -> list[int] | None:
+    def line_start(self) -> np.ndarray:
         """
         Start index for current line
         """
         return self._line_start
 
     @line_start.setter
-    def line_start(self, value):
-        self._line_start = value
+    def line_start(self, value: np.ndarray):
+        if len(value) < 2:
+            raise ValueError("Line start must be an array of at least two values.")
+
+        self._line_start = np.asarray(value)
 
     @property
     def sorting(self) -> np.ndarray:
@@ -171,6 +138,9 @@ class LinePosition:  # pylint: disable=R0902
 
     @sorting.setter
     def sorting(self, value):
+        if not isinstance(value, np.ndarray):
+            raise ValueError("Sorting must be a numpy array.")
+
         self._sorting = value
 
     @property
@@ -194,30 +164,11 @@ class LinePosition:  # pylint: disable=R0902
         return self._locations_resampled
 
     @property
-    def sampling(self) -> float | None:
+    def sampling(self) -> float:
         """
         Discrete interval length (m)
         """
-        if (
-            getattr(self, "_sampling", None) is None
-            and self.locations_resampled is not None
-        ):
-            self._sampling = np.mean(
-                np.abs(self.locations_resampled[1:] - self.locations_resampled[:-1])
-            )
         return self._sampling
-
-    @property
-    def interpolation(self) -> str:
-        """
-        Method of interpolation: 'linear', 'nearest', 'slinear', 'quadratic' or 'cubic'
-        """
-        return self._interpolation
-
-    @interpolation.setter
-    def interpolation(self, method):
-        methods = ["linear", "nearest", "slinear", "quadratic", "cubic"]
-        assert method in methods, f"Method on interpolation must be one of {methods}"
 
     @property
     def residual(self) -> bool:
@@ -229,8 +180,8 @@ class LinePosition:  # pylint: disable=R0902
     @residual.setter
     def residual(self, value):
         assert isinstance(value, bool), "Residual must be a bool"
-        if value != self._residual:
-            self._residual = value
+
+        self._residual = value
 
     @property
     def smoothing(self) -> int:
@@ -248,32 +199,28 @@ class LinePosition:  # pylint: disable=R0902
         if value != self._smoothing:
             self._smoothing = value
 
-    def resample_values(self, values) -> np.ndarray:
+    def resample_values(self, values) -> tuple[np.ndarray, np.ndarray]:
         """
         Values re-sampled on a regular interval.
         """
-        values_resampled = None
-        values_resampled_raw = None
-        if self.locations is not None:
-            interp = interp1d(self.locations, values, fill_value="extrapolate")
-            values_resampled = interp(self._locations_resampled)
-            if values_resampled is not None:
-                values_resampled_raw = values_resampled.copy()
-            if self._smoothing > 0:
-                mean_values = running_mean(
-                    values_resampled,
-                    width=self._smoothing,
-                    method="centered",
-                )
+        interp = interp1d(self.locations, values, fill_value="extrapolate")
+        values_resampled = interp(self._locations_resampled)
 
-                if self.residual:
-                    values_resampled = values_resampled - mean_values
-                else:
-                    values_resampled = mean_values
+        if self._smoothing > 0:
+            mean_values = running_mean(
+                values_resampled,
+                width=self._smoothing,
+                method="centered",
+            )
 
-        return values_resampled, values_resampled_raw
+            if self.residual:
+                return values_resampled - mean_values, values_resampled
 
-    def interp_x(self, distance: float) -> float:
+            return mean_values, values_resampled
+
+        return values_resampled, values_resampled
+
+    def interp_x(self, distance: np.ndarray) -> np.ndarray:
         """
         Get the x-coordinate from the inline distance.
 
@@ -281,16 +228,16 @@ class LinePosition:  # pylint: disable=R0902
 
         :return: x-coordinate.
         """
-        if getattr(self, "Fx", None) is None:
-            self.Fx = interp1d(
+        if self._x_interp is None:
+            self._x_interp = interp1d(
                 self.locations,
                 self.x_locations,
                 bounds_error=False,
                 fill_value="extrapolate",
             )
-        return self.Fx(distance)  # type: ignore
+        return self._x_interp(distance)
 
-    def interp_y(self, distance: float) -> float:
+    def interp_y(self, distance: np.ndarray) -> np.ndarray | None:
         """
         Get the y-coordinate from the inline distance.
 
@@ -298,16 +245,20 @@ class LinePosition:  # pylint: disable=R0902
 
         :return: y-coordinate.
         """
-        if getattr(self, "Fy", None) is None:
-            self.Fy = interp1d(
+        if self._y_interp is None and self.y_locations is not None:
+            self._y_interp = interp1d(
                 self.locations,
                 self.y_locations,
                 bounds_error=False,
                 fill_value="extrapolate",
             )
-        return self.Fy(distance)  # type: ignore
 
-    def interp_z(self, distance: float) -> float:
+        if self._y_interp is None:
+            return None
+
+        return self._y_interp(distance)
+
+    def interp_z(self, distance: float) -> float | None:
         """
         Get the z-coordinate from the inline distance.
 
@@ -315,14 +266,18 @@ class LinePosition:  # pylint: disable=R0902
 
         :return: z-coordinate.
         """
-        if getattr(self, "Fz", None) is None:
-            self.Fz = interp1d(
+        if self._z_interp is None and self.z_locations is not None:
+            self._z_interp = interp1d(
                 self.locations,
                 self.z_locations,
                 bounds_error=False,
                 fill_value="extrapolate",
             )
-        return self.Fz(distance)  # type: ignore
+
+        if self._z_interp is None:
+            return None
+
+        return self._z_interp(distance)
 
     def interpolate_array(self, inds: np.ndarray) -> np.ndarray:
         """

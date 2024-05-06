@@ -527,7 +527,7 @@ def test_trend_line(tmp_path: Path):  # pylint: disable=too-many-locals
     data = curve.add_data({"data": {"values": np.concatenate(data)}})
     prop_group = curve.add_data_to_group(data, property_group="obs")
     value_map = {0: "Unknown"}
-    value_map.update({ind + 1: f"{ind+1}" for ind in range(len(line_id))})
+    value_map.update({ind + 1: f"{ind + 1}" for ind in range(len(line_id))})
 
     line = curve.add_data(
         {

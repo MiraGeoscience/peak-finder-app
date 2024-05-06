@@ -24,26 +24,12 @@ class LineAnomaly:  # pylint: disable=R0902, duplicate-code
     Contains list of LineGroup objects.
     """
 
-    _entity: Curve
-    _line_id: int
-    _line_indices: list[int] | np.ndarray
-    _line_start: list[int]
-    _max_migration: float
-    _minimal_output: bool
-    _min_amplitude: int
-    _min_channels: int
-    _min_value: float
-    _min_width: float
-    _property_groups: list[PropertyGroup]
-    _smoothing: int
-    _use_residual: bool
-
     def __init__(  # pylint: disable=R0913, R0914
         self,
         entity,
         line_id,
-        line_indices,
-        line_start,
+        line_indices: np.ndarray,
+        line_start: np.ndarray,
         property_groups,
         max_migration=50.0,
         minimal_output=False,
@@ -117,21 +103,21 @@ class LineAnomaly:  # pylint: disable=R0902, duplicate-code
         self._line_id = value
 
     @property
-    def line_indices(self) -> list[int] | None:
+    def line_indices(self) -> np.ndarray:
         """
         Indices of vertices for line profile.
         """
         return self._line_indices
 
     @line_indices.setter
-    def line_indices(self, value):
+    def line_indices(self, value: np.ndarray):
         if not isinstance(value, np.ndarray):
             raise TypeError("Line indices must be a numpy array.")
 
         self._line_indices = value
 
     @property
-    def line_start(self) -> list[int] | None:
+    def line_start(self) -> np.ndarray:
         """
         Index for start of the line.
         """
@@ -165,6 +151,9 @@ class LineAnomaly:  # pylint: disable=R0902, duplicate-code
         self._property_groups = value
         channels = []
         for group in self._property_groups:
+            if group.properties is None:
+                continue
+
             channels += [self.entity.get_entity(uid)[0] for uid in group.properties]
 
         self._channels = list(set(channels))
@@ -321,10 +310,10 @@ class LineAnomaly:  # pylint: disable=R0902, duplicate-code
             sorting = np.concatenate((active_cells[:, 0], [active_cells[-1, 1]]))
 
             self._position = LinePosition(
-                locations=self.locations,
-                line_indices=self.line_indices,
-                line_start=self.line_start,
-                sorting=sorting,
+                self.locations,
+                self.line_indices,
+                self.line_start,
+                sorting,
                 smoothing=self.smoothing,
                 residual=self.use_residual,
             )
