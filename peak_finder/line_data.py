@@ -14,12 +14,12 @@ from peak_finder.anomaly import Anomaly
 from peak_finder.line_position import LinePosition
 
 
-class LineData:
+class LineData:  # pylint: disable=too-many-instance-attributes
     """
     Contains full list of Anomaly objects and line data values.
     """
 
-    def __init__(  # pylint: disable=R0913
+    def __init__(  # pylint: disable=too-many-arguments
         self,
         data: FloatData,
         position: LinePosition,
@@ -28,20 +28,19 @@ class LineData:
         max_migration: float,
         min_value: float = -np.inf,
     ):
-        self._data_entity = data
-        self._position = position
-        self._min_amplitude = min_amplitude
-        self._min_width = min_width
-        self._max_migration = max_migration
-        self._min_value = min_value
-        self._min_value = min_value
-        self._values = None
-        self._peaks = None
-        self._lows = None
-        self._inflect_up = None
-        self._inflect_down = None
-        self._values_resampled_raw = None
-        self._values_resampled = None
+        self.data_entity = data
+        self.position: LinePosition = position
+        self.min_amplitude = min_amplitude
+        self.min_width = min_width
+        self.max_migration = max_migration
+        self.min_value = min_value
+        self.min_value = min_value
+        self._values: np.ndarray | None = None
+        self._peaks: np.ndarray | None = None
+        self._lows: np.ndarray | None = None
+        self._inflect_up: np.ndarray | None = None
+        self._inflect_down: np.ndarray | None = None
+        self._values_resampled: np.ndarray | None = None
         self._anomalies: list[Anomaly] | None = None
 
     @property
@@ -72,6 +71,19 @@ class LineData:
         """
         return self._data_entity
 
+    @data_entity.setter
+    def data_entity(self, data):
+        """
+        Data entity.
+        """
+        if getattr(self, "_data_entity", None) is not None:
+            raise ValueError("Data entity is already set.")
+
+        if not isinstance(data, FloatData):
+            raise TypeError("Data entity must be of type geoh5py.data.FloatData.")
+
+        self._data_entity = data
+
     @property
     def values_resampled(self) -> np.ndarray:
         """
@@ -80,21 +92,13 @@ class LineData:
         if self._values_resampled is None:
             (
                 self._values_resampled,
-                self._values_resampled_raw,
+                _,
             ) = self.position.resample_values(self.values)
         return self._values_resampled
 
     @values_resampled.setter
     def values_resampled(self, values):
         self._values_resampled = values
-        self._values_resampled_raw = None
-
-    @property
-    def values_resampled_raw(self) -> np.ndarray:
-        """
-        Resampled values prior to smoothing.
-        """
-        return self._values_resampled_raw
 
     @property
     def min_amplitude(self) -> int:
@@ -157,8 +161,7 @@ class LineData:
         Full list of anomalies.
         """
         if self._anomalies is None:
-            anomalies = self.compute()
-            self._anomalies = np.array(anomalies)
+            self._anomalies = self.compute()
         return self._anomalies
 
     @property
