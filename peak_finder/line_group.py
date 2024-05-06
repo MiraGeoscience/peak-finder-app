@@ -222,12 +222,11 @@ class LineGroup:
                 full_channels.append(ind)
                 full_peak_positions.append(locs[anom.peak])
                 full_peak_values.append(values[anom.peak])
-        full_channels = np.array(full_channels)
-        full_peak_positions = np.array(full_peak_positions)
+
         return (
             full_anomalies,
-            full_channels,
-            full_peak_positions,
+            np.array(full_channels),
+            np.array(full_peak_positions),
             full_peak_values,
         )
 
@@ -246,11 +245,11 @@ class LineGroup:
 
         for _ in range(self.n_groups):
             # Sort groups by their starts
-            all_starts = [group.start for group in groups]
-            sort_inds = np.argsort([group.start for group in groups])
+            all_starts = np.array([group.start for group in groups])
+            sort_inds = np.argsort(all_starts)
             groups = list(np.array(groups)[sort_inds])
 
-            all_starts = np.array(all_starts)[sort_inds]
+            all_starts = all_starts[sort_inds]
             all_ends = [group.end for group in groups]
 
             merged = []
