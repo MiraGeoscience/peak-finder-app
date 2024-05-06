@@ -44,7 +44,7 @@ class LineData:  # pylint: disable=too-many-instance-attributes
         self._anomalies: list[Anomaly] | None = None
 
     @property
-    def values(self) -> np.ndarray:
+    def values(self) -> np.ndarray | None:
         """
         Original values sorted along line.
         """
