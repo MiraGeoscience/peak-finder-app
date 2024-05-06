@@ -79,7 +79,7 @@ class LinePosition:  # pylint: disable=R0902
             if locations.shape[1] == 3:
                 self.z_locations = locations[self.sorting, 2]
 
-            xy_locations = locations[self.sorting, :2] + self.line_start[None, :2]
+            xy_locations = self.line_start[None, :2] - locations[self.sorting, :2]
 
             distances = np.linalg.norm(xy_locations, axis=1)
         else:

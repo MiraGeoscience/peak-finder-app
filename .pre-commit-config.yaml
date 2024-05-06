@@ -21,6 +21,7 @@ repos:
     hooks:
     -   id: isort
         additional_dependencies: [tomli] # to read config from pyproject.toml
+        args: ["--profile", "black"]
 -   repo: https://github.com/psf/black
     rev: 24.4.2
     hooks:
