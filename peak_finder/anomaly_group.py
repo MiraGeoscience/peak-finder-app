@@ -37,8 +37,7 @@ class AnomalyGroup:  # pylint: disable=too-many-public-methods
         self._azimuth: float | None = None
         self._group_center: np.ndarray | None = None
         self._group_center_sort: np.ndarray | None = None
-        self._peak: np.ndarray | None = None
-        self._peaks: list | None = None
+        self._peaks: np.ndarray | None = None
         self._start: int | None = None
         self._end: int | None = None
 
@@ -190,7 +189,7 @@ class AnomalyGroup:  # pylint: disable=too-many-public-methods
         self._full_peak_values = value
 
     @property
-    def peaks(self) -> list:
+    def peaks(self) -> np.ndarray:
         """
         List of peaks from all anomalies in group.
         """
@@ -216,7 +215,7 @@ class AnomalyGroup:  # pylint: disable=too-many-public-methods
             self._end = np.max(self.get_list_attr("end"))
         return self._end
 
-    def get_list_attr(self, attr: str) -> list:
+    def get_list_attr(self, attr: str) -> np.ndarray:
         """
         Get list of attribute from anomalies.
 
@@ -224,7 +223,7 @@ class AnomalyGroup:  # pylint: disable=too-many-public-methods
 
         :return: List of attribute.
         """
-        return [getattr(a, attr) for a in self.anomalies]
+        return np.asarray([getattr(a, attr) for a in self.anomalies])
 
     def compute_dip_direction(
         self,

@@ -293,10 +293,6 @@ class PeakFinderDriver(BaseDriver):
                     group_map[ind + 1] = name
                     color_map += [[ind + 1] + hex_to_rgb(group["color"]) + [0]]
 
-                # color_map = np.rec.fromarrays(
-                #     np.vstack(color_map).T,
-                #     names=["Value", "Red", "Green", "Blue", "Alpha"],
-                # )
                 group_points = Points.create(
                     self.params.geoh5,
                     name="Anomaly Groups",
@@ -307,7 +303,7 @@ class PeakFinderDriver(BaseDriver):
                 group_points.entity_type.name = self.params.ga_group_name
                 group_points.add_data(
                     {
-                        "amplitude": {"values": amplitude},
+                        "amplitude": {"values": np.asarray(amplitude)},
                         "start": {
                             "values": np.vstack(group_start).flatten().astype(np.int32)
                         },
@@ -325,10 +321,7 @@ class PeakFinderDriver(BaseDriver):
                         }
                     }
                 )
-                channel_group_data.entity_type.color_map = {
-                    "name": "Time Groups",
-                    "values": np.vstack(color_map).T,
-                }
+                channel_group_data.entity_type.color_map = np.vstack(color_map)
                 line_id_data = group_points.add_data(
                     {
                         line_field_obj.name: {

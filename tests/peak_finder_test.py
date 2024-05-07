@@ -96,13 +96,21 @@ def test_peak_finder_app(tmp_path: Path):  # pylint: disable=too-many-locals
 
     param_names = string.ascii_lowercase[:6]
     property_groups = {}
+    colors = [
+        "#0000FF",
+        "#FFFF00",
+        "#FF0000",
+        "#00FFFF",
+        "#008000",
+        "#FFA500",
+    ]
     for ind, group in enumerate(
         [early, middle, late, early_middle, early_middle_late, middle_late]
     ):
         property_groups[group.name] = {
             "param": param_names[ind],
             "data": str(group.uid),
-            "color": "#000000",
+            "color": colors[ind],
             "label": [ind + 1],
             "properties": [str(p) for p in group.properties],
         }
