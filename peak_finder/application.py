@@ -64,6 +64,7 @@ class PeakFinder(
         """
         self._active_channels: dict | None = None
         self._figure = None
+        self._line_field: ReferencedData | None = None
         self._line_indices = None
         self._computed_lines = None
         self._survey = None
@@ -311,7 +312,13 @@ class PeakFinder(
     @line_field.setter
     def line_field(self, value):
         if is_uuid(value):
-            self._line_field = self.workspace.get_entity(uuid.UUID(value))
+            data = self.workspace.get_entity(uuid.UUID(value))[0]
+
+            if not isinstance(data, ReferencedData):
+                raise TypeError("Line field must be of type ReferencedData.")
+
+            self._line_field = data
+
         elif isinstance(value, ReferencedData):
             self._line_field = value
         else:
@@ -395,28 +402,30 @@ class PeakFinder(
             dcc.Store(id="trace_map", data=trace_map),
         ]
 
-        # Line dropdown options
-        selected_line_options = [
-            {"label": label, "value": id}
-            for id, label in self.ordered_survey_lines.items()
-        ]
-        # Initial line
-        selected_line = None
-        if len(selected_line_options) > 0:
-            selected_line = selected_line_options[0]["value"]
+        specify_values = {}
+        if self.ordered_survey_lines is not None and self.property_groups is not None:
+            # Line dropdown options
+            selected_line_options = [
+                {"label": label, "value": id}
+                for id, label in self.ordered_survey_lines.items()
+            ]
+            # Initial line
+            selected_line = None
+            if len(selected_line_options) > 0:
+                selected_line = selected_line_options[0]["value"]
 
-        specify_values = {
-            "selected_line": [
-                {"property": "options", "value": selected_line_options},
-                {"property": "value", "value": selected_line},
-            ],
-            "group_name": [
-                {
-                    "property": "options",
-                    "value": list(self.property_groups.keys()),
-                }
-            ],
-        }
+            specify_values = {
+                "selected_line": [
+                    {"property": "options", "value": selected_line_options},
+                    {"property": "value", "value": selected_line},
+                ],
+                "group_name": [
+                    {
+                        "property": "options",
+                        "value": list(self.property_groups.keys()),
+                    }
+                ],
+            }
 
         BaseDashApplication.init_vals(
             self.app.layout.children, self._ui_json_data, kwargs=specify_values
@@ -795,7 +804,7 @@ class PeakFinder(
         y_min, y_max = np.inf, -np.inf
         log = y_scale == "symlog"
         threshold = np.float_power(10, linear_threshold)
-        all_values = []
+        values_list = []
 
         trace_dict: dict[str, dict[str, dict]] = {
             "lines": {
@@ -827,7 +836,7 @@ class PeakFinder(
 
                 values = full_values[position.line_indices]
                 values, _ = position.resample_values(values)
-                all_values += list(values.flatten())
+                values_list += list(values.flatten())
 
                 if log:
                     sym_values = symlog(values, threshold)
@@ -873,7 +882,7 @@ class PeakFinder(
         if np.isinf(y_min) or self.property_groups is None:
             return no_update, None, None, None
 
-        all_values = np.array(all_values)
+        all_values = np.array(values_list)
         _, y_label, y_tickvals, y_ticktext = format_axis(
             channel="Data",
             axis=all_values,
@@ -919,7 +928,7 @@ class PeakFinder(
             y_ticktext,
             y_min,
             y_max,
-            min_value,
+            symlog(min_value, threshold),
             x_label,
         )
         return (

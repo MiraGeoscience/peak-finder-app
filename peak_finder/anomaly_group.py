@@ -37,7 +37,6 @@ class AnomalyGroup:  # pylint: disable=too-many-public-methods
         self._azimuth: float | None = None
         self._group_center: np.ndarray | None = None
         self._group_center_sort: np.ndarray | None = None
-        self._peak: np.ndarray | None = None
         self._peaks: np.ndarray | None = None
         self._start: int | None = None
         self._end: int | None = None
@@ -190,7 +189,7 @@ class AnomalyGroup:  # pylint: disable=too-many-public-methods
         self._full_peak_values = value
 
     @property
-    def peaks(self) -> np.ndarray | None:
+    def peaks(self) -> np.ndarray:
         """
         List of peaks from all anomalies in group.
         """
@@ -216,7 +215,7 @@ class AnomalyGroup:  # pylint: disable=too-many-public-methods
             self._end = np.max(self.get_list_attr("end"))
         return self._end
 
-    def get_list_attr(self, attr: str) -> list | np.ndarray:
+    def get_list_attr(self, attr: str) -> np.ndarray:
         """
         Get list of attribute from anomalies.
 
@@ -224,7 +223,7 @@ class AnomalyGroup:  # pylint: disable=too-many-public-methods
 
         :return: List of attribute.
         """
-        return np.array([getattr(a, attr) for a in self.anomalies])
+        return np.asarray([getattr(a, attr) for a in self.anomalies])
 
     def compute_dip_direction(
         self,
@@ -270,19 +269,22 @@ class AnomalyGroup:  # pylint: disable=too-many-public-methods
 
         gates = np.array([a.parent.data_entity for a in self.anomalies])
 
-        times = [
-            channel["time"]
-            for i, channel in enumerate(self.channels.values())
-            if (i in list(gates) and "time" in channel)
-        ]
+        times = np.hstack(
+            [
+                channel["time"]
+                for i, channel in enumerate(self.channels.values())
+                if (i in list(gates) and "time" in channel)
+            ]
+        )
 
         linear_fit = None
         if len(times) > 2 and len(self.anomalies) > 0:
-            times = np.hstack(times)[self.full_peak_values > 0]
             if len(times) > 2:
                 # Compute linear trend
                 slope, intercept = np.polyfit(
-                    times, np.log(self.full_peak_values[self.full_peak_values > 0]), 1
+                    times[self.full_peak_values > 0],
+                    np.log(self.full_peak_values[self.full_peak_values > 0]),
+                    1,
                 )
                 linear_fit = [intercept, slope]
 
