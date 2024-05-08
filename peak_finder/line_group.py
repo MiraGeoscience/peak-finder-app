@@ -230,9 +230,7 @@ class LineGroup:
             full_peak_values,
         )
 
-    def group_n_groups(  # pylint: disable=R0914
-        self, groups: list[AnomalyGroup]
-    ) -> list[AnomalyGroup]:
+    def group_n_groups(self, groups: list[AnomalyGroup]) -> list[AnomalyGroup]:
         """
         Merge consecutive peaks into groups of n_groups.
 
@@ -243,64 +241,60 @@ class LineGroup:
         if self.position.sampling is None or self.channels is None:
             return groups
 
-        for _ in range(self.n_groups):
-            # Sort groups by their starts
-            all_starts = np.array([group.start for group in groups])
-            sort_inds = np.argsort(all_starts)
-            groups = list(np.array(groups)[sort_inds])
-
-            all_starts = all_starts[sort_inds]
-            all_ends = [group.end for group in groups]
-
-            merged = []
-            for group in groups:
-                # Get indices of consecutive peaks within max_separation
-                delta_ind = self.max_separation / self.position.sampling
-
-                start_ind = np.searchsorted(
-                    all_ends, group.start - delta_ind, side="left"  # type: ignore
-                )
-                end_ind = (
-                    np.searchsorted(
-                        all_starts, group.end + delta_ind, side="right"  # type: ignore
-                    )
-                    - 1
-                )
-                in_range = np.arange(start_ind, end_ind + 1)
-
-                # Loop over peaks in range and create groups for all possibilities
-                for i in in_range:
-                    if groups[i].subgroups.intersection(group.subgroups):
-                        continue
-                    n_groups = len(group.subgroups) + len(groups[i].subgroups)
-                    if n_groups <= self.n_groups:
-                        new_group = AnomalyGroup(
-                            position=self.position,
-                            anomalies=np.concatenate(
-                                (group.anomalies, groups[i].anomalies)
-                            ),
-                            property_group=self.property_group,
-                            full_azimuth=np.concatenate(
-                                (group.full_azimuth, groups[i].full_azimuth)
-                            ),
-                            channels=self.channels,
-                            full_peak_values=np.concatenate(
-                                (group.full_peak_values, groups[i].full_peak_values)
-                            ),
-                            subgroups=group.subgroups.union(groups[i].subgroups),
-                        )
-                        merged.append(new_group)
-            groups += merged
-
         return_groups = []
-        unique_groups = []
-        for group in groups:
-            if (
-                len(group.subgroups) == self.n_groups
-                and group.subgroups not in unique_groups
-            ):
-                unique_groups.append(group.subgroups)
-                return_groups.append(group)
+
+        delta_ind = np.ceil(self.max_separation / self.position.sampling)
+
+        # Sort groups by their starts
+        all_starts = np.array([group.start for group in groups])
+        sort_inds = np.argsort(all_starts)
+        groups = list(np.array(groups)[sort_inds])
+
+        all_starts = all_starts[sort_inds]
+        all_ends = np.asarray([group.end for group in groups])
+
+        neighbours_list = []
+        for cur, end in enumerate(all_ends):
+            dist = all_starts - end
+            next_neighbour = np.where((dist > 0) & (dist < delta_ind))[0]
+
+            if len(next_neighbour) > 0:
+                neighbours_list.append([cur, next_neighbour[0]])
+
+        if len(neighbours_list) == 0:
+            return return_groups
+
+        couples = np.vstack(neighbours_list)
+
+        for couple in couples:
+            group = [couple]
+
+            while len(group) < self.n_groups:
+                next_neighbour = np.where(group[-1][1] == couples[:, 0])[0]
+
+                if len(next_neighbour) > 0:
+                    group.append(couples[next_neighbour[0]])
+
+                else:
+                    break
+            if len(group) == self.n_groups:
+                indices = np.unique(group)
+                new_group = AnomalyGroup(
+                    position=self.position,
+                    anomalies=np.concatenate(
+                        [groups[ind].anomalies for ind in indices]
+                    ),
+                    property_group=self.property_group,
+                    full_azimuth=np.concatenate(
+                        [groups[ind].full_azimuth for ind in indices]
+                    ),
+                    channels=self.channels,
+                    full_peak_values=np.concatenate(
+                        [groups[ind].full_peak_values for ind in indices]
+                    ),
+                    subgroups=[groups[ind] for ind in indices],
+                )
+                return_groups.append(new_group)
 
         return return_groups
 
