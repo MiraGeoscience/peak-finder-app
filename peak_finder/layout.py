@@ -430,6 +430,7 @@ detection_params_layout = html.Div(
                     id="max_separation",
                     value=100,
                     type="number",
+                    debounce=True,
                     style={
                         "width": "70%",
                         "display": "inline-block",
