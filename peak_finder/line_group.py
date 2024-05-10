@@ -230,6 +230,28 @@ class LineGroup:
             full_peak_values,
         )
 
+    def accumulate_groups(self, path, neighbourhood) -> list[list]:
+        """
+        Accumulate neighbouring groups.
+        """
+        if path.shape[0] == self.n_groups:
+            return [path]
+
+        next_neighbours = np.where(path[-1, 1] == neighbourhood[:, 0])[0]
+
+        if len(next_neighbours) == 0:
+            return [path]
+
+        branches = []
+        for next_neighbour in next_neighbours:
+            current = np.vstack([path, neighbourhood[next_neighbour]])
+            paths = self.accumulate_groups(current, neighbourhood)
+
+            for branch in paths:
+                branches.append(branch)
+
+        return branches
+
     def group_n_groups(self, groups: list[AnomalyGroup]) -> list[AnomalyGroup]:
         """
         Merge consecutive peaks into groups of n_groups.
@@ -255,30 +277,23 @@ class LineGroup:
 
         neighbours_list = []
         for cur, end in enumerate(all_ends):
-            dist = all_starts - end
-            next_neighbour = np.where((dist > 0) & (dist < delta_ind))[0]
-
-            if len(next_neighbour) > 0:
-                neighbours_list.append([cur, next_neighbour[0]])
+            dist = np.abs(all_starts - end)
+            next_neighbour = np.where(dist < delta_ind)[0]
+            neighbours_list += [[cur, nn] for nn in next_neighbour]
 
         if len(neighbours_list) == 0:
             return return_groups
 
-        couples = np.vstack(neighbours_list)
+        neighbourhood = np.vstack(neighbours_list)
 
-        for couple in couples:
-            group = [couple]
+        for couple in neighbourhood:
+            branches = self.accumulate_groups(couple[np.newaxis, :], neighbourhood)
 
-            while len(group) < self.n_groups:
-                next_neighbour = np.where(group[-1][1] == couples[:, 0])[0]
+            for branch in branches:
+                if branch.shape[0] < self.n_groups:
+                    continue
 
-                if len(next_neighbour) > 0:
-                    group.append(couples[next_neighbour[0]])
-
-                else:
-                    break
-            if len(group) == self.n_groups:
-                indices = np.unique(group)
+                indices = np.unique(branch)
                 new_group = AnomalyGroup(
                     position=self.position,
                     anomalies=np.concatenate(

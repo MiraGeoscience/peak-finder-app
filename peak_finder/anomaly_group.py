@@ -203,7 +203,7 @@ class AnomalyGroup:  # pylint: disable=too-many-public-methods
         Start position of the anomaly group.
         """
         if self._start is None and self.peaks is not None:
-            self._start = np.min(self.get_list_attr("start"))
+            self._start = np.median(self.get_list_attr("start"))
         return self._start
 
     @property
@@ -212,7 +212,7 @@ class AnomalyGroup:  # pylint: disable=too-many-public-methods
         End position of the anomaly group.
         """
         if self._end is None and self.peaks is not None:
-            self._end = np.max(self.get_list_attr("end"))
+            self._end = np.median(self.get_list_attr("end"))
         return self._end
 
     def get_list_attr(self, attr: str) -> np.ndarray:

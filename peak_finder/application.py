@@ -37,7 +37,7 @@ from peak_finder.driver import PeakFinderDriver
 from peak_finder.layout import peak_finder_layout
 from peak_finder.params import PeakFinderParams
 from peak_finder.utils import get_ordered_survey_lines
-
+from peak_finder.line_position import LinePosition
 
 class PeakFinder(
     BaseDashApplication
@@ -717,12 +717,16 @@ class PeakFinder(
 
         # Add new lines
         for line_anomaly in tqdm(results):
-            # Add anomalies to self.lines
+
+            if "n_lines" in triggers and line_anomaly.line_id in self.computed_lines:
+                continue
+
             line_groups = line_anomaly.anomalies
             line_anomalies: list[AnomalyGroup] = []
             if line_groups is not None:
                 for line_group in line_groups:
                     line_anomalies += line_group.groups
+
             if line_anomaly.line_id not in self.computed_lines:
                 self.computed_lines[line_anomaly.line_id] = {
                     "position": [],
@@ -730,12 +734,6 @@ class PeakFinder(
                     "plot_line_start": np.inf,
                 }
 
-            if not line_anomalies:
-                continue
-
-            self.computed_lines[line_anomaly.line_id]["anomalies"].append(
-                line_anomalies
-            )
             # Add position to self.lines
             self.computed_lines[line_anomaly.line_id]["position"].append(
                 line_anomaly.position
@@ -744,6 +742,10 @@ class PeakFinder(
             self.computed_lines[line_anomaly.line_id]["plot_line_start"] = min(
                 np.min(line_anomaly.position.locations_resampled),
                 self.computed_lines[line_anomaly.line_id]["plot_line_start"],
+            )
+
+            self.computed_lines[line_anomaly.line_id]["anomalies"].append(
+                line_anomalies
             )
 
         return lines_computation_trigger + 1
@@ -930,6 +932,7 @@ class PeakFinder(
             y_max,
             symlog(min_value, threshold),
             x_label,
+            self.computed_lines[selected_line]["position"],
         )
         return (
             figure_lines_trigger + 1,
@@ -1526,6 +1529,7 @@ class PeakFinder(
         y_max: float | None,
         min_value: float,
         x_label: str,
+        line_position: LinePosition
     ):
         """
         Update the figure layout.
