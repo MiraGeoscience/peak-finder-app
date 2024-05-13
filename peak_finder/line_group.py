@@ -234,7 +234,7 @@ class LineGroup:
         """
         Accumulate neighbouring groups.
         """
-        if path.shape[0] == self.n_groups:
+        if len(np.unique(path)) == self.n_groups:
             return [path]
 
         next_neighbours = np.where(path[-1, 1] == neighbourhood[:, 0])[0]
@@ -252,7 +252,7 @@ class LineGroup:
 
         return branches
 
-    def find_neighbour_groups(self, groups: list[AnomalyGroup]) -> np.ndarray:
+    def find_neighbour_groups(self, groups: list[AnomalyGroup]) -> list:
         """
         Loop through all anomaly groups and find neighbours within the
         maximum separation.
@@ -269,9 +269,9 @@ class LineGroup:
         for cur, end in enumerate(all_ends):
             dist = np.abs(all_starts - end)
             next_neighbour = np.where(dist < delta_ind)[0]
-            neighbours_list += [[cur, nn] for nn in next_neighbour]
+            neighbours_list += [[cur, nn] for nn in next_neighbour if nn != cur]
 
-        return np.vstack(neighbours_list)
+        return neighbours_list
 
     def group_n_groups(self, groups: list[AnomalyGroup]) -> list[AnomalyGroup]:
         """
@@ -288,19 +288,23 @@ class LineGroup:
         all_starts = np.array([group.start for group in groups])
         sort_inds = np.argsort(all_starts)
         sorted_groups: list[AnomalyGroup] = list(np.array(groups)[sort_inds])
-        neighbourhood = self.find_neighbour_groups(sorted_groups)
+        neighbours_list = self.find_neighbour_groups(sorted_groups)
 
-        if len(neighbourhood) == 0:
+        if len(neighbours_list) == 0:
             return return_groups
+
+        neighbourhood = np.vstack(neighbours_list)
 
         for couple in neighbourhood:
             branches = self.accumulate_groups(couple[np.newaxis, :], neighbourhood)
 
             for branch in branches:
-                if branch.shape[0] < self.n_groups:
-                    continue
 
                 indices = np.unique(branch)
+
+                if len(indices) < self.n_groups:
+                    continue
+
                 new_group = AnomalyGroup(
                     position=self.position,
                     anomalies=np.concatenate(
