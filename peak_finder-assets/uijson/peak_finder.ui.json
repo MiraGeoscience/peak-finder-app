@@ -12,7 +12,6 @@
         "main": true
     },
     "conda_environment_boolean": false,
-    "workspace": "",
     "objects": {
         "main": true,
         "group": "1 - Data",
