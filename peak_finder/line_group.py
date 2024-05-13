@@ -262,7 +262,7 @@ class LineGroup:
         :return: List of indices for all group pairs.
         """
         delta_ind = np.ceil(self.max_separation / self.position.sampling)
-        all_starts = np.asarray([group.end for group in groups])
+        all_starts = np.asarray([group.start for group in groups])
         all_ends = np.asarray([group.end for group in groups])
 
         neighbours_list = []
