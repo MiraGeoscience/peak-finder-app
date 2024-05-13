@@ -15,7 +15,7 @@
     "workspace": "",
     "objects": {
         "main": true,
-        "group": "Data",
+        "group": "1 - Data",
         "label": "Object",
         "meshType": [
             "{6a057fdc-b355-11e3-95be-fd84a7ffcb88}",
@@ -32,16 +32,13 @@
     "line_field": {
         "association": "Vertex",
         "dataType": "Referenced",
-        "group": "Data",
+        "group": "1 - Data",
         "main": true,
         "label": "Line Field",
         "parent": "objects",
+        "optional": true,
+        "enabled": false,
         "value": ""
-    },
-    "trend_lines": {
-        "main": true,
-        "label": "Create trend lines",
-        "value": false
     },
     "masking_data": {
         "association": "Vertex",
@@ -102,24 +99,11 @@
         "value": 1.0,
         "main": false
     },
-    "ga_group_name": {
-        "enabled": true,
-        "main": false,
-        "group": "Python run preferences",
-        "label": "Save As",
-        "value": "peak_finder"
-    },
-    "structural_markers": {
-        "main": false,
-        "group": "Python run preferences",
-        "label": "Export all markers",
-        "value": false
-    },
     "line_id": "",
     "group_a_data": {
         "main": true,
         "association": "Vertex",
-        "group": "Group A",
+        "group": "2- Group A",
         "dataGroupType": "Multi-element",
         "label": "Property Group",
         "parent": "objects",
@@ -128,9 +112,28 @@
     "group_a_color": {
         "main": true,
         "dataType": "Text",
-        "group": "Group A",
+        "group": "2- Group A",
         "label": "Color",
         "value": "#0000FF"
+    },
+    "ga_group_name": {
+        "enabled": true,
+        "main": true,
+        "group": "3 - Python run preferences",
+        "label": "Save As",
+        "value": "peak_finder"
+    },
+    "structural_markers": {
+        "main": true,
+        "group": "3 - Python run preferences",
+        "label": "Export all markers",
+        "value": false
+    },
+    "trend_lines": {
+        "main": true,
+        "label": "Create trend lines",
+        "group": "3 - Python run preferences",
+        "value": false
     },
     "group_b_data": {
         "main": false,
