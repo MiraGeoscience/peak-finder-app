@@ -230,11 +230,20 @@ class LineGroup:
             full_peak_values,
         )
 
-    def accumulate_groups(self, path, neighbourhood) -> list[np.ndarray]:
+    @staticmethod
+    def accumulate_groups(
+        path: np.ndarray, neighbourhood: np.ndarray, max_length: int
+    ) -> list[np.ndarray]:
         """
         Accumulate neighbouring groups.
+
+        :param path: Current path made up of coupled anomaly indices.
+        :param neighbourhood: Array of all neighbouring couple indices.
+        :param max_length: Maximum number of anomalies in a path.
+
+        :return: List of all possible paths.
         """
-        if len(np.unique(path)) == self.n_groups:
+        if len(np.unique(path)) == max_length:
             return [path]
 
         next_neighbours = np.where(path[-1, 1] == neighbourhood[:, 0])[0]
@@ -245,7 +254,7 @@ class LineGroup:
         branches = []
         for next_neighbour in next_neighbours:
             current = np.vstack([path, neighbourhood[next_neighbour]])
-            paths = self.accumulate_groups(current, neighbourhood)
+            paths = LineGroup.accumulate_groups(current, neighbourhood, max_length)
 
             for branch in paths:
                 branches.append(branch)
@@ -296,7 +305,9 @@ class LineGroup:
         neighbourhood = np.vstack(neighbours_list)
 
         for couple in neighbourhood:
-            branches = self.accumulate_groups(couple[np.newaxis, :], neighbourhood)
+            branches = self.accumulate_groups(
+                couple[np.newaxis, :], neighbourhood, self.n_groups
+            )
 
             for branch in branches:
 
