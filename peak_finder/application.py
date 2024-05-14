@@ -2007,9 +2007,10 @@ class PeakFinder(
 
     @params.setter
     def params(self, params: PeakFinderParams):
-        assert isinstance(
-            params, PeakFinderParams
-        ), f"Input parameters must be an instance of {PeakFinderParams}"
+        if not isinstance(params, PeakFinderParams):
+            raise TypeError(
+                f"Input parameters must be an instance of {PeakFinderParams}"
+            )
 
         self._params = params
 
