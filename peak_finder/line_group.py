@@ -214,20 +214,17 @@ class LineGroup:
         full_anomalies = []
         full_channels = []
         full_peak_positions = []
-        full_peak_values = []
+
         for ind, line_data in enumerate(line_data_subset):
-            values = line_data.values_resampled
             for anom in line_data.anomalies:
                 full_anomalies.append(anom)
                 full_channels.append(ind)
                 full_peak_positions.append(locs[anom.peak])
-                full_peak_values.append(values[anom.peak])
 
         return (
             full_anomalies,
             np.array(full_channels),
             np.array(full_peak_positions),
-            full_peak_values,
         )
 
     @staticmethod
@@ -261,23 +258,24 @@ class LineGroup:
 
         return branches
 
-    def find_neighbour_groups(self, groups: list[AnomalyGroup]) -> list:
+    @staticmethod
+    def find_neighbour_groups(groups: list[AnomalyGroup], max_separation: int) -> list:
         """
         Loop through all anomaly groups and find neighbours within the
         maximum separation.
 
         :param groups: List of anomaly groups.
+        :param max_separation: Maximum number of indices separating anomalies to form a group.
 
         :return: List of indices for all group pairs.
         """
-        delta_ind = np.ceil(self.max_separation / self.position.sampling)
         all_starts = np.asarray([group.start for group in groups])
         all_ends = np.asarray([group.end for group in groups])
 
         neighbours_list = []
         for cur, end in enumerate(all_ends):
             dist = np.abs(all_starts - end)
-            next_neighbour = np.where(dist < delta_ind)[0]
+            next_neighbour = np.where(dist < max_separation)[0]
             neighbours_list += [[cur, nn] for nn in next_neighbour if nn != cur]
 
         return neighbours_list
@@ -297,7 +295,9 @@ class LineGroup:
         all_starts = np.array([group.start for group in groups])
         sort_inds = np.argsort(all_starts)
         sorted_groups: list[AnomalyGroup] = list(np.array(groups)[sort_inds])
-        neighbours_list = self.find_neighbour_groups(sorted_groups)
+
+        max_separation = np.ceil(self.max_separation / self.position.sampling)
+        neighbours_list = self.find_neighbour_groups(sorted_groups, max_separation)
 
         if len(neighbours_list) == 0:
             return return_groups
@@ -317,18 +317,8 @@ class LineGroup:
                     continue
 
                 new_group = AnomalyGroup(
-                    position=self.position,
-                    anomalies=np.concatenate(
-                        [sorted_groups[ind].anomalies for ind in indices]
-                    ),
-                    property_group=self.property_group,
-                    full_azimuth=np.concatenate(
-                        [sorted_groups[ind].full_azimuth for ind in indices]
-                    ),
-                    channels=self.channels,
-                    full_peak_values=np.concatenate(
-                        [sorted_groups[ind].full_peak_values for ind in indices]
-                    ),
+                    np.concatenate([sorted_groups[ind].anomalies for ind in indices]),
+                    self.property_group,
                     subgroups={sorted_groups[ind] for ind in indices},
                 )
                 return_groups.append(new_group)
@@ -345,7 +335,6 @@ class LineGroup:
         """
         groups: list = []
         group_id = -1
-        azimuth = self.position.compute_azimuth()
 
         if self.channels is None or self.n_groups is None:
             return groups
@@ -355,7 +344,6 @@ class LineGroup:
             full_anomalies,
             full_channels,
             full_peak_positions,
-            full_peak_values,
         ) = self.get_anomaly_attributes(list(self.channels.values()))
 
         full_group_ids = np.ones(len(full_anomalies), dtype="bool") * -1
@@ -383,15 +371,10 @@ class LineGroup:
 
             # Make AnomalyGroup
             near_anomalies = np.array(full_anomalies)[near]
-            near_values = np.array(full_peak_values)[near]
 
             group = AnomalyGroup(
-                self.position,
                 near_anomalies,
                 self.property_group,
-                azimuth,
-                self.channels,
-                near_values,
                 set(),
             )
             groups += [group]
