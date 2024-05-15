@@ -197,10 +197,7 @@ class PeakFinderDriver(BaseDriver):
                 for name in channel_groups
             ]
 
-            line_field_obj = self.params.line_field
-
-            if line_field_obj is None:
-                raise ValueError("Line field not found.")
+            line_field_obj = self.params.get_line_field(survey)
 
             if self.params.masking_data is not None:
                 masking_array = self.params.masking_data.values

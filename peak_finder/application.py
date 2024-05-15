@@ -68,7 +68,7 @@ class PeakFinder(
         self._line_field: ReferencedData | None = None
         self._line_indices = None
         self._computed_lines = None
-        self._survey = None
+        self._survey: Curve | None = None
         self._property_groups = None
         self._ordered_survey_lines: dict | None = None
 
@@ -345,10 +345,7 @@ class PeakFinder(
             self.workspace: Workspace = Workspace()
             with fetch_active_workspace(self.params.geoh5):
                 self._survey = self.params.objects.copy(parent=self.workspace)
-                line_field = self.workspace.get_entity(self.params.line_field.uid)[0]
-
-                if isinstance(line_field, ReferencedData):
-                    self._line_field = line_field
+                self._line_field = self.params.get_line_field(self._survey)
 
             self._active_channels = None
             self._ordered_survey_lines = None
@@ -2000,6 +1997,22 @@ class PeakFinder(
         driver.run()
 
         return ["Saved to " + str(workspace.h5file)]
+
+    @property
+    def params(self) -> PeakFinderParams:
+        """
+        Application parameters
+        """
+        return self._params
+
+    @params.setter
+    def params(self, params: PeakFinderParams):
+        if not isinstance(params, PeakFinderParams):
+            raise TypeError(
+                f"Input parameters must be an instance of {PeakFinderParams}"
+            )
+
+        self._params = params
 
 
 if __name__ == "__main__":
