@@ -460,3 +460,22 @@ class PeakFinderParams(BaseParams):  # pylint: disable=R0902, R0904
                     "properties": prop_group.properties,
                 }
         return property_groups
+
+    def get_line_field(self, survey: Curve) -> ReferencedData:
+        """
+        Get the line field object.
+        """
+        line_field_obj = self.line_field
+
+        if line_field_obj is None:
+            unique_parts = np.unique(survey.parts.astype(int)) + 1
+            line_field_obj = survey.add_data(
+                {
+                    "Line ID": {
+                        "values": survey.parts.astype(int) + 1,
+                        "value_map": {ind: f"Line {ind}" for ind in unique_parts},
+                        "type": "referenced",
+                    }
+                }
+            )
+        return line_field_obj

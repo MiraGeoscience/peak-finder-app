@@ -93,28 +93,6 @@ visual_params_layout = html.Div(
         html.Div(
             [
                 dcc.Markdown(
-                    children="Select Line",
-                    style={
-                        "width": "30%",
-                        "display": "inline-block",
-                        "vertical-align": "middle",
-                    },
-                ),
-                dcc.Dropdown(
-                    id="selected_line",
-                    options=[],
-                    style={
-                        "width": "70%",
-                        "display": "inline-block",
-                        "vertical-align": "middle",
-                    },
-                ),
-            ],
-            style={"margin-bottom": "20px"},
-        ),
-        html.Div(
-            [
-                dcc.Markdown(
                     children="N outward lines",
                     style={
                         "width": "30%",
@@ -232,6 +210,28 @@ visual_params_layout = html.Div(
 detection_params_layout = html.Div(
     id="detection_params",
     children=[
+        html.Div(
+            [
+                dcc.Markdown(
+                    children="Select Line",
+                    style={
+                        "width": "30%",
+                        "display": "inline-block",
+                        "vertical-align": "middle",
+                    },
+                ),
+                dcc.Dropdown(
+                    id="selected_line",
+                    options=[],
+                    style={
+                        "width": "70%",
+                        "display": "inline-block",
+                        "vertical-align": "middle",
+                    },
+                ),
+            ],
+            style={"margin-bottom": "20px"},
+        ),
         html.Div(
             [
                 dcc.Markdown(
@@ -490,11 +490,11 @@ peak_finder_layout = html.Div(
                     [
                         dcc.Dropdown(
                             options=[
-                                "Visual parameters",
                                 "Detection parameters",
+                                "Visual parameters",
                             ],
                             id="widget_selection",
-                            value="Visual parameters",
+                            value="Detection parameters",
                             style={"width": "70%", "margin-bottom": "20px"},
                         ),
                         visual_params_layout,
