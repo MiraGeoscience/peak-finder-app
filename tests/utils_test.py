@@ -10,6 +10,7 @@ import numpy as np
 from geoh5py import Workspace
 from geoh5py.objects import Curve
 
+from peak_finder.line_group import LineGroup
 from peak_finder.utils import get_ordered_survey_lines
 
 
@@ -43,3 +44,39 @@ def test_get_ordered_survey_lines(tmp_path: Path):
     ordered_lines = get_ordered_survey_lines(curve, line)
 
     assert ordered_lines == {5: "56", 2: "123", 8: "33"}
+
+
+def test_accumulate_groups():
+    neighbourhood = np.vstack(
+        [
+            [0, 2],
+            [0, 1],
+            [1, 3],
+            [1, 4],
+            [2, 3],
+            [3, 4],
+        ]
+    )
+
+    paths = LineGroup.accumulate_groups(
+        neighbourhood[0][np.newaxis, :], neighbourhood, 2
+    )
+    assert len(paths) == 1
+
+    paths = LineGroup.accumulate_groups(
+        neighbourhood[0][np.newaxis, :], neighbourhood, 3
+    )
+    assert len(paths) == 1
+    assert len(np.unique(paths)) == 3
+
+    paths = LineGroup.accumulate_groups(
+        neighbourhood[1][np.newaxis, :], neighbourhood, 3
+    )
+    assert len(paths) == 2
+    assert len(np.unique(paths[0])) == len(np.unique(paths[1])) == 3
+
+    paths = LineGroup.accumulate_groups(
+        neighbourhood[1][np.newaxis, :], neighbourhood, 4
+    )
+    assert len(paths) == 2
+    assert len(np.unique(paths[0])) == 4 and len(np.unique(paths[1])) == 3

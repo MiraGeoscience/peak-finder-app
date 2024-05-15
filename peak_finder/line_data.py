@@ -199,7 +199,7 @@ class LineData:  # pylint: disable=too-many-instance-attributes
                 (np.diff(np.sign(dx)) != 0)
                 & (ddx[1:] > 0)
                 & (
-                    values[:-1] > self.min_value
+                    values[:-1] >= self.min_value
                 )  # pylint: disable=unsubscriptable-object
             )[0]
             self._lows = np.r_[0, lows, self.position.locations_resampled.shape[0] - 1]
@@ -220,7 +220,7 @@ class LineData:  # pylint: disable=too-many-instance-attributes
                 (np.diff(np.sign(ddx)) != 0)
                 & (dx[1:] > 0)
                 & (
-                    values[:-1] > self.min_value
+                    values[:-1] >= self.min_value
                 )  # pylint: disable=unsubscriptable-object
             )[0]
         return self._inflect_up
@@ -240,7 +240,7 @@ class LineData:  # pylint: disable=too-many-instance-attributes
                 (np.diff(np.sign(ddx)) != 0)
                 & (dx[1:] < 0)
                 & (
-                    values[:-1] > self.min_value
+                    values[:-1] >= self.min_value
                 )  # pylint: disable=unsubscriptable-object
             )[0]
         return self._inflect_down

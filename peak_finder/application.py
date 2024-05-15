@@ -35,6 +35,7 @@ from tqdm import tqdm
 from peak_finder.anomaly_group import AnomalyGroup
 from peak_finder.driver import PeakFinderDriver
 from peak_finder.layout import peak_finder_layout
+from peak_finder.line_position import LinePosition
 from peak_finder.params import PeakFinderParams
 from peak_finder.utils import get_ordered_survey_lines
 
@@ -67,7 +68,7 @@ class PeakFinder(
         self._line_field: ReferencedData | None = None
         self._line_indices = None
         self._computed_lines = None
-        self._survey = None
+        self._survey: Curve | None = None
         self._property_groups = None
         self._ordered_survey_lines: dict | None = None
 
@@ -344,10 +345,7 @@ class PeakFinder(
             self.workspace: Workspace = Workspace()
             with fetch_active_workspace(self.params.geoh5):
                 self._survey = self.params.objects.copy(parent=self.workspace)
-                line_field = self.workspace.get_entity(self.params.line_field.uid)[0]
-
-                if isinstance(line_field, ReferencedData):
-                    self._line_field = line_field
+                self._line_field = self.params.get_line_field(self._survey)
 
             self._active_channels = None
             self._ordered_survey_lines = None
@@ -717,12 +715,16 @@ class PeakFinder(
 
         # Add new lines
         for line_anomaly in tqdm(results):
-            # Add anomalies to self.lines
+
+            if "n_lines" in triggers and line_anomaly.line_id in self.computed_lines:
+                continue
+
             line_groups = line_anomaly.anomalies
             line_anomalies: list[AnomalyGroup] = []
             if line_groups is not None:
                 for line_group in line_groups:
                     line_anomalies += line_group.groups
+
             if line_anomaly.line_id not in self.computed_lines:
                 self.computed_lines[line_anomaly.line_id] = {
                     "position": [],
@@ -730,12 +732,6 @@ class PeakFinder(
                     "plot_line_start": np.inf,
                 }
 
-            if not line_anomalies:
-                continue
-
-            self.computed_lines[line_anomaly.line_id]["anomalies"].append(
-                line_anomalies
-            )
             # Add position to self.lines
             self.computed_lines[line_anomaly.line_id]["position"].append(
                 line_anomaly.position
@@ -744,6 +740,10 @@ class PeakFinder(
             self.computed_lines[line_anomaly.line_id]["plot_line_start"] = min(
                 np.min(line_anomaly.position.locations_resampled),
                 self.computed_lines[line_anomaly.line_id]["plot_line_start"],
+            )
+
+            self.computed_lines[line_anomaly.line_id]["anomalies"].append(
+                line_anomalies
             )
 
         return lines_computation_trigger + 1
@@ -930,6 +930,7 @@ class PeakFinder(
             y_max,
             symlog(min_value, threshold),
             x_label,
+            self.computed_lines[selected_line]["position"],
         )
         return (
             figure_lines_trigger + 1,
@@ -1526,6 +1527,7 @@ class PeakFinder(
         y_max: float | None,
         min_value: float,
         x_label: str,
+        line_position: LinePosition,
     ):
         """
         Update the figure layout.
@@ -1995,6 +1997,22 @@ class PeakFinder(
         driver.run()
 
         return ["Saved to " + str(workspace.h5file)]
+
+    @property
+    def params(self) -> PeakFinderParams:
+        """
+        Application parameters
+        """
+        return self._params
+
+    @params.setter
+    def params(self, params: PeakFinderParams):
+        if not isinstance(params, PeakFinderParams):
+            raise TypeError(
+                f"Input parameters must be an instance of {PeakFinderParams}"
+            )
+
+        self._params = params
 
 
 if __name__ == "__main__":
