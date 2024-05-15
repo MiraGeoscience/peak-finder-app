@@ -1970,6 +1970,7 @@ class PeakFinder(
                     "geoh5": workspace,
                     "objects": self.params.objects,
                     "line_field": self.params.line_field,
+                    "monitoring_directory": self.params.monitoring_directory,
                 }
             )
 
