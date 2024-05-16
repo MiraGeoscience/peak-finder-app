@@ -7,4 +7,5 @@
 
 set "MIRA_CMD_RUNNER_DIR=%ProgramFiles%\Mira Geoscience\Geoscience ANALYST\CmdRunner"
 set curdir=%~dp0
-"%MIRA_CMD_RUNNER_DIR%\MambaEnvRunner.exe" --install "%curdir%\environments\conda-py-3.10-win-64.lock.yml" --with-pip-deps %* --run pip install -e .[dash] %*
+"%MIRA_CMD_RUNNER_DIR%\MambaEnvRunner.exe" --name peak-finder-app --install "%curdir%environments\py-3.10-win-64.conda.lock.yml" ^
+  --run "pip install -e .[dash]" %*
