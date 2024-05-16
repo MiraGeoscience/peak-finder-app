@@ -7,4 +7,4 @@
 
 set "MIRA_CMD_RUNNER_DIR=%ProgramFiles%\Mira Geoscience\Geoscience ANALYST\CmdRunner"
 set curdir=%~dp0
-"%MIRA_CMD_RUNNER_DIR%\MambaEnvRunner.exe" --install "%curdir%\environments\conda-py-3.10-win-64.lock.yml" --with-pip-deps %*
+"%MIRA_CMD_RUNNER_DIR%\MambaEnvRunner.exe" --install "%curdir%\environments\conda-py-3.10-win-64.lock.yml" --with-pip-deps %* --run pip install -e .[dash] %*
