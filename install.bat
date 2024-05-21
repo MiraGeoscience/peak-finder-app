@@ -1,3 +1,12 @@
+:: Creates a dedicated Conda environment with this package installed and ready to run in that environment.
+::
+:: Usage: install.bat [-e]
+::
+:: Use the optional -e argument to install in editable mode. In that case, any
+:: change in the source code will be immediately reflected at execution, and the source folder
+:: must not be moved or deleted after installation.
+
+
 @echo off
 setlocal EnableDelayedExpansion
 

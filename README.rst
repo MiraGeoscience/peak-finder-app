@@ -65,7 +65,8 @@ Quick installation
 To install (or re-install) a conda environment to run **peak-finder-app**, simply execute the **install.bat** file.
 
 To install in editable mode, so that changes in the source code are immediately reflected in the
-running application, execute the **install_editable.bat** file instead.
+running application, execute with the ``-e`` option: ``install.bat -e``
+(in editable mode, the source folder must not be moved or deleted after installation).
 
 
 Manual installation

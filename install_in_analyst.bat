@@ -1,9 +1,15 @@
-:: Creates an environment for peak-finder-app under the Python environment location used by Geoscience Analyst.
-:: Assumes Analyst is installed under "%ProgramFiles%\Mira Geoscience\Geoscience ANALYST"
+:: Creates a dedicated environment for using this package under the Python environment location
+:: used by Geoscience Analyst.
+:: Assumes Analyst is installed under "%ProgramFiles%\Mira Geoscience\Geoscience ANALYST".
 ::
-:: Usage: install_in_analyst.bat [--conda default] [--name <env-name>]
+:: Usage: install_in_analyst.bat [-e] [--conda default] [--name <env-name>]
 ::  - To install for regular conda, call with argument: --conda default
 ::  - To specify a different environment name, call with argument: --name <env-name>
+::
+:: Use the optional -e argument (in first position) to install in editable mode. In that case, any
+:: change in the source code will be immediately reflected at execution, and the source folder
+:: must not be moved or deleted after installation.
+
 
 @echo off
 setlocal EnableDelayedExpansion
