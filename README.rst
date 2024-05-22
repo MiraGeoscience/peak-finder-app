@@ -59,71 +59,93 @@ We recommend to install **Conda** using `miniforge`_.
 
 .. _miniforge: https://github.com/conda-forge/miniforge
 
-Within a conda environment
---------------------------
+Quick installation
+-------------------
 
-You can install (or update) a conda environment with all the requires packages to run **peak-finder-app**.
-To do so you can directly run the **Install_or_Update.bat** file by double left clicking on it.
+To install (or re-install) a conda environment to run **peak-finder-app**, simply execute the **install.bat** file.
 
-Install with conda
-------------------
+To install in editable mode, so that changes in the source code are immediately reflected in the
+running application, execute with the ``-e`` option: ``install.bat -e``
+(in editable mode, the source folder must not be moved or deleted after installation).
 
-You can install the package using ``conda`` and the ``.lock`` files from a conda prompt:
 
-.. code-block:: bash
+Manual installation
+-------------------
 
-  conda env create -n my-env -f environments/[the_desired_env].lock.yml
+You should not install the package directly with ``pip``, as the app requires conda packages to run.
 
-Install with PyPI
------------------
+First create a Conda environment with all the required dependencies,
+then activate it and install the package in this environment using
+``pip install --no-deps ...``
 
-You should not install the package from PyPI, as the app requires conda packages to run.
-Still, you can install it in a conda environment without its dependencies (``--no-deps``).
+See instructions below for more details and options.
+
+Prepare a Conda environment with dependencies
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+You can create a Conda environment with all the required dependencies ``conda`` and the ``.lock``
+files from a conda prompt::
+
+    $ conda env create --solver libmamba -n my-env -f environments/[the_desired_env].lock.yml
+
+.. note::
+    The package itself is not install yet in the Conda environment. See following instructions.
+
+.. warning::
+    All the following ``pip`` commands are meant to be executed in the Conda environment you just created.
+    Activate it with::
+
+    $ conda activate my-env
 
 From PyPI
 ~~~~~~~~~
 
-To install the **peak-finder-app** package published on PyPI:
+To install the **peak-finder-app** package published on PyPI::
 
-.. code-block:: bash
-
-    pip install -U --no-deps peak-finder-app
+    $ pip install --no-deps -U peak-finder-app
 
 From a Git tag or branch
 ~~~~~~~~~~~~~~~~~~~~~~~~
-If the package is not on PiPY yet, you can install it from a Git tag:
+If the revision of the package is not on PyPI yet, you can install it from a Git tag::
 
-.. code-block:: bash
+    $ pip install --no-deps -U --force-reinstall https://github.com/MiraGeoscience/peak-finder-app/archive/refs/tags/TAG.zip
 
-    pip install -U --no-deps --force-reinstall https://github.com/MiraGeoscience/peak-finder-app/archive/refs/tags/TAG.zip
+Or to install the latest changes available on a given Git branch::
 
-Or to install the latest changes available on a given Git branch:
-
-.. code-block:: bash
-
-    pip install -U --no-deps --force-reinstall https://github.com/MiraGeoscience/peak-finder-app/archive/refs/heads/BRANCH.zip
+    $ pip install --no-deps -U --force-reinstall https://github.com/MiraGeoscience/peak-finder-app/archive/refs/heads/BRANCH.zip
 
 .. note::
     The ``--force-reinstall`` option is used to make sure the updated version
     of the sources is installed, and not the cached version, even if the version number
-    did not change. The ``-U`` or ``--upgrade`` option is used to make sure to get the latest version,
-    on not merely reinstall the same version. As the package is aimed to be in a **Conda environment**, the option ``--no-deps`` is used to avoid installing the dependencies with pip, as they will be installed with conda.
+    did not change.
+
+    The ``-U`` or ``--upgrade`` option is used to make sure to get the latest version,
+    on not merely reinstall the same version.
+
+    The option ``--no-deps`` is used to avoid installing the dependencies with pip,
+    as they have dependencies are already installed within the **Conda environment**.
 
 From a local copy of the sources
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-If you have a git clone of the package sources locally,
-you can install **peak-finder-app** from the local copy of the sources with:
+If you have a git clone of the package sources locally, you can install **peak-finder-app** from the
+local copy of the sources. At the root of the sources, you will find a ``pyproject.toml`` file.
 
-.. code-block:: bash
+Change directory to the root of the sources::
 
-    pip install -U --force-reinstall path/to/project_folder_with_pyproject_toml
+    $ cd path/to/project_folder_with_pyproject_toml
 
-Or in **editable mode**, so that you can edit the sources and see the effect immediately at runtime:
+Then run::
 
-.. code-block:: bash
+    $ pip install --no-deps -U --force-reinstall .
 
-    pip install -e -U --force-reinstall path/to/project_folder_with_pyproject_toml
+Or in **editable mode**, so that you can edit the sources and see the effect immediately at runtime::
 
+    $ pip install --no-deps -U --force-reinstall -e .
+
+Setup for development
+^^^^^^^^^^^^^^^^^^^^^
+To configure the development environment and tools, please see `README-dev.rst`_.
+
+.. _README-dev.rst: README-dev.rst
 
 License
 ^^^^^^^
@@ -159,3 +181,7 @@ Third Party Software notices and/or additional terms and conditions are located 
 `THIRD_PARTY_SOFTWARE.rst`_ file.
 
 .. _THIRD_PARTY_SOFTWARE.rst: THIRD_PARTY_SOFTWARE.rst
+
+Copyright
+^^^^^^^^^
+Copyright (c) 2024 Mira Geoscience Ltd.
