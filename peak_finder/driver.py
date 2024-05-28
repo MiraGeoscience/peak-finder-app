@@ -328,6 +328,23 @@ class PeakFinderDriver(BaseDriver):
                     }
                 )
 
+                if self.params.trend_lines:
+                    inputs = {
+                        "geoh5": self.params.geoh5,
+                        "entity": group_points,
+                        "data": channel_group_data,
+                        "parts": line_id_data,
+                        "export_as": "Trend Lines",
+                        "damping": 1,
+                    }
+
+                    params = Parameters.build(inputs)
+                    driver = TrendLinesDriver(params)
+                    out_trend = driver.create_output("Trend Lines", parent=output_group)
+
+                    if out_trend is not None:
+                        driver.add_ui_json(out_trend)
+
             if anom_locs:
                 anom_points = Points.create(
                     self.params.geoh5,
@@ -351,23 +368,6 @@ class PeakFinderDriver(BaseDriver):
                         },
                     }
                 )
-
-            if group_points is not None and self.params.trend_lines:
-                inputs = {
-                    "geoh5": self.params.geoh5,
-                    "entity": group_points,
-                    "data": channel_group_data,
-                    "parts": line_id_data,
-                    "export_as": "Trend Lines",
-                    "damping": 1,
-                }
-
-                params = Parameters.build(inputs)
-                driver = TrendLinesDriver(params)
-                out_trend = driver.create_output("Trend Lines", parent=output_group)
-
-                if out_trend is not None:
-                    driver.add_ui_json(out_trend)
 
         with self.params.geoh5.open(mode="r+"):
             self.update_monitoring_directory(output_group)
