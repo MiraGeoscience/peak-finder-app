@@ -16,59 +16,43 @@ from peak_finder.anomaly import Anomaly
 from peak_finder.line_position import LinePosition
 
 
-class AnomalyGroup:  # pylint: disable=too-many-public-methods
+class AnomalyGroup:
     """
     Group of anomalies. Contains list with a subset of anomalies.
     """
 
-    _position: LinePosition
-    _anomalies: list[Anomaly]
-    _property_group: PropertyGroup
-    _full_azimuth: np.ndarray
-    _channels: dict
-    _full_peak_values: np.ndarray
-    _linear_fit: list | None = None
-    _amplitude: float | None = None
-    _migration: float | None = None
-    _azimuth: float | None = None
-    _group_center: np.ndarray | None = None
-    _group_center_sort: np.ndarray | None = None
-    _peak: np.ndarray | None = None
-    _peaks: np.ndarray | None = None
-    _start: int | None = None
-    _end: int | None = None
-
     def __init__(
         self,
-        position: LinePosition,
         anomalies: list[Anomaly],
         property_group: PropertyGroup,
-        full_azimuth: np.ndarray,
-        channels: dict,
-        full_peak_values: np.ndarray,
         subgroups: set[AnomalyGroup],
     ):
+        self._amplitude: float | None = None
+        self._group_center: np.ndarray | None = None
+        self._group_center_sort: np.ndarray | None = None
+        self._peaks: np.ndarray | None = None
+        self._start: int | None = None
+        self._end: int | None = None
+
         self.anomalies = anomalies
-        self.channels = channels
-        self.full_azimuth = full_azimuth
-        self.full_peak_values = full_peak_values
-        self.position = position
         self.property_group = property_group
         self.subgroups = subgroups
+
+    @property
+    def amplitude(self) -> float | None:
+        """
+        Amplitude of anomalies.
+        """
+        if self._amplitude is None and self.anomalies is not None:
+            self._amplitude = np.sum([anom.amplitude for anom in self.anomalies])
+        return self._amplitude
 
     @property
     def position(self) -> LinePosition:
         """
         Line position.
         """
-        return self._position
-
-    @position.setter
-    def position(self, value: LinePosition):
-        if not isinstance(value, LinePosition):
-            raise TypeError("Attribute 'position' must be a LinePosition object.")
-
-        self._position = value
+        return self.anomalies[0].parent.position
 
     @property
     def anomalies(self) -> list[Anomaly]:
@@ -112,24 +96,6 @@ class AnomalyGroup:  # pylint: disable=too-many-public-methods
         return self._group_center_sort
 
     @property
-    def amplitude(self) -> float | None:
-        """
-        Amplitude of anomalies.
-        """
-        if self._amplitude is None and self.anomalies is not None:
-            self._amplitude = np.sum([anom.amplitude for anom in self.anomalies])
-        return self._amplitude
-
-    @property
-    def linear_fit(self) -> list | None:
-        """
-        Intercept and slope of linear fit.
-        """
-        if self._linear_fit is None:
-            self._linear_fit = self.compute_linear_fit()
-        return self._linear_fit
-
-    @property
     def property_group(self) -> PropertyGroup:
         """
         Channel group.
@@ -154,49 +120,7 @@ class AnomalyGroup:  # pylint: disable=too-many-public-methods
         self._subgroups = value
 
     @property
-    def channels(self) -> dict:
-        """
-        Dict of active channels and values.
-        """
-        return self._channels
-
-    @channels.setter
-    def channels(self, value):
-        self._channels = value
-
-    @property
-    def azimuth(self) -> float | None:
-        """
-        Azimuth of anomalies.
-        """
-        if self._azimuth is None:
-            self._azimuth = self.compute_dip_direction()
-        return self._azimuth
-
-    @property
-    def full_azimuth(self) -> np.ndarray | None:
-        """
-        Full azimuth values for line.
-        """
-        return self._full_azimuth
-
-    @full_azimuth.setter
-    def full_azimuth(self, value):
-        self._full_azimuth = value
-
-    @property
-    def full_peak_values(self) -> np.ndarray | None:
-        """
-        Full peak values for group.
-        """
-        return self._full_peak_values
-
-    @full_peak_values.setter
-    def full_peak_values(self, value):
-        self._full_peak_values = value
-
-    @property
-    def peaks(self) -> np.ndarray | None:
+    def peaks(self) -> np.ndarray:
         """
         List of peaks from all anomalies in group.
         """
@@ -210,7 +134,7 @@ class AnomalyGroup:  # pylint: disable=too-many-public-methods
         Start position of the anomaly group.
         """
         if self._start is None and self.peaks is not None:
-            self._start = np.min(self.get_list_attr("start"))
+            self._start = np.median(self.get_list_attr("start"))
         return self._start
 
     @property
@@ -219,10 +143,10 @@ class AnomalyGroup:  # pylint: disable=too-many-public-methods
         End position of the anomaly group.
         """
         if self._end is None and self.peaks is not None:
-            self._end = np.max(self.get_list_attr("end"))
+            self._end = np.median(self.get_list_attr("end"))
         return self._end
 
-    def get_list_attr(self, attr: str) -> list | np.ndarray:
+    def get_list_attr(self, attr: str) -> np.ndarray:
         """
         Get list of attribute from anomalies.
 
@@ -230,66 +154,4 @@ class AnomalyGroup:  # pylint: disable=too-many-public-methods
 
         :return: List of attribute.
         """
-        return np.array([getattr(a, attr) for a in self.anomalies])
-
-    def compute_dip_direction(
-        self,
-    ) -> float | None:
-        """
-        Compute dip direction for an anomaly group.
-
-        :return: Dip direction.
-        """
-        if (
-            self.group_center is None
-            or self.group_center_sort is None
-            or self.full_azimuth is None
-            or self.peaks is None
-            or self.full_peak_values is None
-        ):
-            return None
-
-        dip_direction = self.full_azimuth[self.peaks[0]]
-
-        if (
-            self.full_peak_values[self.group_center_sort][0]
-            < self.full_peak_values[self.group_center_sort][-1]
-        ):
-            dip_direction = (dip_direction + 180) % 360.0
-
-        return dip_direction
-
-    def compute_linear_fit(
-        self,
-    ) -> list[float] | None:
-        """
-        Compute linear fit for the anomaly group.
-
-        :return: List of intercept, slope for the linear fit.
-        """
-        if (
-            self.channels is None
-            or self.anomalies is None
-            or self.full_peak_values is None
-        ):
-            return None
-
-        gates = np.array([a.parent.data_entity for a in self.anomalies])
-
-        times = [
-            channel["time"]
-            for i, channel in enumerate(self.channels.values())
-            if (i in list(gates) and "time" in channel)
-        ]
-
-        linear_fit = None
-        if len(times) > 2 and len(self.anomalies) > 0:
-            times = np.hstack(times)[self.full_peak_values > 0]
-            if len(times) > 2:
-                # Compute linear trend
-                slope, intercept = np.polyfit(
-                    times, np.log(self.full_peak_values[self.full_peak_values > 0]), 1
-                )
-                linear_fit = [intercept, slope]
-
-        return linear_fit
+        return np.asarray([getattr(a, attr) for a in self.anomalies])

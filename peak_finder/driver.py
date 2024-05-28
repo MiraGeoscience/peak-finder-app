@@ -14,13 +14,13 @@ import sys
 import numpy as np
 from curve_apps.trend_lines.driver import TrendLinesDriver
 from curve_apps.trend_lines.params import Parameters
-from dask import compute, delayed
+from dask import compute
 from dask.diagnostics import ProgressBar
 from geoapps_utils.conversions import hex_to_rgb
 from geoapps_utils.driver.driver import BaseDriver
 from geoapps_utils.formatters import string_name
 from geoh5py import Workspace
-from geoh5py.data import Data
+from geoh5py.data import ReferencedData
 from geoh5py.groups import ContainerGroup, PropertyGroup
 from geoh5py.objects import Curve, Points
 from geoh5py.shared.utils import fetch_active_workspace
@@ -71,39 +71,43 @@ class PeakFinderDriver(BaseDriver):
         :param n_groups: Number of groups to use for grouping anomalies.
         :param max_separation: Maximum separation between anomalies in meters.
         """
-        line_computation = delayed(LineAnomaly, pure=True)
+
+        # @delayed
+        # def line_computation(line_anomaly):
+        #     line_anomaly._anomalies = line_anomaly.find_anomalies()
+        #     return line_anomaly
 
         anomalies = []
         for line_id in tqdm(list(line_ids)):
             line_start = line_indices_dict[line_id]["line_start"]
-            for indices in line_indices_dict[line_id]["line_indices"]:  # type: ignore
-                anomalies += [
-                    line_computation(
-                        entity=survey,
-                        line_id=line_id,
-                        line_indices=indices,
-                        line_start=line_start,
-                        property_groups=property_groups,
-                        smoothing=smoothing,
-                        min_amplitude=min_amplitude,
-                        min_value=min_value,
-                        min_width=min_width,
-                        max_migration=max_migration,
-                        min_channels=min_channels,
-                        n_groups=n_groups,
-                        max_separation=max_separation,
-                        minimal_output=True,
-                    )
-                ]
+            for indices in line_indices_dict[line_id]["line_indices"]:
+                line_class = LineAnomaly(
+                    entity=survey,
+                    line_id=line_id,
+                    line_indices=indices,
+                    line_start=line_start,
+                    property_groups=property_groups,
+                    smoothing=smoothing,
+                    min_amplitude=min_amplitude,
+                    min_value=min_value,
+                    min_width=min_width,
+                    max_migration=max_migration,
+                    min_channels=min_channels,
+                    n_groups=n_groups,
+                    max_separation=max_separation,
+                    minimal_output=True,
+                )  # type: ignore
+
+                anomalies += [line_class]
 
         return anomalies
 
     @staticmethod
     def get_line_indices(  # pylint: disable=too-many-locals
         survey_obj: Curve,
-        line_field_obj: Data,
+        line_field_obj: ReferencedData,
         line_ids: list[int],
-    ) -> dict | None:
+    ) -> dict:
         """
         Get line indices for plotting.
 
@@ -116,8 +120,7 @@ class PeakFinderDriver(BaseDriver):
         if (
             not isinstance(survey_obj, Curve)
             or survey_obj.vertices is None
-            or not hasattr(line_field_obj, "values")
-            or not isinstance(line_field_obj.values, np.ndarray | list)
+            or line_field_obj.values is None
         ):
             return {}
 
@@ -167,6 +170,9 @@ class PeakFinderDriver(BaseDriver):
         with fetch_active_workspace(self.params.geoh5, mode="r+"):
             survey = self.params.objects
 
+            if survey is None:
+                raise ValueError("Survey object not found.")
+
             output_group = ContainerGroup.create(
                 self.params.geoh5, name=string_name(self.params.ga_group_name)
             )
@@ -191,25 +197,30 @@ class PeakFinderDriver(BaseDriver):
                 for name in channel_groups
             ]
 
-            survey_obj = self.params.objects
+            line_field_obj = self.params.get_line_field(survey)
+
             if self.params.masking_data is not None:
                 masking_array = self.params.masking_data.values
 
                 workspace = Workspace()
-                survey_obj = survey_obj.copy(parent=workspace)
+                survey = survey.copy(parent=workspace)
 
                 if False in masking_array:
-                    survey_obj.remove_vertices(~masking_array)
-                line_field_obj = survey_obj.get_data(self.params.line_field.uid)[0]
-            else:
-                line_field_obj = self.params.line_field
+                    survey.remove_vertices(~masking_array)
+
+                line_obj = survey.get_data(line_field_obj.uid)[0]
+
+                if not isinstance(line_obj, ReferencedData):
+                    raise ValueError("Line field not found.")
+
+                line_field_obj = line_obj
 
             line_ids = line_field_obj.value_map.map.keys()
             indices_dict = PeakFinderDriver.get_line_indices(
-                survey_obj, line_field_obj, line_ids
+                survey, line_field_obj, line_ids
             )
             anomalies = PeakFinderDriver.compute_lines(
-                survey=survey_obj,
+                survey=survey,
                 line_indices_dict=indices_dict,
                 line_ids=line_ids,
                 property_groups=property_groups,
@@ -225,7 +236,6 @@ class PeakFinderDriver(BaseDriver):
 
             (
                 channel_group,
-                tau,
                 amplitude,
                 group_center,
                 group_start,
@@ -237,63 +247,49 @@ class PeakFinderDriver(BaseDriver):
                 anom_end,
                 peaks,
                 line_ids,
-            ) = ([], [], [], [], [], [], [], [], [], [], [], [], [])
+            ) = ([], [], [], [], [], [], [], [], [], [], [], [])
 
             print("Processing and collecting results:")
             with ProgressBar():
-                results = compute(anomalies)
+                results = compute(anomalies)[0]
+            # pylint: disable=R1702
+            for line_anomaly in tqdm(results):
+                if line_anomaly.anomalies is None:
+                    continue
+                for line_group in line_anomaly.anomalies:
+                    for group in line_group.groups:
+                        channel_group.append(
+                            property_groups.index(group.property_group) + 1
+                        )
+                        amplitude.append(group.amplitude)
 
-            for line in tqdm(results):  # pylint: disable=R1702
-                for line_anomaly in line:
-                    if line_anomaly.anomalies is None:
-                        continue
-                    for line_group in line_anomaly.anomalies:
-                        for group in line_group.groups:
-                            if group.linear_fit is None:
-                                tau += [0]
-                            else:
-                                tau += [np.abs(group.linear_fit[0] ** -1.0)]
-                            channel_group.append(
-                                property_groups.index(group.property_group) + 1
-                            )
-                            amplitude.append(group.amplitude)
+                        locs = np.vstack(
+                            [getattr(group.position, f"{k}_locations") for k in "xyz"]
+                        ).T
 
-                            locs = np.vstack(
-                                [
-                                    getattr(group.position, f"{k}_locations")
-                                    for k in "xyz"
-                                ]
-                            ).T
-
-                            _, ind = KDTree(locs).query(group.group_center)
-                            group_center.append(locs[ind])
-                            group_start.append(group.start)
-                            group_end.append(group.end)
-                            line_ids.append(line_anomaly.line_id)
-                            inds_map = group.position.map_locations
-                            for anom in group.anomalies:
-                                anom_locs.append(locs[inds_map[anom.peak]])
-                                inflect_down.append(inds_map[anom.inflect_down])
-                                inflect_up.append(inds_map[anom.inflect_up])
-                                anom_start.append(inds_map[anom.start])
-                                anom_end.append(inds_map[anom.end])
-                                peaks.append(inds_map[anom.peak])
+                        _, ind = KDTree(locs).query(group.group_center)
+                        group_center.append(locs[ind])
+                        group_start.append(group.start)
+                        group_end.append(group.end)
+                        line_ids.append(line_anomaly.line_id)
+                        inds_map = group.position.map_locations
+                        for anom in group.anomalies:
+                            anom_locs.append(locs[inds_map[anom.peak]])
+                            inflect_down.append(inds_map[anom.inflect_down])
+                            inflect_up.append(inds_map[anom.inflect_up])
+                            anom_start.append(inds_map[anom.start])
+                            anom_end.append(inds_map[anom.end])
+                            peaks.append(inds_map[anom.peak])
 
             print("Exporting . . .")
             group_points = None
             if group_center:
-                channel_group = np.hstack(channel_group)  # Start count at 1
-
                 # Create reference values and color_map
                 group_map, color_map = {0: "Unknown"}, [[0, 0, 0, 0, 0]]
                 for ind, (name, group) in enumerate(channel_groups.items()):
                     group_map[ind + 1] = name
                     color_map += [[ind + 1] + hex_to_rgb(group["color"]) + [0]]
 
-                color_map = np.core.records.fromarrays(
-                    np.vstack(color_map).T,
-                    names=["Value", "Red", "Green", "Blue", "Alpha"],
-                )
                 group_points = Points.create(
                     self.params.geoh5,
                     name="Anomaly Groups",
@@ -302,10 +298,9 @@ class PeakFinderDriver(BaseDriver):
                 )
 
                 group_points.entity_type.name = self.params.ga_group_name
-                amplitude = np.hstack(amplitude)
                 group_points.add_data(
                     {
-                        "amplitude": {"values": amplitude},
+                        "amplitude": {"values": np.asarray(amplitude)},
                         "start": {
                             "values": np.vstack(group_start).flatten().astype(np.int32)
                         },
@@ -323,10 +318,7 @@ class PeakFinderDriver(BaseDriver):
                         }
                     }
                 )
-                channel_group_data.entity_type.color_map = {
-                    "name": "Time Groups",
-                    "values": color_map,
-                }
+                channel_group_data.entity_type.color_map = np.vstack(color_map)
                 line_id_data = group_points.add_data(
                     {
                         line_field_obj.name: {
@@ -335,6 +327,23 @@ class PeakFinderDriver(BaseDriver):
                         }
                     }
                 )
+
+                if self.params.trend_lines:
+                    inputs = {
+                        "geoh5": self.params.geoh5,
+                        "entity": group_points,
+                        "data": channel_group_data,
+                        "parts": line_id_data,
+                        "export_as": "Trend Lines",
+                        "damping": 1,
+                    }
+
+                    params = Parameters.build(inputs)
+                    driver = TrendLinesDriver(params)
+                    out_trend = driver.create_output("Trend Lines", parent=output_group)
+
+                    if out_trend is not None:
+                        driver.add_ui_json(out_trend)
 
             if anom_locs:
                 anom_points = Points.create(
@@ -360,25 +369,19 @@ class PeakFinderDriver(BaseDriver):
                     }
                 )
 
-            if group_points is not None and self.params.trend_lines:
-                inputs = {
-                    "geoh5": self.params.geoh5,
-                    "entity": group_points,
-                    "data": channel_group_data,
-                    "parts": line_id_data,
-                    "export_as": "Trend Lines",
-                    "damping": 1,
-                }
-
-                params = Parameters.build(inputs)
-                driver = TrendLinesDriver(params)
-                out_trend = driver.create_output("Trend Lines", parent=output_group)
-
-                if out_trend is not None:
-                    driver.add_ui_json(out_trend)
-
         with self.params.geoh5.open(mode="r+"):
             self.update_monitoring_directory(output_group)
+
+    @property
+    def params(self) -> PeakFinderParams:
+        """Application parameters."""
+        return self._params
+
+    @params.setter
+    def params(self, val: PeakFinderParams):
+        if not isinstance(val, PeakFinderParams):
+            raise TypeError("Parameters must be of type BaseParams.")
+        self._params = val
 
 
 if __name__ == "__main__":

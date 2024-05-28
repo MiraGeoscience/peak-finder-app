@@ -96,13 +96,21 @@ def test_peak_finder_app(tmp_path: Path):  # pylint: disable=too-many-locals
 
     param_names = string.ascii_lowercase[:6]
     property_groups = {}
+    colors = [
+        "#0000FF",
+        "#FFFF00",
+        "#FF0000",
+        "#00FFFF",
+        "#008000",
+        "#FFA500",
+    ]
     for ind, group in enumerate(
         [early, middle, late, early_middle, early_middle_late, middle_late]
     ):
         property_groups[group.name] = {
             "param": param_names[ind],
             "data": str(group.uid),
-            "color": "#000000",
+            "color": colors[ind],
             "label": [ind + 1],
             "properties": [str(p) for p in group.properties],
         }
@@ -527,7 +535,7 @@ def test_trend_line(tmp_path: Path):  # pylint: disable=too-many-locals
     data = curve.add_data({"data": {"values": np.concatenate(data)}})
     prop_group = curve.add_data_to_group(data, property_group="obs")
     value_map = {0: "Unknown"}
-    value_map.update({ind + 1: f"{ind+1}" for ind in range(len(line_id))})
+    value_map.update({ind + 1: f"{ind + 1}" for ind in range(len(line_id))})
 
     line = curve.add_data(
         {

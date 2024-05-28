@@ -10,10 +10,11 @@ from __future__ import annotations
 import string
 from copy import deepcopy
 
+import numpy as np
 from geoapps_utils.driver.params import BaseParams
-from geoh5py.data import Data
+from geoh5py.data import Data, ReferencedData
 from geoh5py.groups import PropertyGroup
-from geoh5py.objects import ObjectBase
+from geoh5py.objects import Curve
 from geoh5py.ui_json import InputFile
 
 from peak_finder.constants import default_ui_json, defaults, validations
@@ -30,18 +31,18 @@ class PeakFinderParams(BaseParams):  # pylint: disable=R0902, R0904
         self._free_parameter_keys: list = ["data", "color"]
         self._free_parameter_identifier: str = "group"
         self._validations: dict | None = validations
-        self._objects: ObjectBase | None = None
-        self._flip_sign: bool | None = None
-        self._line_field: Data | None = None
+        self._objects: Curve
+        self._flip_sign: bool = False
+        self._line_field: ReferencedData
         self._masking_data: Data | None = None
-        self._smoothing: int | None = None
-        self._min_amplitude: int | None = None
-        self._min_value: float | None = None
-        self._min_width: float | None = None
-        self._max_migration: float | None = None
-        self._min_channels: int | None = None
-        self._n_groups: int | None = None
-        self._max_separation: float | None = None
+        self._smoothing: int = 0
+        self._min_amplitude: int = 1
+        self._min_value: float = -np.inf
+        self._min_width: float = 0.0
+        self._max_migration: float = np.inf
+        self._min_channels: int = 1
+        self._n_groups: int = 1
+        self._max_separation: float = np.inf
         self._ga_group_name: str | None = None
         self._structural_markers: bool | None = None
         self._trend_lines: bool | None = None
@@ -90,7 +91,7 @@ class PeakFinderParams(BaseParams):  # pylint: disable=R0902, R0904
         self.setter_validator("conda_environment_boolean", val)
 
     @property
-    def flip_sign(self) -> bool | None:
+    def flip_sign(self) -> bool:
         """
         Flip sign of data.
         """
@@ -112,7 +113,7 @@ class PeakFinderParams(BaseParams):  # pylint: disable=R0902, R0904
         self.setter_validator("ga_group_name", val)
 
     @property
-    def line_field(self) -> Data | None:
+    def line_field(self) -> ReferencedData:
         """
         Object containing line ids and associated names.
         """
@@ -145,7 +146,7 @@ class PeakFinderParams(BaseParams):  # pylint: disable=R0902, R0904
         self.setter_validator("line_id", val)
 
     @property
-    def max_migration(self) -> float | None:
+    def max_migration(self) -> float:
         """
         Threshold on the lateral shift (m) of peaks within a grouping of anomalies.
         """
@@ -156,7 +157,7 @@ class PeakFinderParams(BaseParams):  # pylint: disable=R0902, R0904
         self.setter_validator("max_migration", val)
 
     @property
-    def min_amplitude(self) -> int | None:
+    def min_amplitude(self) -> int:
         """
         Threshold on the minimum amplitude of the anomaly, expressed as
         a percent of the height scaled by the minimum value.
@@ -168,7 +169,7 @@ class PeakFinderParams(BaseParams):  # pylint: disable=R0902, R0904
         self.setter_validator("min_amplitude", val)
 
     @property
-    def min_channels(self) -> int | None:
+    def min_channels(self) -> int:
         """
         Minimum number of data channels required to form a group.
         """
@@ -179,7 +180,7 @@ class PeakFinderParams(BaseParams):  # pylint: disable=R0902, R0904
         self.setter_validator("min_channels", val)
 
     @property
-    def min_value(self) -> float | None:
+    def min_value(self) -> float:
         """
         Minimum absolute data value to be considered for anomaly detection.
         """
@@ -190,7 +191,7 @@ class PeakFinderParams(BaseParams):  # pylint: disable=R0902, R0904
         self.setter_validator("min_value", val)
 
     @property
-    def min_width(self) -> float | None:
+    def min_width(self) -> float:
         """
         Minimum anomaly width (m) measured between start and end of bounding minima.
         """
@@ -212,7 +213,7 @@ class PeakFinderParams(BaseParams):  # pylint: disable=R0902, R0904
         self.setter_validator("monitoring_directory", val)
 
     @property
-    def objects(self) -> ObjectBase | None:
+    def objects(self) -> Curve:
         """
         Objects to use for line profile.
         """
@@ -231,7 +232,7 @@ class PeakFinderParams(BaseParams):  # pylint: disable=R0902, R0904
         self._plot_result = val
 
     @property
-    def smoothing(self) -> int | None:
+    def smoothing(self) -> int:
         """
         Number of neighbors used in running mean smoothing.
         """
@@ -253,7 +254,7 @@ class PeakFinderParams(BaseParams):  # pylint: disable=R0902, R0904
         self.setter_validator("trend_lines", val)
 
     @property
-    def n_groups(self) -> int | None:
+    def n_groups(self) -> int:
         """
         Number of consecutive peaks to merge into a single anomaly.
         """
@@ -264,7 +265,7 @@ class PeakFinderParams(BaseParams):  # pylint: disable=R0902, R0904
         self.setter_validator("n_groups", val)
 
     @property
-    def max_separation(self) -> float | None:
+    def max_separation(self) -> float:
         """
         Maximum separation between peaks to merge into single anomaly.
         """
@@ -459,3 +460,22 @@ class PeakFinderParams(BaseParams):  # pylint: disable=R0902, R0904
                     "properties": prop_group.properties,
                 }
         return property_groups
+
+    def get_line_field(self, survey: Curve) -> ReferencedData:
+        """
+        Get the line field object.
+        """
+        line_field_obj = self.line_field
+
+        if line_field_obj is None:
+            unique_parts = np.unique(survey.parts.astype(int)) + 1
+            line_field_obj = survey.add_data(
+                {
+                    "Line ID": {
+                        "values": survey.parts.astype(int) + 1,
+                        "value_map": {ind: f"Line {ind}" for ind in unique_parts},
+                        "type": "referenced",
+                    }
+                }
+            )
+        return line_field_obj

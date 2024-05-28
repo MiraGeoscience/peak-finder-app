@@ -9,53 +9,9 @@ from __future__ import annotations
 import dash_daq as daq
 from dash import dcc, html
 
-data_selection_layout = html.Div(
+trigger_run_layout = html.Div(
     id="data_selection",
     children=[
-        html.Div(
-            [
-                dcc.Markdown(
-                    children="Select Line",
-                    style={
-                        "width": "30%",
-                        "display": "inline-block",
-                        "vertical-align": "middle",
-                    },
-                ),
-                dcc.Dropdown(
-                    id="selected_line",
-                    options=[],
-                    style={
-                        "width": "70%",
-                        "display": "inline-block",
-                        "vertical-align": "middle",
-                    },
-                ),
-            ],
-            style={"margin-bottom": "20px"},
-        ),
-        html.Div(
-            [
-                dcc.Markdown(
-                    children="N outward lines",
-                    style={
-                        "width": "30%",
-                        "display": "inline-block",
-                    },
-                ),
-                dcc.Input(
-                    id="n_lines",
-                    type="number",
-                    min=0,
-                    step=1,
-                    value=1,
-                    style={
-                        "width": "49%",
-                        "display": "inline-block",
-                    },
-                ),
-            ]
-        ),
         dcc.Checklist(
             id="trend_lines",
             options=[{"label": "Create trend lines", "value": True}],
@@ -63,11 +19,11 @@ data_selection_layout = html.Div(
         html.Div(
             [
                 dcc.Markdown(
-                    "Save as", style={"width": "25%", "display": "inline-block"}
+                    "Save as", style={"width": "75%", "display": "inline-block"}
                 ),
                 dcc.Input(
                     id="ga_group_name",
-                    style={"width": "25%", "display": "inline-block"},
+                    style={"width": "75%", "display": "inline-block"},
                 ),
             ]
         ),
@@ -134,6 +90,28 @@ figure_layout = html.Div(
 visual_params_layout = html.Div(
     id="visual_params",
     children=[
+        html.Div(
+            [
+                dcc.Markdown(
+                    children="N outward lines",
+                    style={
+                        "width": "30%",
+                        "display": "inline-block",
+                    },
+                ),
+                dcc.Input(
+                    id="n_lines",
+                    type="number",
+                    min=0,
+                    step=1,
+                    value=1,
+                    style={
+                        "width": "49%",
+                        "display": "inline-block",
+                    },
+                ),
+            ]
+        ),
         html.Div(
             [
                 dcc.Markdown(
@@ -232,6 +210,28 @@ visual_params_layout = html.Div(
 detection_params_layout = html.Div(
     id="detection_params",
     children=[
+        html.Div(
+            [
+                dcc.Markdown(
+                    children="Select Line",
+                    style={
+                        "width": "30%",
+                        "display": "inline-block",
+                        "vertical-align": "middle",
+                    },
+                ),
+                dcc.Dropdown(
+                    id="selected_line",
+                    options=[],
+                    style={
+                        "width": "70%",
+                        "display": "inline-block",
+                        "vertical-align": "middle",
+                    },
+                ),
+            ],
+            style={"margin-bottom": "20px"},
+        ),
         html.Div(
             [
                 dcc.Markdown(
@@ -430,6 +430,7 @@ detection_params_layout = html.Div(
                     id="max_separation",
                     value=100,
                     type="number",
+                    debounce=True,
                     style={
                         "width": "70%",
                         "display": "inline-block",
@@ -472,34 +473,38 @@ peak_finder_layout = html.Div(
         ),
         html.Div(
             [
-                dcc.Dropdown(
-                    options=["Line figure", "Survey figure"],
-                    multi=True,
-                    id="figure_selection",
-                    value=["Line figure"],
-                    style={"width": "50%"},
-                ),
-                figure_layout,
-            ],
-        ),
-        html.Div(
-            [
-                dcc.Dropdown(
-                    options=[
-                        "Data selection",
-                        "Visual parameters",
-                        "Detection parameters",
+                html.Div(
+                    [
+                        dcc.Dropdown(
+                            options=["Line figure", "Survey figure"],
+                            multi=True,
+                            id="figure_selection",
+                            value=["Line figure"],
+                            style={"width": "50%"},
+                        ),
+                        figure_layout,
                     ],
-                    id="widget_selection",
-                    value="Data selection",
-                    style={"width": "70%", "margin-bottom": "20px"},
+                    style={"width": "70%", "display": "inline-block"},
                 ),
-                data_selection_layout,
-                visual_params_layout,
-                detection_params_layout,
+                html.Div(
+                    [
+                        dcc.Dropdown(
+                            options=[
+                                "Detection parameters",
+                                "Visual parameters",
+                            ],
+                            id="widget_selection",
+                            value="Detection parameters",
+                            style={"width": "70%", "margin-bottom": "20px"},
+                        ),
+                        visual_params_layout,
+                        detection_params_layout,
+                    ],
+                    style={"width": "30%", "display": "inline-block"},
+                ),
             ],
-            style={"width": "40%"},
         ),
+        trigger_run_layout,
         stored_params_layout,
     ],
 )

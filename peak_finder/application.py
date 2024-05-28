@@ -26,7 +26,7 @@ from geoapps_utils.application.dash_application import (
 )
 from geoapps_utils.plotting import format_axis, symlog
 from geoh5py import Workspace
-from geoh5py.data import BooleanData, Data
+from geoh5py.data import BooleanData, Data, ReferencedData
 from geoh5py.objects import Curve
 from geoh5py.shared.utils import fetch_active_workspace, is_uuid
 from geoh5py.ui_json import InputFile
@@ -35,6 +35,7 @@ from tqdm import tqdm
 from peak_finder.anomaly_group import AnomalyGroup
 from peak_finder.driver import PeakFinderDriver
 from peak_finder.layout import peak_finder_layout
+from peak_finder.line_position import LinePosition
 from peak_finder.params import PeakFinderParams
 from peak_finder.utils import get_ordered_survey_lines
 
@@ -49,15 +50,6 @@ class PeakFinder(
     _param_class = PeakFinderParams
     _driver_class = PeakFinderDriver
 
-    _active_channels: dict | None = None
-    _figure = None
-    _line_field = None
-    _line_indices = None
-    _computed_lines = None
-    _survey = None
-    _property_groups = None
-    _ordered_survey_lines = None
-
     def __init__(
         self,
         ui_json: InputFile | None = None,
@@ -71,6 +63,14 @@ class PeakFinder(
         :param ui_json_data: Data from ui.json file.
         :param params: Peak finder params.
         """
+        self._active_channels: dict | None = None
+        self._figure = None
+        self._line_field: ReferencedData | None = None
+        self._line_indices = None
+        self._computed_lines = None
+        self._survey: Curve | None = None
+        self._property_groups = None
+        self._ordered_survey_lines: dict | None = None
 
         super().__init__(ui_json, ui_json_data, params)
 
@@ -93,7 +93,6 @@ class PeakFinder(
         )(PeakFinder.update_plot_visibility)
         # Update visibility of widgets based on dropdown selection.
         self.app.callback(
-            Output(component_id="data_selection", component_property="style"),
             Output(component_id="visual_params", component_property="style"),
             Output(component_id="detection_params", component_property="style"),
             Output(component_id="color_picker_visibility", component_property="value"),
@@ -305,7 +304,7 @@ class PeakFinder(
         self._line_indices = value
 
     @property
-    def line_field(self) -> Data | None:
+    def line_field(self) -> ReferencedData | None:
         """
         Line labels for survey.
         """
@@ -314,8 +313,14 @@ class PeakFinder(
     @line_field.setter
     def line_field(self, value):
         if is_uuid(value):
-            self._line_field = self.workspace.get_entity(uuid.UUID(value))
-        elif isinstance(value, Data):
+            data = self.workspace.get_entity(uuid.UUID(value))[0]
+
+            if not isinstance(data, ReferencedData):
+                raise TypeError("Line field must be of type ReferencedData.")
+
+            self._line_field = data
+
+        elif isinstance(value, ReferencedData):
             self._line_field = value
         else:
             self._line_field = None
@@ -340,9 +345,7 @@ class PeakFinder(
             self.workspace: Workspace = Workspace()
             with fetch_active_workspace(self.params.geoh5):
                 self._survey = self.params.objects.copy(parent=self.workspace)
-                self._line_field = self.workspace.get_entity(
-                    self.params.line_field.uid
-                )[0]
+                self._line_field = self.params.get_line_field(self._survey)
 
             self._active_channels = None
             self._ordered_survey_lines = None
@@ -397,28 +400,30 @@ class PeakFinder(
             dcc.Store(id="trace_map", data=trace_map),
         ]
 
-        # Line dropdown options
-        selected_line_options = [
-            {"label": label, "value": id}
-            for id, label in self.ordered_survey_lines.items()
-        ]
-        # Initial line
-        selected_line = None
-        if len(selected_line_options) > 0:
-            selected_line = selected_line_options[0]["value"]
+        specify_values = {}
+        if self.ordered_survey_lines is not None and self.property_groups is not None:
+            # Line dropdown options
+            selected_line_options = [
+                {"label": label, "value": id}
+                for id, label in self.ordered_survey_lines.items()
+            ]
+            # Initial line
+            selected_line = None
+            if len(selected_line_options) > 0:
+                selected_line = selected_line_options[0]["value"]
 
-        specify_values = {
-            "selected_line": [
-                {"property": "options", "value": selected_line_options},
-                {"property": "value", "value": selected_line},
-            ],
-            "group_name": [
-                {
-                    "property": "options",
-                    "value": list(self.property_groups.keys()),
-                }
-            ],
-        }
+            specify_values = {
+                "selected_line": [
+                    {"property": "options", "value": selected_line_options},
+                    {"property": "value", "value": selected_line},
+                ],
+                "group_name": [
+                    {
+                        "property": "options",
+                        "value": list(self.property_groups.keys()),
+                    }
+                ],
+            }
 
         BaseDashApplication.init_vals(
             self.app.layout.children, self._ui_json_data, kwargs=specify_values
@@ -458,20 +463,19 @@ class PeakFinder(
         :return: Visibility of data selection widgets.
         """
         if widget_selection is None:
-            return no_update, no_update, no_update, no_update
+            return no_update, no_update, no_update
 
-        if widget_selection == "Data selection":
-            return {"display": "block"}, {"display": "none"}, {"display": "none"}, []
         if widget_selection == "Visual parameters":
             return (
-                {"display": "none"},
                 {"display": "block"},
                 {"display": "none"},
                 no_update,
             )
+
         if widget_selection == "Detection parameters":
-            return {"display": "none"}, {"display": "none"}, {"display": "block"}, []
-        return no_update, no_update, no_update, no_update
+            return {"display": "none"}, {"display": "block"}, []
+
+        return no_update, no_update, no_update
 
     @staticmethod
     def update_group_selection(widget_selection: str) -> list[bool]:
@@ -608,6 +612,7 @@ class PeakFinder(
             and isinstance(self.line_field, Data)
             and hasattr(self.line_field, "values")
             and selected_line is not None
+            and n_lines is not None
         ):
             survey_lines = self.get_active_line_ids(selected_line, n_lines)
             self.line_indices = PeakFinderDriver.get_line_indices(
@@ -696,7 +701,7 @@ class PeakFinder(
         )
 
         with ProgressBar():
-            results = compute(line_computation)
+            results = compute(line_computation)[0]
 
         # Remove un-needed lines
         if self.computed_lines is not None and "n_lines" in triggers:
@@ -709,32 +714,37 @@ class PeakFinder(
             self.computed_lines = {}
 
         # Add new lines
-        for result in tqdm(results):
-            for line_anomaly in result:
-                # Add anomalies to self.lines
-                line_groups = line_anomaly.anomalies
-                line_anomalies: list[AnomalyGroup] = []
-                if line_groups is not None:
-                    for line_group in line_groups:
-                        line_anomalies += line_group.groups  # type: ignore
-                if line_anomaly.line_id not in self.computed_lines:
-                    self.computed_lines[line_anomaly.line_id] = {
-                        "position": [],
-                        "anomalies": [],
-                        "plot_line_start": np.inf,
-                    }
-                self.computed_lines[line_anomaly.line_id]["anomalies"].append(
-                    line_anomalies
-                )
-                # Add position to self.lines
-                self.computed_lines[line_anomaly.line_id]["position"].append(
-                    line_anomaly.position
-                )
+        for line_anomaly in tqdm(results):
 
-                self.computed_lines[line_anomaly.line_id]["plot_line_start"] = min(
-                    np.min(line_anomaly.position.locations_resampled),
-                    self.computed_lines[line_anomaly.line_id]["plot_line_start"],
-                )
+            if "n_lines" in triggers and line_anomaly.line_id in self.computed_lines:
+                continue
+
+            line_groups = line_anomaly.anomalies
+            line_anomalies: list[AnomalyGroup] = []
+            if line_groups is not None:
+                for line_group in line_groups:
+                    line_anomalies += line_group.groups
+
+            if line_anomaly.line_id not in self.computed_lines:
+                self.computed_lines[line_anomaly.line_id] = {
+                    "position": [],
+                    "anomalies": [],
+                    "plot_line_start": np.inf,
+                }
+
+            # Add position to self.lines
+            self.computed_lines[line_anomaly.line_id]["position"].append(
+                line_anomaly.position
+            )
+
+            self.computed_lines[line_anomaly.line_id]["plot_line_start"] = min(
+                np.min(line_anomaly.position.locations_resampled),
+                self.computed_lines[line_anomaly.line_id]["plot_line_start"],
+            )
+
+            self.computed_lines[line_anomaly.line_id]["anomalies"].append(
+                line_anomalies
+            )
 
         return lines_computation_trigger + 1
 
@@ -794,7 +804,7 @@ class PeakFinder(
         y_min, y_max = np.inf, -np.inf
         log = y_scale == "symlog"
         threshold = np.float_power(10, linear_threshold)
-        all_values = []
+        values_list = []
 
         trace_dict: dict[str, dict[str, dict]] = {
             "lines": {
@@ -813,22 +823,20 @@ class PeakFinder(
             if "values" not in channel_dict:
                 continue
             full_values = sign * np.array(channel_dict["values"])
-            line_indices = self.line_indices[selected_line]["line_indices"]
 
-            inds = range(len(line_indices))
-            for ind in inds:
-                position = self.computed_lines[selected_line]["position"][ind]
-                anomalies = self.computed_lines[selected_line]["anomalies"][ind]
-                indices = line_indices[ind]
+            for position, anomalies in zip(
+                self.computed_lines[selected_line]["position"],
+                self.computed_lines[selected_line]["anomalies"],
+            ):
 
                 locs = position.locations_resampled
 
-                if len(indices) < 2 or locs is None:
+                if position.line_indices.sum() < 2 or locs is None:
                     continue
 
-                values = full_values[indices]
+                values = full_values[position.line_indices]
                 values, _ = position.resample_values(values)
-                all_values += list(values.flatten())
+                values_list += list(values.flatten())
 
                 if log:
                     sym_values = symlog(values, threshold)
@@ -874,7 +882,7 @@ class PeakFinder(
         if np.isinf(y_min) or self.property_groups is None:
             return no_update, None, None, None
 
-        all_values = np.array(all_values)
+        all_values = np.array(values_list)
         _, y_label, y_tickvals, y_ticktext = format_axis(
             channel="Data",
             axis=all_values,
@@ -920,8 +928,9 @@ class PeakFinder(
             y_ticktext,
             y_min,
             y_max,
-            min_value,
+            symlog(min_value, threshold),
             x_label,
+            self.computed_lines[selected_line]["position"],
         )
         return (
             figure_lines_trigger + 1,
@@ -1113,15 +1122,14 @@ class PeakFinder(
                 },
             },
         }
-        line_indices = self.line_indices[selected_line]["line_indices"]
 
-        inds = range(len(line_indices))
-        for ind in inds:
-            position = self.computed_lines[selected_line]["position"][ind]
-            anomalies = self.computed_lines[selected_line]["anomalies"][ind]
-            indices = line_indices[ind]
+        for position, anomalies in zip(
+            self.computed_lines[selected_line]["position"],
+            self.computed_lines[selected_line]["anomalies"],
+        ):
+            indices = position.line_indices
 
-            if len(indices) < 2:
+            if indices.sum() < 2:
                 continue
             locs = position.locations_resampled
 
@@ -1360,15 +1368,13 @@ class PeakFinder(
         log = y_scale == "symlog"
         threshold = np.float_power(10, linear_threshold)
 
-        line_indices = self.line_indices[selected_line]["line_indices"]
+        for position, anomalies in zip(
+            self.computed_lines[selected_line]["position"],
+            self.computed_lines[selected_line]["anomalies"],
+        ):
+            indices = position.line_indices
 
-        inds = range(len(line_indices))
-        for ind in inds:
-            position = self.computed_lines[selected_line]["position"][ind]
-            anomalies = self.computed_lines[selected_line]["anomalies"][ind]
-            indices = line_indices[ind]
-
-            if len(indices) < 2:
+            if indices.sum() < 2:
                 continue
             locs = position.locations_resampled
 
@@ -1521,6 +1527,7 @@ class PeakFinder(
         y_max: float | None,
         min_value: float,
         x_label: str,
+        line_position: LinePosition,
     ):
         """
         Update the figure layout.
@@ -1868,8 +1875,9 @@ class PeakFinder(
                     line_dict[line]["x"] += [None] + list(x_locs)  # type: ignore
                     line_dict[line]["y"] += [None] + list(y_locs)  # type: ignore
 
-                x_min = np.min(position.x_locations)
                 if anomalies is not None:
+                    x_min = np.min(position.x_locations)
+
                     for anom in anomalies:
                         peak = position.locations[anom.peaks[0]]
                         x_val = x_min + peak
@@ -1962,6 +1970,7 @@ class PeakFinder(
                     "geoh5": workspace,
                     "objects": self.params.objects,
                     "line_field": self.params.line_field,
+                    "monitoring_directory": self.params.monitoring_directory,
                 }
             )
 
@@ -1978,8 +1987,9 @@ class PeakFinder(
 
         # Write output uijson.
         new_params = PeakFinderParams(**param_dict)
+        name = workspace.h5file.stem.replace(".ui", "")
         new_params.write_input_file(
-            name=str(workspace.h5file).replace(".geoh5", ".ui.json"),
+            name=name + ".ui.json",
             path=workspace.h5file.parent,
             validate=False,
         )
@@ -1988,6 +1998,22 @@ class PeakFinder(
         driver.run()
 
         return ["Saved to " + str(workspace.h5file)]
+
+    @property
+    def params(self) -> PeakFinderParams:
+        """
+        Application parameters
+        """
+        return self._params
+
+    @params.setter
+    def params(self, params: PeakFinderParams):
+        if not isinstance(params, PeakFinderParams):
+            raise TypeError(
+                f"Input parameters must be an instance of {PeakFinderParams}"
+            )
+
+        self._params = params
 
 
 if __name__ == "__main__":
