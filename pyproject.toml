@@ -149,6 +149,8 @@ exclude_lines = [
     "pragma: no cover"
 ]
 
+fail_under = 75
+
 [tool.coverage.html]
 skip_empty = true
 skip_covered = true
