@@ -77,7 +77,7 @@ class PeakFinder(
         self._app = None
 
         # Start flask server
-        self.external_stylesheets = ["https://codepen.io/chriddyp/pen/bWLwgP.css"]
+        self.external_stylesheets = None
         self.server = Flask(__name__)
 
         # Getting app layout
