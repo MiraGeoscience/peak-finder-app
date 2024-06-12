@@ -17,8 +17,8 @@
 version: 1
 metadata:
   content_hash:
-    win-64: 919d208b45e51226608ab122613b8c33d067e0fe14a730dc38477d772139c00a
-    linux-64: a100c152dd395d12562b5ecd65a96f251e8e5fa0d5d21f258c7ceeb538e8bddc
+    win-64: 1ac3f69e157b3915c00d2bba79445e982274550a210986f627b3778b3c98168b
+    linux-64: 88081b9fa3b6951619df0968b29cd6e7c4b85563dcd1ef1d48f28d0982f32a97
   channels:
   - url: conda-forge
     used_env_vars: []
@@ -5595,31 +5595,31 @@ package:
   category: main
   optional: false
 - name: tifffile
-  version: 2024.5.22
+  version: 2024.2.12
   manager: conda
   platform: linux-64
   dependencies:
     imagecodecs: '>=2023.8.12'
-    numpy: '>=1.19.2'
+    numpy: '>=1.19.2,<2.0.0a0'
     python: '>=3.9'
-  url: https://conda.anaconda.org/conda-forge/noarch/tifffile-2024.5.22-pyhd8ed1ab_0.conda
+  url: https://conda.anaconda.org/conda-forge/noarch/tifffile-2024.2.12-pyhd8ed1ab_0.conda
   hash:
-    md5: 3930cabe8ca8c8594026fa8768cae75c
-    sha256: 9481c766e09829cc8c3ab99f6f8a2392988df53c1579ecb327e4933feede147d
+    md5: d5c8bef52be4e70c48b1400eec3eecc8
+    sha256: 5b629ab2eae0508ad554cc831fed72950d74909d6bcf2aebdfd01e0c0afca60b
   category: main
   optional: false
 - name: tifffile
-  version: 2024.5.22
+  version: 2024.2.12
   manager: conda
   platform: win-64
   dependencies:
     python: '>=3.9'
-    numpy: '>=1.19.2'
     imagecodecs: '>=2023.8.12'
-  url: https://conda.anaconda.org/conda-forge/noarch/tifffile-2024.5.22-pyhd8ed1ab_0.conda
+    numpy: '>=1.19.2,<2.0.0a0'
+  url: https://conda.anaconda.org/conda-forge/noarch/tifffile-2024.2.12-pyhd8ed1ab_0.conda
   hash:
-    md5: 3930cabe8ca8c8594026fa8768cae75c
-    sha256: 9481c766e09829cc8c3ab99f6f8a2392988df53c1579ecb327e4933feede147d
+    md5: d5c8bef52be4e70c48b1400eec3eecc8
+    sha256: 5b629ab2eae0508ad554cc831fed72950d74909d6bcf2aebdfd01e0c0afca60b
   category: main
   optional: false
 - name: tk

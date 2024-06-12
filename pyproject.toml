@@ -71,7 +71,7 @@ pydantic = "~2.5.2"  # from geoapps-utils, curve-apps, also used by petro-lingo
 pyqtwebengine = {version = "~5.15.2, <5.15.7", optional = true}  # from geoapps-utils[dash]
 pyside2 = {version = "~5.15.2.1", optional = true}  # from geoapps-utils[dash]
 scikit-image = "~0.20.0"  # from curve-apps, also used by geo-unsup-mapper
-
+tifffile = "~2024.2"
 ## force some versions to resolve incompatible resolution between PyPI and Conda
 #-------------------------------------------------------------------------------
 # these two *-qt5 dependencies are not relevant for Conda and will be discarded,
