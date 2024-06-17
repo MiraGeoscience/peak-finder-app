@@ -131,6 +131,7 @@ score=yes
 # all. Valid levels: HIGH, CONTROL_FLOW, INFERENCE, INFERENCE_FAILURE,
 # UNDEFINED.
 confidence=HIGH,
+           CONTROL_FLOW,
            INFERENCE,
            INFERENCE_FAILURE,
            UNDEFINED
@@ -374,8 +375,8 @@ min-public-methods=2
 [EXCEPTIONS]
 
 # Exceptions that will emit a warning when caught.
-overgeneral-exceptions=BaseException,
-                       Exception
+overgeneral-exceptions=builtins.BaseException,
+                       builtins.Exception
 
 
 [FORMAT]
