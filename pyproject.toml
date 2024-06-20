@@ -1,6 +1,7 @@
 [tool.poetry]
 name = "peak-finder-app"
 version = "0.2.0-alpha.1"
+
 license = "MIT"
 description = "Peak Finder App"
 authors = ["Mira Geoscience <support@mirageoscience.com>"]
@@ -16,11 +17,12 @@ packages = [
 ]
 
 include = [
-    "COPYING",
-    "COPYING.LESSER",
-    "LICENSE",
-    "README.rst",
-    "THIRD_PARTY_SOFTWARE.rst",
+    { path = "COPYING", format = ["sdist", "wheel"] },
+    { path = "COPYING.LESSER", format = ["sdist", "wheel"] },
+    { path = "LICENSE", format = ["sdist", "wheel"] },
+    { path = "README.rst", format = ["sdist", "wheel"] },
+    { path = "THIRD_PARTY_SOFTWARE.rst", format = ["sdist", "wheel"] },
+    { path = "docs/**/THIRD_PARTY_SOFTWARE.rst", format = ["sdist", "wheel"] },
 ]
 
 classifiers = [
@@ -38,7 +40,6 @@ classifiers = [
 
 [tool.poetry.dependencies]
 python = "^3.10, <3.11"
-
 dash = {version="^2.12", optional = true}  # also in geoapps-utils[dash]
 dash-daq = {version="~0.5.0", optional = true}
 dask = {version = "2022.10.*", extras = ["distributed"]}
@@ -46,8 +47,9 @@ distributed = "2022.10.*"  # because conda-lock doesn't take dask extras into ac
 flask = {version="^3.0.3", optional = true}  # also in geoapps-utils[dash]
 numpy = "~1.23.5"  # also in geoapps-utils, geoh5py
 plotly = "~5.19.0"
-scipy = "~1.10.1"
+scipy = "~1.13.1"
 tqdm = "^4.66.1"
+libavif = "~1.0.4"
 
 ## Pip dependencies from Git repositories
 #----------------------------------------
@@ -66,7 +68,7 @@ curve-apps = {url = "https://github.com/MiraGeoscience/curve-apps/archive/refs/h
 ## indirect dependencies, forcing them here for installation through Conda not pip
 #---------------------------------------------------------------------------------
 h5py = "^3.2.1"  # from geoh5py
-Pillow = "~10.1.0"  # from geoh5py
+Pillow = "~10.3.0"  # from geoh5py
 pydantic = "~2.5.2"  # from geoapps-utils, curve-apps, also used by petro-lingo
 pyqtwebengine = {version = "~5.15.2, <5.15.7", optional = true}  # from geoapps-utils[dash]
 pyside2 = {version = "~5.15.2.1", optional = true}  # from geoapps-utils[dash]
@@ -78,6 +80,10 @@ scikit-image = "~0.20.0"  # from curve-apps, also used by geo-unsup-mapper
 # but conda-lock still look for them in PyPI during its dependency resolution
 pyqt5-qt5 = {version="5.15.2", source = "pypi", optional=true}  # to avoid conda-lock resolving to a dependency version not available on PyPI
 pyqtwebengine-qt5 = {version="5.15.2", source = "pypi", optional=true}  # to avoid conda-lock resolving to a dependency version not available on PyPI
+
+# pin down package versions when conda is behind pypi
+#----------------------------------------------------
+tifffile = "2024.2.12"  # from scikit-image (through curve-apps)
 
 ## about pip dependencies
 # to be specified to work with conda-lock
@@ -147,6 +153,8 @@ exclude_lines = [
     "if TYPE_CHECKING",
     "pragma: no cover"
 ]
+
+fail_under = 75
 
 [tool.coverage.html]
 skip_empty = true
