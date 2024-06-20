@@ -40,7 +40,6 @@ classifiers = [
 
 [tool.poetry.dependencies]
 python = "^3.10, <3.11"
-
 dash = {version="^2.12", optional = true}  # also in geoapps-utils[dash]
 dash-daq = {version="~0.5.0", optional = true}
 dask = {version = "2022.10.*", extras = ["distributed"]}
@@ -50,6 +49,7 @@ numpy = "~1.23.5"  # also in geoapps-utils, geoh5py
 plotly = "~5.19.0"
 scipy = "~1.13.1"
 tqdm = "^4.66.1"
+libavif = "~1.0.4"
 
 ## Pip dependencies from Git repositories
 #----------------------------------------

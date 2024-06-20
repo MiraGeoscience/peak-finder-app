@@ -17,8 +17,8 @@
 version: 1
 metadata:
   content_hash:
-    win-64: 807223fa30d7b81af71634f006f217ae6342caff8a7517553abeb6fdcd18287d
-    linux-64: 5ea7d180bfb289f02fb18de11597ccd204025ca72010a4e7e96910e964598f4b
+    win-64: 1d3339e493b7f9bf425a58e4def20e7e26de0ac8599482b47eafa336f181714a
+    linux-64: 268beff3bacc3dcd74c975649f7bd3f0e7e40500ecb1836da14c5b983957c704
   channels:
   - url: conda-forge
     used_env_vars: []
@@ -2127,6 +2127,42 @@ package:
     sha256: d5c711d9da4e35d29f4f2191664075c64cbf8cd481a35bf7ef3a527018eb0184
   category: dash
   optional: true
+- name: libavif
+  version: 1.0.4
+  manager: conda
+  platform: linux-64
+  dependencies:
+    aom: '>=3.9.0,<3.10.0a0'
+    dav1d: '>=1.2.1,<1.2.2.0a0'
+    libavif16: 1.0.4
+    libgcc-ng: '>=12'
+    rav1e: '>=0.6.6,<1.0a0'
+    svt-av1: '>=2.1.0,<2.1.1.0a0'
+  url: https://conda.anaconda.org/conda-forge/linux-64/libavif-1.0.4-hd2f8ffe_4.conda
+  hash:
+    md5: 1cd6e0e3f37b62ea564e747e9c2afe37
+    sha256: eb37b52d925923e787f5753a6ed05f0663e13954886e71dfd91b4b049093418a
+  category: main
+  optional: false
+- name: libavif
+  version: 1.0.4
+  manager: conda
+  platform: win-64
+  dependencies:
+    aom: '>=3.9.0,<3.10.0a0'
+    dav1d: '>=1.2.1,<1.2.2.0a0'
+    libavif16: 1.0.4
+    rav1e: '>=0.6.6,<1.0a0'
+    svt-av1: '>=2.1.0,<2.1.1.0a0'
+    ucrt: '>=10.0.20348.0'
+    vc: '>=14.2,<15'
+    vc14_runtime: '>=14.29.30139'
+  url: https://conda.anaconda.org/conda-forge/win-64/libavif-1.0.4-hac688ae_4.conda
+  hash:
+    md5: d4d10fb9984de57c6a531fd794350df7
+    sha256: 7a04b8e871c3548a6a7702195b330c18a2bf346d6c8b2108f7a6abd969fbcbc1
+  category: main
+  optional: false
 - name: libavif16
   version: 1.0.4
   manager: conda
