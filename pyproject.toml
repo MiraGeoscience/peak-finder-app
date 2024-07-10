@@ -47,6 +47,8 @@ distributed = "2024.6.*"  # because conda-lock doesn't take dask extras into acc
 flask = {version="^3.0.3", optional = true}  # also in geoapps-utils[dash]
 numpy = "~1.26.0"  # also in geoapps-utils, geoh5py
 plotly = "~5.19.0"
+pyqtwebengine = {version = "~5.15.2, <5.15.7", optional = true}  # also in geoapps-utils[dash]
+pyside2 = {version = "~5.15.2.1", optional = true}  # also in geoapps-utils[dash]
 scipy = "~1.14.0"
 tqdm = "^4.66.1"
 
@@ -67,25 +69,12 @@ geoapps-utils = { git = "https://github.com/MiraGeoscience/geoapps-utils.git", r
 curve-apps = {git = "https://github.com/MiraGeoscience/curve-apps.git", rev = "develop"}
 #curve-apps = {url = "http://localhost:8888/curve-apps.tar.gz"}
 
-## indirect dependencies, forcing them here for installation through Conda not pip
-#---------------------------------------------------------------------------------
-h5py = "^3.2.1"  # from geoh5py
-Pillow = "~10.3.0"  # from geoh5py
-pydantic = "^2.5.2"  # from geoh5py, curve-apps, geoapps-utils
-pyqtwebengine = {version = "~5.15.2, <5.15.7", optional = true}  # from geoapps-utils[dash]
-pyside2 = {version = "~5.15.2.1", optional = true}  # from geoapps-utils[dash]
-scikit-image = "~0.20.0"  # from curve-apps, also used by geo-unsup-mapper
-
 ## force some versions to resolve incompatible resolution between PyPI and Conda
 #-------------------------------------------------------------------------------
 # these two *-qt5 dependencies are not relevant for Conda and will be discarded,
 # but conda-lock still look for them in PyPI during its dependency resolution
 pyqt5-qt5 = {version="5.15.2", source = "pypi", optional=true}  # to avoid conda-lock resolving to a dependency version not available on PyPI
 pyqtwebengine-qt5 = {version="5.15.2", source = "pypi", optional=true}  # to avoid conda-lock resolving to a dependency version not available on PyPI
-
-# pin down package versions when conda is behind pypi
-#----------------------------------------------------
-tifffile = "2024.2.12"  # from scikit-image (through curve-apps)
 
 ## about pip dependencies
 # to be specified to work with conda-lock
@@ -98,6 +87,17 @@ tifffile = "2024.2.12"  # from scikit-image (through curve-apps)
 
 [tool.conda-lock.dependencies]
 pyside2 = {version = "5.15.*", optional = true}  # allow Conda to resolve to a higher existing version than in PyPI
+
+## indirect dependencies, forcing them here for installation through Conda not pip
+#---------------------------------------------------------------------------------
+h5py = ">=3.2.1, <4.0.0"  # from geoh5py
+Pillow = ">=10.3.0, <10.4.0"  # from geoh5py
+pydantic = ">=2.5.2, <3.0.0"  # from geoh5py, curve-apps, geoapps-utils
+scikit-image = ">=0.20.0, <0.21.0"  # from curve-apps, also used by geo-unsup-mapper
+
+# pin down package versions when conda is behind pypi
+#----------------------------------------------------
+tifffile = "2024.2.12"  # from scikit-image (through curve-apps)
 
 [tool.poetry.group.dev.dependencies]
 Pygments = "*"
