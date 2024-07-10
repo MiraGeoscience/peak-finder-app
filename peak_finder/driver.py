@@ -13,7 +13,7 @@ import sys
 
 import numpy as np
 from curve_apps.trend_lines.driver import TrendLinesDriver
-from curve_apps.trend_lines.params import Parameters
+from curve_apps.trend_lines.params import TrendLineParameters
 from dask import compute
 from dask.diagnostics import ProgressBar
 from geoapps_utils.conversions import hex_to_rgb
@@ -338,9 +338,9 @@ class PeakFinderDriver(BaseDriver):
                         "damping": 1,
                     }
 
-                    params = Parameters.build(inputs)
+                    params = TrendLineParameters.build(inputs)
                     driver = TrendLinesDriver(params)
-                    out_trend = driver.create_output("Trend Lines", parent=output_group)
+                    out_trend = driver.make_curve()
 
                     if out_trend is not None:
                         driver.add_ui_json(out_trend)
