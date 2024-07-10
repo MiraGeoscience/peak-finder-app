@@ -38,7 +38,7 @@ classifiers = [
 ]
 
 [tool.poetry.dependencies]
-python = "^3.10"
+python = "^3.10, <3.11"  # limited to 3.10 because of geoapps-utils (due to PySide2)
 
 dash = {version="^2.12", optional = true}  # also in geoapps-utils[dash]
 dash-daq = {version="~0.5.0", optional = true}
