@@ -95,10 +95,6 @@ Pillow = ">=10.3.0, <10.4.0"  # from geoh5py
 pydantic = ">=2.5.2, <3.0.0"  # from geoh5py, curve-apps, geoapps-utils
 scikit-image = ">=0.20.0, <0.21.0"  # from curve-apps, also used by geo-unsup-mapper
 
-# pin down package versions when conda is behind pypi
-#----------------------------------------------------
-tifffile = "2024.2.12"  # from scikit-image (through curve-apps)
-
 [tool.poetry.group.dev.dependencies]
 Pygments = "*"
 pylint = "*"

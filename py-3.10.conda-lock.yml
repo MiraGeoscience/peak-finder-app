@@ -17,8 +17,8 @@
 version: 1
 metadata:
   content_hash:
-    win-64: 49973c5c25b3edd94167777d32ed49f831beee1afa49744f87bda319e81b2f68
-    linux-64: d47dada2bdf1ade5ac0512ce75a8ed750bcaf1a2e8a6322456832b7806b997a8
+    win-64: 6718442c8facb090f9c4e569d999a43e7c2801a86574c09e7e4cbead1b32abce
+    linux-64: 8ff6447e57c51496dc3a993967c9b23b2b2f423f46e6b1955dde3637522fa709
   channels:
   - url: conda-forge
     used_env_vars: []
@@ -381,15 +381,15 @@ package:
   category: main
   optional: false
 - name: c-ares
-  version: 1.28.1
+  version: 1.32.0
   manager: conda
   platform: linux-64
   dependencies:
     libgcc-ng: '>=12'
-  url: https://conda.anaconda.org/conda-forge/linux-64/c-ares-1.28.1-hd590300_0.conda
+  url: https://conda.anaconda.org/conda-forge/linux-64/c-ares-1.32.0-h4ab18f5_0.conda
   hash:
-    md5: dcde58ff9a1f30b0037a2315d1846d1f
-    sha256: cb25063f3342149c7924b21544109696197a9d774f1407567477d4f3026bf38a
+    md5: 7f3a7d68b591fcace97c29c6af6d9d64
+    sha256: 5e24ee6edcea875dfaa7fb26d638d96f47f60c0b6a41dec9271ac0525a49042f
   category: main
   optional: false
 - name: c-blosc2
@@ -5633,31 +5633,31 @@ package:
   category: main
   optional: false
 - name: tifffile
-  version: 2024.2.12
+  version: 2024.7.2
   manager: conda
   platform: linux-64
   dependencies:
     imagecodecs: '>=2023.8.12'
-    numpy: '>=1.19.2,<2.0.0a0'
-    python: '>=3.9'
-  url: https://conda.anaconda.org/conda-forge/noarch/tifffile-2024.2.12-pyhd8ed1ab_0.conda
+    numpy: '>=1.19.2'
+    python: '>=3.10'
+  url: https://conda.anaconda.org/conda-forge/noarch/tifffile-2024.7.2-pyhd8ed1ab_0.conda
   hash:
-    md5: d5c8bef52be4e70c48b1400eec3eecc8
-    sha256: 5b629ab2eae0508ad554cc831fed72950d74909d6bcf2aebdfd01e0c0afca60b
+    md5: 67bdbdca78327a94e91969df173dbdb7
+    sha256: 70075535caf22f8bdb2c9fa564b91d4cae9caad10e7d0bf1a7ecc435f745d04c
   category: main
   optional: false
 - name: tifffile
-  version: 2024.2.12
+  version: 2024.7.2
   manager: conda
   platform: win-64
   dependencies:
-    python: '>=3.9'
+    python: '>=3.10'
+    numpy: '>=1.19.2'
     imagecodecs: '>=2023.8.12'
-    numpy: '>=1.19.2,<2.0.0a0'
-  url: https://conda.anaconda.org/conda-forge/noarch/tifffile-2024.2.12-pyhd8ed1ab_0.conda
+  url: https://conda.anaconda.org/conda-forge/noarch/tifffile-2024.7.2-pyhd8ed1ab_0.conda
   hash:
-    md5: d5c8bef52be4e70c48b1400eec3eecc8
-    sha256: 5b629ab2eae0508ad554cc831fed72950d74909d6bcf2aebdfd01e0c0afca60b
+    md5: 67bdbdca78327a94e91969df173dbdb7
+    sha256: 70075535caf22f8bdb2c9fa564b91d4cae9caad10e7d0bf1a7ecc435f745d04c
   category: main
   optional: false
 - name: tk
@@ -6776,38 +6776,34 @@ package:
   manager: pip
   platform: linux-64
   dependencies:
-    pillow: '>=10.3.0,<10.4.0'
     geoh5py: 0.10.0a1
-    h5py: '>=3.2.1,<4.0.0'
     numpy: '>=1.26.0,<1.27.0'
     pydantic: '>=2.5.2,<3.0.0'
     scipy: '>=1.14.0,<1.15.0'
-  url: git+https://github.com/MiraGeoscience/geoapps-utils.git@7ca41cbb8d13463e28aec287ef556d131676d0f3
+  url: git+https://github.com/MiraGeoscience/geoapps-utils.git@6dd821c01243dc4d52df5e62817c5d6f94c57916
   hash:
-    sha256: 7ca41cbb8d13463e28aec287ef556d131676d0f3
+    sha256: 6dd821c01243dc4d52df5e62817c5d6f94c57916
   category: main
   source:
     type: url
-    url: git+https://github.com/MiraGeoscience/geoapps-utils.git@7ca41cbb8d13463e28aec287ef556d131676d0f3
+    url: git+https://github.com/MiraGeoscience/geoapps-utils.git@6dd821c01243dc4d52df5e62817c5d6f94c57916
   optional: false
 - name: geoapps-utils
   version: 0.4.0a1
   manager: pip
   platform: win-64
   dependencies:
-    pillow: '>=10.3.0,<10.4.0'
     geoh5py: 0.10.0a1
-    h5py: '>=3.2.1,<4.0.0'
     numpy: '>=1.26.0,<1.27.0'
     pydantic: '>=2.5.2,<3.0.0'
     scipy: '>=1.14.0,<1.15.0'
-  url: git+https://github.com/MiraGeoscience/geoapps-utils.git@7ca41cbb8d13463e28aec287ef556d131676d0f3
+  url: git+https://github.com/MiraGeoscience/geoapps-utils.git@6dd821c01243dc4d52df5e62817c5d6f94c57916
   hash:
-    sha256: 7ca41cbb8d13463e28aec287ef556d131676d0f3
+    sha256: 6dd821c01243dc4d52df5e62817c5d6f94c57916
   category: main
   source:
     type: url
-    url: git+https://github.com/MiraGeoscience/geoapps-utils.git@7ca41cbb8d13463e28aec287ef556d131676d0f3
+    url: git+https://github.com/MiraGeoscience/geoapps-utils.git@6dd821c01243dc4d52df5e62817c5d6f94c57916
   optional: false
 - name: geoh5py
   version: 0.10.0a1
