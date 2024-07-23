@@ -27,6 +27,7 @@ from dash import Dash, callback_context, dcc, no_update
 from dash.dependencies import Input, Output, State
 from dash.development.base_component import Component
 from flask import Flask
+from geoapps_utils.driver.params import BaseParams
 from geoh5py.data import Data
 from geoh5py.groups import PropertyGroup
 from geoh5py.objects import ObjectBase
@@ -36,8 +37,6 @@ from geoh5py.ui_json import InputFile
 from geoh5py.workspace import Workspace
 from PySide2 import QtCore, QtWebEngineWidgets
 from PySide2.QtWidgets import QApplication, QHBoxLayout, QMainWindow, QWidget
-
-from geoapps_utils.driver.params import BaseParams
 
 from peak_finder.layout import object_selection_layout
 
