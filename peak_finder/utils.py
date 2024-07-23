@@ -6,7 +6,7 @@
 #
 
 import numpy as np
-from geoapps_utils.numerical import traveling_salesman
+from geoapps_utils.utils.numerical import traveling_salesman
 from geoh5py.data import Data
 from geoh5py.objects import Curve
 

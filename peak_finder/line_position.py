@@ -8,7 +8,7 @@
 from __future__ import annotations
 
 import numpy as np
-from geoapps_utils.numerical import running_mean
+from geoapps_utils.utils.numerical import running_mean
 from scipy.interpolate import interp1d
 
 
