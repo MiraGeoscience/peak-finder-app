@@ -6746,13 +6746,13 @@ package:
     scikit-image: '>=0.20.0,<0.21.0'
     scipy: '>=1.14.0,<1.15.0'
     tqdm: '>=4.66.1,<4.67.0'
-  url: git+https://github.com/MiraGeoscience/curve-apps@53617ed7d50eec28088b1794c5cc4d61cee1cb39
+  url: git+https://github.com/MiraGeoscience/curve-apps@0a3c3f87a73aeaf129338699d8c48671cc36ae46
   hash:
-    sha256: 53617ed7d50eec28088b1794c5cc4d61cee1cb39
+    sha256: 0a3c3f87a73aeaf129338699d8c48671cc36ae46
   category: main
   source:
     type: url
-    url: git+https://github.com/MiraGeoscience/curve-apps@53617ed7d50eec28088b1794c5cc4d61cee1cb39
+    url: git+https://github.com/MiraGeoscience/curve-apps@0a3c3f87a73aeaf129338699d8c48671cc36ae46
   optional: false
 - name: curve-apps
   version: 0.2.0a1
@@ -6766,13 +6766,13 @@ package:
     scikit-image: '>=0.20.0,<0.21.0'
     scipy: '>=1.14.0,<1.15.0'
     tqdm: '>=4.66.1,<4.67.0'
-  url: git+https://github.com/MiraGeoscience/curve-apps@53617ed7d50eec28088b1794c5cc4d61cee1cb39
+  url: git+https://github.com/MiraGeoscience/curve-apps@0a3c3f87a73aeaf129338699d8c48671cc36ae46
   hash:
-    sha256: 53617ed7d50eec28088b1794c5cc4d61cee1cb39
+    sha256: 0a3c3f87a73aeaf129338699d8c48671cc36ae46
   category: main
   source:
     type: url
-    url: git+https://github.com/MiraGeoscience/curve-apps@53617ed7d50eec28088b1794c5cc4d61cee1cb39
+    url: git+https://github.com/MiraGeoscience/curve-apps@0a3c3f87a73aeaf129338699d8c48671cc36ae46
   optional: false
 - name: geoapps-utils
   version: 0.4.0a1
