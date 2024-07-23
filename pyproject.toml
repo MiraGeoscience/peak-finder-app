@@ -61,12 +61,12 @@ geoh5py = {git = "https://github.com/MiraGeoscience/geoh5py.git", rev = "develop
 
 #geoapps-utils = {version = "~0.4.0-alpha.1", source = "pypi", allow-prereleases = true}
 #geoapps-utils = { url = "https://github.com/MiraGeoscience/geoapps-utils/archive/refs/heads/develop.tar.gz" }
-geoapps-utils = {git = "https://github.com/MiraGeoscience/geoapps-utils.git", rev = "GEOPY-1681"}
+geoapps-utils = {git = "https://github.com/MiraGeoscience/geoapps-utils.git", rev = "develop"}
 #geoapps-utils = {url = "http://localhost:8888/geoapps-utils.tar.gz"}
 
 #curve-apps = {version = "~0.2.0-alpha.1", source = "pypi", allow-prereleases = true}
 #curve-apps = {url = "https://github.com/MiraGeoscience/curve-apps/archive/refs/heads/develop.tar.gz"}
-curve-apps = {git = "https://github.com/MiraGeoscience/curve-apps.git", rev = "GEOPY-1681"}
+curve-apps = {git = "https://github.com/MiraGeoscience/curve-apps.git", rev = "develop"}
 #curve-apps = {url = "http://localhost:8888/curve-apps.tar.gz"}
 
 ## force some versions to resolve incompatible resolution between PyPI and Conda
