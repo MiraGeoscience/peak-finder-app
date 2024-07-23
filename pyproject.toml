@@ -66,7 +66,7 @@ geoapps-utils = {git = "https://github.com/MiraGeoscience/geoapps-utils.git", re
 
 #curve-apps = {version = "~0.2.0-alpha.1", source = "pypi", allow-prereleases = true}
 #curve-apps = {url = "https://github.com/MiraGeoscience/curve-apps/archive/refs/heads/develop.tar.gz"}
-curve-apps = {git = "https://github.com/MiraGeoscience/curve-apps.git", rev = "develop"}
+curve-apps = {git = "https://github.com/MiraGeoscience/curve-apps.git", rev = "GEOPY-1681"}
 #curve-apps = {url = "http://localhost:8888/curve-apps.tar.gz"}
 
 ## force some versions to resolve incompatible resolution between PyPI and Conda
