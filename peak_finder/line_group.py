@@ -310,7 +310,6 @@ class LineGroup:
             )
 
             for branch in branches:
-
                 indices = np.unique(branch)
 
                 if len(indices) < self.n_groups:

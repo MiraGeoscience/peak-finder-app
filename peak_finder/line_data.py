@@ -178,9 +178,7 @@ class LineData:  # pylint: disable=too-many-instance-attributes
             self._peaks = np.where(
                 (np.diff(np.sign(dx)) != 0)
                 & (ddx[1:] < 0)
-                & (
-                    values[:-1] > self.min_value
-                )  # pylint: disable=unsubscriptable-object
+                & (values[:-1] > self.min_value)  # pylint: disable=unsubscriptable-object
             )[0]
         return self._peaks
 
@@ -198,9 +196,7 @@ class LineData:  # pylint: disable=too-many-instance-attributes
             lows = np.where(
                 (np.diff(np.sign(dx)) != 0)
                 & (ddx[1:] > 0)
-                & (
-                    values[:-1] >= self.min_value
-                )  # pylint: disable=unsubscriptable-object
+                & (values[:-1] >= self.min_value)  # pylint: disable=unsubscriptable-object
             )[0]
             self._lows = np.r_[0, lows, self.position.locations_resampled.shape[0] - 1]
         return self._lows
@@ -219,9 +215,7 @@ class LineData:  # pylint: disable=too-many-instance-attributes
             self._inflect_up = np.where(
                 (np.diff(np.sign(ddx)) != 0)
                 & (dx[1:] > 0)
-                & (
-                    values[:-1] >= self.min_value
-                )  # pylint: disable=unsubscriptable-object
+                & (values[:-1] >= self.min_value)  # pylint: disable=unsubscriptable-object
             )[0]
         return self._inflect_up
 
@@ -239,9 +233,7 @@ class LineData:  # pylint: disable=too-many-instance-attributes
             self._inflect_down = np.where(
                 (np.diff(np.sign(ddx)) != 0)
                 & (dx[1:] < 0)
-                & (
-                    values[:-1] >= self.min_value
-                )  # pylint: disable=unsubscriptable-object
+                & (values[:-1] >= self.min_value)  # pylint: disable=unsubscriptable-object
             )[0]
         return self._inflect_down
 
@@ -271,9 +263,7 @@ class LineData:  # pylint: disable=too-many-instance-attributes
                 np.min(
                     [
                         values[anomaly.peak]  # pylint: disable=unsubscriptable-object
-                        - values[
-                            anomaly.start
-                        ],  # pylint: disable=unsubscriptable-object
+                        - values[anomaly.start],  # pylint: disable=unsubscriptable-object
                         values[anomaly.peak]  # pylint: disable=unsubscriptable-object
                         - values[anomaly.end],  # pylint: disable=unsubscriptable-object
                     ]
@@ -287,9 +277,7 @@ class LineData:  # pylint: disable=too-many-instance-attributes
 
         # Amplitude
         amplitude = (
-            np.sum(
-                np.abs(values[anomaly.start : anomaly.end])
-            )  # pylint: disable=unsubscriptable-object
+            np.sum(np.abs(values[anomaly.start : anomaly.end]))  # pylint: disable=unsubscriptable-object
             * self.position.sampling
         )
 
