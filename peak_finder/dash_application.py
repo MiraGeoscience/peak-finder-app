@@ -27,6 +27,7 @@ from dash import Dash, callback_context, dcc, no_update
 from dash.dependencies import Input, Output, State
 from dash.development.base_component import Component
 from flask import Flask
+from geoapps_utils.driver.driver import BaseDriver
 from geoapps_utils.driver.params import BaseParams
 from geoh5py.data import Data
 from geoh5py.groups import PropertyGroup
@@ -36,7 +37,12 @@ from geoh5py.shared.utils import fetch_active_workspace, is_uuid
 from geoh5py.ui_json import InputFile
 from geoh5py.workspace import Workspace
 from PySide2 import QtCore, QtWebEngineWidgets
-from PySide2.QtWidgets import QApplication, QHBoxLayout, QMainWindow, QWidget
+from PySide2.QtWidgets import (  # pylint: disable=no-name-in-module
+    QApplication,
+    QHBoxLayout,
+    QMainWindow,
+    QWidget,
+)
 
 from peak_finder.layout import object_selection_layout
 
@@ -47,7 +53,7 @@ class BaseDashApplication(ABC):
     """
 
     _param_class: type = BaseParams
-    _driver_class = None
+    _driver_class: BaseDriver | None = None
 
     def __init__(
         self,
@@ -503,8 +509,14 @@ class ObjectSelection:
         app = QApplication(sys.argv)
         win = MainWindow()
 
-        browser = QtWebEngineWidgets.QWebEngineView()
-        browser.load(QtCore.QUrl("http://127.0.0.1:" + str(port)))
+        browser = (
+            QtWebEngineWidgets.QWebEngineView()  # pylint: disable=c-extension-no-member
+        )
+        browser.load(
+            QtCore.QUrl(  # pylint: disable=c-extension-no-member
+                "http://127.0.0.1:" + str(port)
+            )
+        )
 
         win.setWindowTitle(app_name)
 
@@ -564,7 +576,7 @@ class ObjectSelection:
                         param_dict[key] = temp_group.uid
 
     @staticmethod
-    def run(app_name: str, app_class: BaseDashApplication, ui_json: InputFile):
+    def run(app_name: str, app_class: type[BaseDashApplication], ui_json: InputFile):
         """
         Launch Qt app from terminal.
 
@@ -648,12 +660,13 @@ class ObjectSelection:
         self._workspace = val
 
 
-class MainWindow(QMainWindow):
+class MainWindow(QMainWindow):  # pylint: disable=too-few-public-methods
     def __init__(self, parent=None):
         super().__init__(parent)
         self.aspect_ratio = 1.5
 
-    def resizeEvent(self, event):
+    # todo: I don't want to rename the function as it's probably used in the interface
+    def resizeEvent(self, event):  # pylint: disable=invalid-name
         QMainWindow.resizeEvent(self, event)
 
         # Get window size
