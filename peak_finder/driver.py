@@ -16,9 +16,9 @@ from curve_apps.trend_lines.driver import TrendLinesDriver
 from curve_apps.trend_lines.params import TrendLineParameters
 from dask import compute
 from dask.diagnostics import ProgressBar
-from geoapps_utils.conversions import hex_to_rgb
 from geoapps_utils.driver.driver import BaseDriver
-from geoapps_utils.formatters import string_name
+from geoapps_utils.utils.conversions import hex_to_rgb
+from geoapps_utils.utils.formatters import string_name
 from geoh5py import Workspace
 from geoh5py.data import ReferencedData
 from geoh5py.groups import ContainerGroup, PropertyGroup

@@ -20,11 +20,7 @@ from dash.exceptions import MissingCallbackContextException
 from dask import compute
 from dask.diagnostics import ProgressBar
 from flask import Flask
-from geoapps_utils.application.dash_application import (
-    BaseDashApplication,
-    ObjectSelection,
-)
-from geoapps_utils.plotting import format_axis, symlog
+from geoapps_utils.utils.plotting import format_axis, symlog
 from geoh5py import Workspace
 from geoh5py.data import BooleanData, Data, ReferencedData
 from geoh5py.objects import Curve
@@ -33,6 +29,7 @@ from geoh5py.ui_json import InputFile
 from tqdm import tqdm
 
 from peak_finder.anomaly_group import AnomalyGroup
+from peak_finder.dash_application import BaseDashApplication, ObjectSelection
 from peak_finder.driver import PeakFinderDriver
 from peak_finder.layout import peak_finder_layout
 from peak_finder.line_position import LinePosition
