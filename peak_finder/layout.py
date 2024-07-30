@@ -9,6 +9,7 @@ from __future__ import annotations
 import dash_daq as daq
 from dash import dcc, html
 
+
 trigger_run_layout = html.Div(
     id="data_selection",
     children=[

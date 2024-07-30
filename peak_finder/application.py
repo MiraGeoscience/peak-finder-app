@@ -824,6 +824,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
             for position, anomalies in zip(
                 self.computed_lines[selected_line]["position"],
                 self.computed_lines[selected_line]["anomalies"],
+                strict=False,
             ):
                 locs = position.locations_resampled
 
@@ -1122,6 +1123,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         for position, anomalies in zip(
             self.computed_lines[selected_line]["position"],
             self.computed_lines[selected_line]["anomalies"],
+            strict=False,
         ):
             indices = position.line_indices
 
@@ -1367,6 +1369,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         for position, anomalies in zip(
             self.computed_lines[selected_line]["position"],
             self.computed_lines[selected_line]["anomalies"],
+            strict=False,
         ):
             indices = position.line_indices
 
