@@ -166,7 +166,7 @@ class PeakFinderDriver(BaseDriver):
 
         return indices_dict
 
-    def run(self):  # noqa  # pylint: disable=R0912, R0914, too-many-statements
+    def run(self):  # pylint: disable=R0912, R0914, too-many-statements
         with fetch_active_workspace(self.params.geoh5, mode="r+"):
             survey = self.params.objects
 
