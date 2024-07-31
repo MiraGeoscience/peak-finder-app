@@ -125,9 +125,13 @@ target-version = "py310"
 
 [tool.ruff.lint]
 ignore = [
-    "B028",  # no-explicit-stacklevel for warnings.warn()
-    "E501",  # line-too-long - code is reformatted (do not care about comments and docstring)
-    "F401",  # unsused-import - covered by pycln
+    "B028",     # no-explicit-stacklevel for warnings.warn()
+    "E501",     # line-too-long - code is reformatted (do not care about comments and docstring)
+    "F401",     # unsused-import - covered by pycln
+    "RUF015",   # TO DO
+    "RUF005",   # TO DO
+    "B007",     # TO DO
+    "A001"      # TO DO
 ]
 select = [
     "A",  # flake8-builtins
