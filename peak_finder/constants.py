@@ -11,6 +11,7 @@ import json
 
 import peak_finder
 
+
 defaults = {
     "version": peak_finder.__version__,
     "title": "Peak Finder Parameters",

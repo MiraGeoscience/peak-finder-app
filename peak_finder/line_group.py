@@ -18,6 +18,7 @@ from peak_finder.anomaly_group import AnomalyGroup
 from peak_finder.line_data import LineData
 from peak_finder.line_position import LinePosition
 
+
 # pylint: disable=duplicate-code
 
 
@@ -310,7 +311,6 @@ class LineGroup:
             )
 
             for branch in branches:
-
                 indices = np.unique(branch)
 
                 if len(indices) < self.n_groups:
