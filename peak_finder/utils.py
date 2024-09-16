@@ -24,7 +24,7 @@ def get_ordered_survey_lines(survey: Curve, line_field: Data) -> dict:
     line_ids = []
     line_labels = []
     locs = []
-    value_map = line_field.value_map.map  # type: ignore
+    value_map = line_field.value_map()  # type: ignore
 
     for line_id in np.unique(line_field.values):
         line_indices = np.where(line_field.values == line_id)[0]
