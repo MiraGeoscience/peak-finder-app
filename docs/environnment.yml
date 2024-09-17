@@ -13,3 +13,6 @@ dependencies:
     - sphinxcontrib-bibtex
     - sphinxcontrib-googleanalytics
     - numpydoc
+    - geoh5py
+    - geoapps-utils
+    - curve-apps
