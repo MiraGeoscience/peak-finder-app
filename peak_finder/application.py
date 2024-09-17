@@ -37,9 +37,7 @@ from peak_finder.params import PeakFinderParams
 from peak_finder.utils import get_ordered_survey_lines
 
 
-class PeakFinder(
-    BaseDashApplication
-):  # pylint: disable=too-many-public-methods, too-many-instance-attributes
+class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-methods, too-many-instance-attributes
     """
     Dash app to fine tune Peak Finder parameters.
     """
@@ -712,7 +710,6 @@ class PeakFinder(
 
         # Add new lines
         for line_anomaly in tqdm(results):
-
             if "n_lines" in triggers and line_anomaly.line_id in self.computed_lines:
                 continue
 
@@ -824,8 +821,8 @@ class PeakFinder(
             for position, anomalies in zip(
                 self.computed_lines[selected_line]["position"],
                 self.computed_lines[selected_line]["anomalies"],
+                strict=True,
             ):
-
                 locs = position.locations_resampled
 
                 if position.line_indices.sum() < 2 or locs is None:
@@ -872,9 +869,9 @@ class PeakFinder(
                             trace_dict["property_groups"][group_name]["y"] += list(
                                 sym_values[start:end]
                             ) + [None]
-                            trace_dict["property_groups"][group_name][
-                                "customdata"
-                            ] += list(values[start:end]) + [None]
+                            trace_dict["property_groups"][group_name]["customdata"] += (
+                                list(values[start:end]) + [None]
+                            )
 
         if np.isinf(y_min) or self.property_groups is None:
             return no_update, None, None, None
@@ -1123,6 +1120,7 @@ class PeakFinder(
         for position, anomalies in zip(
             self.computed_lines[selected_line]["position"],
             self.computed_lines[selected_line]["anomalies"],
+            strict=True,
         ):
             indices = position.line_indices
 
@@ -1368,6 +1366,7 @@ class PeakFinder(
         for position, anomalies in zip(
             self.computed_lines[selected_line]["position"],
             self.computed_lines[selected_line]["anomalies"],
+            strict=True,
         ):
             indices = position.line_indices
 
