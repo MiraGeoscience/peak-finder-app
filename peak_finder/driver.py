@@ -206,6 +206,11 @@ class PeakFinderDriver(BaseDriver):
                 if False in masking_array:
                     survey.remove_vertices(~masking_array)
 
+                new_line_id = survey.get_entity(self.params.line_field.uid)[0]
+
+                if isinstance(new_line_id, ReferencedData):
+                    self.params.line_field = new_line_id
+
             line_field_obj = self.params.get_line_field(survey)
 
             if (
