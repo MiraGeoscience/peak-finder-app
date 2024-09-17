@@ -56,7 +56,7 @@ tqdm = "^4.66.1"
 #----------------------------------------
 #geoh5py = {version = "~0.10.0-alpha.1", source = "pypi", allow-prereleases = true}  # also in geoapps-utils
 #geoh5py = {url = "https://github.com/MiraGeoscience/geoh5py/archive/refs/heads/develop.tar.gz"}
-geoh5py = {git = "https://github.com/MiraGeoscience/geoh5py.git", rev = "develop"}
+geoh5py = {git = "https://github.com/MiraGeoscience/geoh5py.git", rev = "release/0.10.0"}
 #geoh5py = {url = "http://localhost:8888/geoh5py.tar.gz"}
 
 #geoapps-utils = {version = "~0.4.0-alpha.1", source = "pypi", allow-prereleases = true}
