@@ -122,7 +122,7 @@ ignore = [
     "E501",     # line-too-long - code is reformatted (do not care about comments and docstring)
     "F401",     # unsused-import - covered by pycln
     "RUF015",   # TO DO
-    "RUF005",   # TO DO
+    "RUF005",  # collection-literal-concatenation - wrong suggestion with numpy arrays
     "B007",     # TO DO
     "A001"      # TO DO
 ]
