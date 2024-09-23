@@ -1157,24 +1157,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
                             continue
 
                         i = query[0]
-                        if subgroup.azimuth < 180:  # type: ignore
-                            ori = "right"
-                        else:
-                            ori = "left"
-
                         peak = subgroup.peaks[i]
-                        # Add markers
-                        if i == 0:
-                            trace_dict["markers"][ori + "_azimuth"]["x"] += [  # type: ignore
-                                locs[peak]
-                            ]
-                            trace_dict["markers"][ori + "_azimuth"]["y"] += [  # type: ignore
-                                sym_values[peak]
-                            ]
-                            trace_dict["markers"][ori + "_azimuth"][  # type: ignore
-                                "customdata"
-                            ] += [values[peak]]
-
                         peak_markers_x += [locs[peak]]
                         peak_markers_y += [sym_values[peak]]
                         peak_markers_customdata += [values[peak]]
