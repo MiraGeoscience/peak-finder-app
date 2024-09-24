@@ -24,7 +24,7 @@ from geoapps_utils.utils.plotting import format_axis, symlog
 from geoh5py import Workspace
 from geoh5py.data import BooleanData, Data, ReferencedData
 from geoh5py.objects import Curve
-from geoh5py.shared.utils import fetch_active_workspace, is_uuid
+from geoh5py.shared.utils import fetch_active_workspace
 from geoh5py.ui_json import InputFile
 from tqdm import tqdm
 
@@ -306,9 +306,9 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         return self._line_field
 
     @line_field.setter
-    def line_field(self, value):
-        if is_uuid(value):
-            data = self.workspace.get_entity(uuid.UUID(value))[0]
+    def line_field(self, value: str | uuid.UUID | ReferencedData | None):
+        if isinstance(value, str | uuid.UUID) and self.survey is not None:
+            data = self.survey.get_entity(uuid.UUID(str(value)))[0]
 
             if not isinstance(data, ReferencedData):
                 raise TypeError("Line field must be of type ReferencedData.")
@@ -528,14 +528,18 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         if self.survey is None:
             return no_update, no_update
 
+        self._survey = None
         if masking_data is not None and masking_data != "None":
-            self._survey = None
-
             if self.survey is not None and hasattr(self.survey, "remove_vertices"):
                 masking_data_obj = self.survey.get_data(uuid.UUID(masking_data))[0]
                 masking_array = masking_data_obj.values
                 if masking_array is not None:
                     self.survey.remove_vertices(~masking_array)
+
+        self.computed_lines = None
+
+        if isinstance(self.line_field, Data):
+            self.line_field = self.line_field.uid  # type: ignore
 
         min_value = no_update
         if self.active_channels is not None:
@@ -814,7 +818,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         for channel_dict in list(  # pylint: disable=too-many-nested-blocks
             self.active_channels.values()
         ):
-            if "values" not in channel_dict:
+            if "values" not in channel_dict or selected_line not in self.computed_lines:
                 continue
             full_values = sign * np.array(channel_dict["values"])
 
@@ -1153,24 +1157,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
                             continue
 
                         i = query[0]
-                        if subgroup.azimuth < 180:  # type: ignore
-                            ori = "right"
-                        else:
-                            ori = "left"
-
                         peak = subgroup.peaks[i]
-                        # Add markers
-                        if i == 0:
-                            trace_dict["markers"][ori + "_azimuth"]["x"] += [  # type: ignore
-                                locs[peak]
-                            ]
-                            trace_dict["markers"][ori + "_azimuth"]["y"] += [  # type: ignore
-                                sym_values[peak]
-                            ]
-                            trace_dict["markers"][ori + "_azimuth"][  # type: ignore
-                                "customdata"
-                            ] += [values[peak]]
-
                         peak_markers_x += [locs[peak]]
                         peak_markers_y += [sym_values[peak]]
                         peak_markers_customdata += [values[peak]]

@@ -197,8 +197,6 @@ class PeakFinderDriver(BaseDriver):
                 for name in channel_groups
             ]
 
-            line_field_obj = self.params.get_line_field(survey)
-
             if self.params.masking_data is not None:
                 masking_array = self.params.masking_data.values
 
@@ -208,14 +206,20 @@ class PeakFinderDriver(BaseDriver):
                 if False in masking_array:
                     survey.remove_vertices(~masking_array)
 
-                line_obj = survey.get_data(line_field_obj.uid)[0]
+                new_line_id = survey.get_entity(self.params.line_field.uid)[0]
 
-                if not isinstance(line_obj, ReferencedData):
-                    raise ValueError("Line field not found.")
+                if isinstance(new_line_id, ReferencedData):
+                    self.params.line_field = new_line_id
 
-                line_field_obj = line_obj
+            line_field_obj = self.params.get_line_field(survey)
 
-            line_ids = line_field_obj.value_map.map.keys()
+            if (
+                not isinstance(line_field_obj, ReferencedData)
+                or line_field_obj.value_map is None
+            ):
+                raise ValueError("Line field not found.")
+
+            line_ids = list(line_field_obj.value_map().keys())
             indices_dict = PeakFinderDriver.get_line_indices(
                 survey, line_field_obj, line_ids
             )
