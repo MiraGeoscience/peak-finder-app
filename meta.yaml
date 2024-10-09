@@ -55,10 +55,10 @@ about:
   home: https://www.mirageoscience.com/mining-industry-software/python-integration/
   summary: 'Peak Finder App'
   description: |
-    Peak-finder-app is a package for the detection and grouping of time-domain electromagnetic 
+    Peak-finder-app is a package for the detection and grouping of time-domain electromagnetic
     (TEM) anomalies measured along flight lines.
   license: MIT
-  license_file: 
+  license_file:
     - LICENSE
   doc_url: https://mirageoscience-peak-finder-app.readthedocs-hosted.com/
   dev_url: https://github.com/MiraGeoscience/peak-finder-app
