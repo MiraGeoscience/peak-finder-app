@@ -4,4 +4,3 @@ py_versions:
 suffix_for_extras:
   "": ["dash"]
   "no_ui": []
-
