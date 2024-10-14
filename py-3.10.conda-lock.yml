@@ -3974,27 +3974,27 @@ package:
   category: dash
   optional: true
 - name: networkx
-  version: '3.4'
+  version: 3.4.1
   manager: conda
   platform: linux-64
   dependencies:
     python: '>=3.10'
-  url: https://conda.anaconda.org/conda-forge/noarch/networkx-3.4-pyhd8ed1ab_1.conda
+  url: https://conda.anaconda.org/conda-forge/noarch/networkx-3.4.1-pyhd8ed1ab_0.conda
   hash:
-    md5: f1aa825b2f7652109314a3d8cf83e1a7
-    sha256: 184cb6231cd0bd43740d5384d1d4b998fe89cb6a99483ad4e3e248d83f8a24eb
+    md5: 4994669899eb2e84ab855edcb71efc58
+    sha256: f753c9a2be8ad02077f027f4e03d9531b305c5297d3708c410cf95b99195b335
   category: main
   optional: false
 - name: networkx
-  version: '3.4'
+  version: 3.4.1
   manager: conda
   platform: win-64
   dependencies:
     python: '>=3.10'
-  url: https://conda.anaconda.org/conda-forge/noarch/networkx-3.4-pyhd8ed1ab_1.conda
+  url: https://conda.anaconda.org/conda-forge/noarch/networkx-3.4.1-pyhd8ed1ab_0.conda
   hash:
-    md5: f1aa825b2f7652109314a3d8cf83e1a7
-    sha256: 184cb6231cd0bd43740d5384d1d4b998fe89cb6a99483ad4e3e248d83f8a24eb
+    md5: 4994669899eb2e84ab855edcb71efc58
+    sha256: f753c9a2be8ad02077f027f4e03d9531b305c5297d3708c410cf95b99195b335
   category: main
   optional: false
 - name: nspr
