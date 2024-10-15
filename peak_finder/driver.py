@@ -201,12 +201,15 @@ class PeakFinderDriver(BaseDriver):
                 masking_array = self.params.masking_data.values
 
                 workspace = Workspace()
-                survey = survey.copy(parent=workspace)
+                survey: Curve = survey.copy(parent=workspace)  # type: ignore
 
                 if False in masking_array:
                     survey.remove_vertices(~masking_array)
 
-                new_line_id = survey.get_entity(self.params.line_field.uid)[0]
+                if self.params.line_field is not None:
+                    new_line_id = survey.get_entity(self.params.line_field.uid)[0]
+                else:
+                    new_line_id = self.params.get_line_field(survey)
 
                 if isinstance(new_line_id, ReferencedData):
                     self.params.line_field = new_line_id

@@ -479,6 +479,6 @@ class PeakFinderParams(BaseParams):  # pylint: disable=R0902, R0904
             if not isinstance(line_field_obj, ReferencedData):
                 raise TypeError("Issue creating a ReferencedData'line_field'.")
 
-            self.line_field = line_field_obj
+            return line_field_obj
 
         return self.line_field
