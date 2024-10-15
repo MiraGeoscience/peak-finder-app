@@ -336,7 +336,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         """
         Current survey object.
         """
-        if self._survey is None:
+        if self._survey is None and self.params.objects is not None:
             self.workspace: Workspace = Workspace()
             with fetch_active_workspace(self.params.geoh5):
                 self._survey = self.params.objects.copy(parent=self.workspace)
