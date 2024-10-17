@@ -48,23 +48,25 @@ flask = {version="^3.0.3", optional = true}  # also in geoapps-utils[dash]
 numpy = "~1.26.0"  # also in geoapps-utils, geoh5py
 plotly = "~5.19.0"
 pyqtwebengine = {version = "~5.15.2, <5.15.7", optional = true}  # also in geoapps-utils[dash]
-pyside2 = {version = "~5.15.2.1", optional = true}  # also in geoapps-utils[dash]
+pyside2 = {version = ">=5.15.2.1, <5.15.7", optional = true}  # also in geoapps-utils[dash]
 scipy = "~1.14.0"
 tqdm = "^4.66.1"
 
 ## Pip dependencies from Git repositories
 #----------------------------------------
-geoh5py = {version = "~0.10.0-alpha.1", source = "pypi", allow-prereleases = true}  # also in geoapps-utils
-#geoh5py = {git = "https://github.com/MiraGeoscience/geoh5py.git", rev = "develop"}
+#geoh5py = {version = "~0.10.0-alpha.1", source = "pypi", allow-prereleases = true}  # also in geoapps-utils
+#geoh5py = {url = "https://github.com/MiraGeoscience/geoh5py/archive/refs/heads/develop.tar.gz"}
 geoh5py = {git = "https://github.com/MiraGeoscience/geoh5py.git", rev = "release/0.10.0"}
 #geoh5py = {url = "http://localhost:8888/geoh5py.tar.gz"}
 
-geoapps-utils = {version = "~0.4.0-alpha.1", source = "pypi", allow-prereleases = true}
-#geoapps-utils = {git = "https://github.com/MiraGeoscience/geoapps-utils.git", rev = "develop"}
+#geoapps-utils = {version = "~0.4.0-alpha.1", source = "pypi", allow-prereleases = true}
+#geoapps-utils = { url = "https://github.com/MiraGeoscience/geoapps-utils/archive/refs/heads/develop.tar.gz" }
+geoapps-utils = {git = "https://github.com/MiraGeoscience/geoapps-utils.git", rev = "release/0.4.0"}
 #geoapps-utils = {url = "http://localhost:8888/geoapps-utils.tar.gz"}
 
-curve-apps = {version = "~0.2.0-alpha.1", source = "pypi", allow-prereleases = true}
-#curve-apps = {git = "https://github.com/MiraGeoscience/curve-apps.git", rev = "develop"}
+#curve-apps = {version = "~0.2.0-alpha.1", source = "pypi", allow-prereleases = true}
+#curve-apps = {url = "https://github.com/MiraGeoscience/curve-apps/archive/refs/heads/develop.tar.gz"}
+curve-apps = {git = "https://github.com/MiraGeoscience/curve-apps.git", rev = "release/0.2.0"}
 #curve-apps = {url = "http://localhost:8888/curve-apps.tar.gz"}
 
 ## force some versions to resolve incompatible resolution between PyPI and Conda
@@ -91,16 +93,13 @@ pyside2 = {version = "5.15.*", optional = true}  # allow Conda to resolve to a h
 h5py = ">=3.2.1, <4.0.0"  # from geoh5py
 Pillow = ">=10.3.0, <10.4.0"  # from geoh5py
 pydantic = ">=2.5.2, <3.0.0"  # from geoh5py, curve-apps, geoapps-utils
-scikit-image = ">=0.20.0, <0.21.0"  # from curve-apps, also used by geo-unsup-mapper
+scikit-image = ">=0.20.0, <0.25.0"  # from curve-apps, also used by geo-unsup-mapper
 
 [tool.poetry.group.dev.dependencies]
 Pygments = "*"
 pylint = "*"
 pytest = "*"
 pytest-cov = "*"
-pyyaml = '*'
-jinja2 = '*'
-packaging = '*'
 readthedocs-sphinx-ext = "*"
 sphinx = "^5.0"
 tomli = "*" # for tests only
@@ -125,7 +124,6 @@ profile = "black"
 
 [tool.black]
 # defaults are just fine
-    "RUF005",  # collection-literal-concatenation - wrong suggestion with numpy arrays
 
 [tool.mypy]
 warn_unused_configs = true
