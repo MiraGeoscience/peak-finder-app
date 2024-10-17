@@ -54,13 +54,13 @@ tqdm = "^4.66.1"
 
 ## Pip dependencies from Git repositories
 #----------------------------------------
-geoh5py = {version = "~0.10.0-alpha.1", allow-prereleases = true}  # also in geoapps-utils
+geoh5py = {version = "~0.10.0-alpha.1", source = "pypi", allow-prereleases = true}  # also in geoapps-utils
 #geoh5py = {git = "https://github.com/MiraGeoscience/geoh5py.git", rev = "develop"}
 
-geoapps-utils = {version = "~0.4.0-alpha.1",  allow-prereleases = true}
+geoapps-utils = {version = "~0.4.0-alpha.1", source = "pypi", allow-prereleases = true}
 #geoapps-utils = {git = "https://github.com/MiraGeoscience/geoapps-utils.git", rev = "develop"}
 
-curve-apps = {version = "~0.2.0-alpha.1",  allow-prereleases = true}
+curve-apps = {version = "~0.2.0-alpha.1", source = "pypi", allow-prereleases = true}
 #curve-apps = {git = "https://github.com/MiraGeoscience/curve-apps.git", rev = "develop"}
 
 ## force some versions to resolve incompatible resolution between PyPI and Conda
