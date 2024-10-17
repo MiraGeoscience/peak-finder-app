@@ -40,15 +40,15 @@ classifiers = [
 [tool.poetry.dependencies]
 python = "^3.10, <3.11"  # limited to 3.10 because of geoapps-utils (due to PySide2)
 
-dash = {version="^2.12", optional = true}
+dash = {version="^2.12", optional = true}  # also in geoapps-utils[dash]
 dash-daq = {version="~0.5.0", optional = true}
 dask = {version = "2024.6.*", extras = ["distributed"]}
 distributed = "2024.6.*"  # because conda-lock doesn't take dask extras into account
-flask = {version="^3.0.3", optional = true}
+flask = {version="^3.0.3", optional = true}  # also in geoapps-utils[dash]
 numpy = "~1.26.0"  # also in geoapps-utils, geoh5py
 plotly = "~5.19.0"
-pyqtwebengine = {version = "~5.15.2, <5.15.7", optional = true}
-pyside2 = {version = "~5.15.2.1", optional = true}
+pyqtwebengine = {version = "~5.15.2, <5.15.7", optional = true}  # also in geoapps-utils[dash]
+pyside2 = {version = "~5.15.2.1", optional = true}  # also in geoapps-utils[dash]
 scipy = "~1.14.0"
 tqdm = "^4.66.1"
 
@@ -56,12 +56,16 @@ tqdm = "^4.66.1"
 #----------------------------------------
 geoh5py = {version = "~0.10.0-alpha.1", source = "pypi", allow-prereleases = true}  # also in geoapps-utils
 #geoh5py = {git = "https://github.com/MiraGeoscience/geoh5py.git", rev = "develop"}
+geoh5py = {git = "https://github.com/MiraGeoscience/geoh5py.git", rev = "release/0.10.0"}
+#geoh5py = {url = "http://localhost:8888/geoh5py.tar.gz"}
 
 geoapps-utils = {version = "~0.4.0-alpha.1", source = "pypi", allow-prereleases = true}
 #geoapps-utils = {git = "https://github.com/MiraGeoscience/geoapps-utils.git", rev = "develop"}
+#geoapps-utils = {url = "http://localhost:8888/geoapps-utils.tar.gz"}
 
 curve-apps = {version = "~0.2.0-alpha.1", source = "pypi", allow-prereleases = true}
 #curve-apps = {git = "https://github.com/MiraGeoscience/curve-apps.git", rev = "develop"}
+#curve-apps = {url = "http://localhost:8888/curve-apps.tar.gz"}
 
 ## force some versions to resolve incompatible resolution between PyPI and Conda
 #-------------------------------------------------------------------------------
@@ -116,44 +120,12 @@ dash = [
 platforms = ['win-64', 'linux-64']
 channels = ['conda-forge']
 
-[tool.ruff]
-target-version = "py310"
+[tool.isort]
+profile = "black"
 
-[tool.ruff.lint]
-ignore = [
-    "B028",     # no-explicit-stacklevel for warnings.warn()
-    "E501",     # line-too-long - code is reformatted (do not care about comments and docstring)
-    "F401",     # unsused-import - covered by pycln
-    "RUF015",   # TO DO
+[tool.black]
+# defaults are just fine
     "RUF005",  # collection-literal-concatenation - wrong suggestion with numpy arrays
-    "B007",     # TO DO
-    "A001"      # TO DO
-]
-select = [
-    "A",  # flake8-builtins
-    "B",  # flake8-bugbear
-    "B006",  # Do not use mutable data structures for argument defaults
-    "B9",  # flake8-bugbear opiniated warnings
-    "BLE",  # flake8-blind-except
-    "C4",  # flake8-comprehensions
-    "C9",  # mccabe
-    "E",  # pycodestyle errors
-    "F",  # pyflakes
-    "I",  # isort
-    "RUF",  # ruff rules
-    "TID", # flake8-tidy-imports
-    "UP",  # pyupgrade
-    "W",  # pycodestyle warnings
-]
-
-[tool.ruff.lint.mccabe]
-max-complexity = 18
-
-[tool.ruff.lint.isort]
-lines-after-imports = 2
-
-[tool.ruff.format]
-# default formatting is just fine
 
 [tool.mypy]
 warn_unused_configs = true
