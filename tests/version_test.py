@@ -9,7 +9,6 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-import tomli as toml
 import yaml
 from jinja2 import Template
 from packaging.version import Version
