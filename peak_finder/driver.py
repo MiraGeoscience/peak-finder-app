@@ -10,7 +10,7 @@
 from __future__ import annotations
 
 import sys
-
+from typing import cast
 import numpy as np
 from curve_apps.trend_lines.driver import TrendLinesDriver
 from curve_apps.trend_lines.params import TrendLineParameters
@@ -201,7 +201,7 @@ class PeakFinderDriver(BaseDriver):
                 masking_array = self.params.masking_data.values
 
                 workspace = Workspace()
-                survey: Curve = survey.copy(parent=workspace)  # type: ignore
+                survey = cast(Curve, survey.copy(parent=workspace))
 
                 if False in masking_array:
                     survey.remove_vertices(~masking_array)
