@@ -48,7 +48,7 @@ flask = {version="^3.0.3", optional = true}  # also in geoapps-utils[dash]
 numpy = "~1.26.0"  # also in geoapps-utils, geoh5py
 plotly = "~5.19.0"
 pyqtwebengine = {version = "~5.15.2, <5.15.7", optional = true}  # also in geoapps-utils[dash]
-pyside2 = {version = "5.15.*, >=5.15.2.1", optional = true}  # also in geoapps-utils[dash]
+pyside2 = {version = ">=5.15.2.1, <5.15.7", optional = true}  # also in geoapps-utils[dash]
 scipy = "~1.14.0"
 tqdm = "^4.66.1"
 
@@ -61,8 +61,7 @@ geoh5py = {git = "https://github.com/MiraGeoscience/geoh5py.git", rev = "release
 geoapps-utils = {git = "https://github.com/MiraGeoscience/geoapps-utils.git", rev = "release/0.4.0"}
 
 #curve-apps = {version = "~0.2.0-alpha.1", source = "pypi", allow-prereleases = true}
-#curve-apps = {git = "https://github.com/MiraGeoscience/curve-apps.git", rev = "release/0.2.0"}
-curve-apps = {git = "https://github.com/MiraGeoscience/curve-apps.git", rev = "DEVOPS-515"}
+curve-apps = {git = "https://github.com/MiraGeoscience/curve-apps.git", rev = "release/0.2.0"}
 
 ## force some versions to resolve incompatible resolution between PyPI and Conda
 #-------------------------------------------------------------------------------
@@ -95,6 +94,9 @@ Pygments = "*"
 pylint = "*"
 pytest = "*"
 pytest-cov = "*"
+pyyaml = '*'
+jinja2 = '*'
+packaging = '*'
 readthedocs-sphinx-ext = "*"
 sphinx = "^5.0"
 tomli = "*" # for tests only
