@@ -31,9 +31,9 @@ class PeakFinderParams(BaseParams):  # pylint: disable=R0902, R0904
         self._free_parameter_keys: list = ["data", "color"]
         self._free_parameter_identifier: str = "group"
         self._validations: dict | None = validations
-        self._objects: Curve
+        self._objects: Curve | None = None
+        self._line_field: ReferencedData | None = None
         self._flip_sign: bool = False
-        self._line_field: ReferencedData
         self._masking_data: Data | None = None
         self._smoothing: int = 0
         self._min_amplitude: int = 1
@@ -113,7 +113,7 @@ class PeakFinderParams(BaseParams):  # pylint: disable=R0902, R0904
         self.setter_validator("ga_group_name", val)
 
     @property
-    def line_field(self) -> ReferencedData:
+    def line_field(self) -> ReferencedData | None:
         """
         Object containing line ids and associated names.
         """
@@ -213,7 +213,7 @@ class PeakFinderParams(BaseParams):  # pylint: disable=R0902, R0904
         self.setter_validator("monitoring_directory", val)
 
     @property
-    def objects(self) -> Curve:
+    def objects(self) -> Curve | None:
         """
         Objects to use for line profile.
         """
@@ -465,9 +465,7 @@ class PeakFinderParams(BaseParams):  # pylint: disable=R0902, R0904
         """
         Get the line field object.
         """
-        line_field_obj = self.line_field
-
-        if line_field_obj is None:
+        if self.line_field is None:
             unique_parts = np.unique(survey.parts.astype(int)) + 1
             line_field_obj = survey.add_data(
                 {
@@ -478,4 +476,9 @@ class PeakFinderParams(BaseParams):  # pylint: disable=R0902, R0904
                     }
                 }
             )
-        return line_field_obj
+            if not isinstance(line_field_obj, ReferencedData):
+                raise TypeError("Issue creating a ReferencedData'line_field'.")
+
+            return line_field_obj
+
+        return self.line_field
