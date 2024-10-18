@@ -361,7 +361,7 @@ class ObjectSelection:
             Input(component_id="launch_app", component_property="n_clicks"),
         )(self.launch_qt)
 
-    def update_object_options(
+    def update_object_options(  # pylint: disable=too-many-positional-arguments
         self,
         ui_json_data: dict,
         filename: str,

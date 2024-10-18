@@ -30,6 +30,7 @@ class LinePosition:  # pylint: disable=R0902
 
     def __init__(  # pylint: disable=R0913
         self,
+        *,
         locations: np.ndarray,
         line_indices: np.ndarray,
         line_start: np.ndarray,

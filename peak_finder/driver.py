@@ -10,7 +10,7 @@
 from __future__ import annotations
 
 import sys
-
+from typing import cast
 import numpy as np
 from curve_apps.trend_lines.driver import TrendLinesDriver
 from curve_apps.trend_lines.params import TrendLineParameters
@@ -42,6 +42,7 @@ class PeakFinderDriver(BaseDriver):
 
     @staticmethod
     def compute_lines(  # pylint: disable=R0913, R0914
+        *,
         survey: Curve,
         line_indices_dict: dict[str, dict],
         line_ids: list[int] | np.ndarray,
@@ -201,12 +202,15 @@ class PeakFinderDriver(BaseDriver):
                 masking_array = self.params.masking_data.values
 
                 workspace = Workspace()
-                survey = survey.copy(parent=workspace)
+                survey = cast(Curve, survey.copy(parent=workspace))
 
                 if False in masking_array:
                     survey.remove_vertices(~masking_array)
 
-                new_line_id = survey.get_entity(self.params.line_field.uid)[0]
+                if self.params.line_field is not None:
+                    new_line_id = survey.get_entity(self.params.line_field.uid)[0]
+                else:
+                    new_line_id = self.params.get_line_field(survey)
 
                 if isinstance(new_line_id, ReferencedData):
                     self.params.line_field = new_line_id
