@@ -32,6 +32,7 @@ class LineGroup:
         position: LinePosition,
         line_dataset: dict[uuid.UUID, LineData],
         property_group: PropertyGroup,
+        *,
         max_migration: float,
         min_channels: int,
         n_groups: int,

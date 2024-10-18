@@ -23,6 +23,7 @@ class LineData:  # pylint: disable=too-many-instance-attributes
         self,
         data: FloatData,
         position: LinePosition,
+        *,
         min_amplitude: int,
         min_width: float,
         max_migration: float,

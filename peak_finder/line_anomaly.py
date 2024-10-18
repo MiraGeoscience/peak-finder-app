@@ -26,6 +26,7 @@ class LineAnomaly:  # pylint: disable=R0902, duplicate-code
 
     def __init__(  # pylint: disable=R0913, R0914
         self,
+        *,
         entity,
         line_id,
         line_indices: np.ndarray,
@@ -310,10 +311,10 @@ class LineAnomaly:  # pylint: disable=R0902, duplicate-code
             sorting = np.concatenate((active_cells[:, 0], [active_cells[-1, 1]]))
 
             self._position = LinePosition(
-                self.locations,
-                self.line_indices,
-                self.line_start,
-                sorting,
+                locations=self.locations,
+                line_indices=self.line_indices,
+                line_start=self.line_start,
+                sorting=sorting,
                 smoothing=self.smoothing,
                 residual=self.use_residual,
             )
@@ -346,10 +347,10 @@ class LineAnomaly:  # pylint: disable=R0902, duplicate-code
             line_data = LineData(
                 data,
                 self.position,
-                self.min_amplitude,
-                self.min_width,
-                self.max_migration,
-                self.min_value,
+                min_amplitude=self.min_amplitude,
+                min_width=self.min_width,
+                max_migration=self.max_migration,
+                min_value=self.min_value,
             )
 
             line_dataset[data.uid] = line_data
