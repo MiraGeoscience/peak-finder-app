@@ -42,6 +42,7 @@ class PeakFinderDriver(BaseDriver):
 
     @staticmethod
     def compute_lines(  # pylint: disable=R0913, R0914
+        *,
         survey: Curve,
         line_indices_dict: dict[str, dict],
         line_ids: list[int] | np.ndarray,
