@@ -75,9 +75,9 @@ where averaging becomes one sided at both ends of the profile.  The result is a
 smoothed data set where the degree of smoothing scales with the number of
 neighbours used in the mean.
 
-.. todo::
+.. figure:: /images/parameters/visualization/residuals.png
 
-   Add reference figure shown for plot residuals.
+   The residual between the original and smoothed data.
 
 
 .. _Minimum Amplitude:
@@ -96,7 +96,7 @@ minimum (:math:`d_{min}`) and maximum (:math:`d_{max}`).
 
 See :ref:`figure <anomaly>` for a visual example of the anomaly amplitude.
 
-.. figure:: /images/methodology/min amplitude.png
+.. figure:: /images/methodology/min_amplitude.png
     :name: amplitude
 
 
@@ -119,7 +119,7 @@ The minimum data threshold (:math:`\delta_d`) (see :ref:`Figure <anomaly>`) can 
    \end{cases}
    \end{equation}
 
-.. figure:: /images/methodology/min value.png
+.. figure:: /images/methodology/min_value.png
     :name: value
 
 
@@ -132,7 +132,7 @@ Minimum Width
 
 The minimum distance (m) between the start and the end of an anomaly group to be considered.
 
-.. figure:: /images/methodology/min width.png
+.. figure:: /images/methodology/min_width.png
     :name: width
 
 
@@ -171,7 +171,7 @@ Merge N Peaks
 Post-grouping of anomalies based on the number of consicutive peaks. The parameter
 depends on the :ref:`Max Group Separation <Max Group Separation>`.
 
-.. figure:: /images/methodology/merge peaks.png
+.. figure:: /images/methodology/merge_peaks.png
     :name: merge
 
 .. _Max Group Separation:
