@@ -8,12 +8,6 @@ The main entry point is the ui.json (stored under peak-finder-assets) for the pe
  - :ref:`General Parameters <General Parameters>` (required)
  - :ref:`Optional Parameters <Optional Parameters>`
 
-The ui.json for the peak-finder application can operate in two modes:
-
- - :ref:`Interactive <interactive_application>`
- - :ref:`Standalone <standalone_application>`
-
-
 ui.json interface
 ~~~~~~~~~~~~~~~~~
 

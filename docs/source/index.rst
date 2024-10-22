@@ -7,24 +7,15 @@ can be exported to `Geoscience ANALYST <https://www.mirageoscience.com/mining-in
 along with various metrics for characterization and targeting.
 
 .. figure:: /images/interactive/visualizations.png
-    :scale: 40%
+
+The peak-finder application can operate in two modes:
+
+ - :ref:`Interactive <interactive_application>` (shown above)
+ - :ref:`Standalone <standalone_application>`
 
 While initially designed for TEM data, the same application can be used for
 characterization of anomalies of mixed data types (eg. magnetics, gravity,
 topography, etc..).
-
-New user?
----------
-
-Visit the :ref:`getting_started` page.
-
-Advanced user?
---------------
-
-Check out the :ref:`methodology` page to learn about the algorithm and it's
-parameters, or see :ref:`interactive_application` and :ref:`standalone_application`
-pages for information on how the application parameters may be set in an
-interactive mode or through the ui.json directly.
 
 .. toctree::
    :maxdepth: 1
@@ -34,3 +25,8 @@ interactive mode or through the ui.json directly.
    methodology
    interactive_application
    standalone_application
+
+New user?
+---------
+
+Visit the :ref:`getting_started` page.

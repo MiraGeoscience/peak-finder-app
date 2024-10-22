@@ -9,18 +9,36 @@ section of data along a single line and a plan view to locate the chosen and
 adjacent lines and anomaly picks in cartesian space.
 
 .. figure:: /images/interactive/visualizations.png
-    :scale: 40%
 
 
 The ui controls section is divided into three subsections:
 
-- `Visual Parameters`_
-- `Data Selection`_
 - `Detection Parameters`_
+- `Visual Parameters`_
 
 .. figure:: /images/interactive/ui_controls.png
-    :scale: 40%
 
+
+Detection Parameters
+~~~~~~~~~~~~~~~~~~~~
+
+The detection parameters are those that the peak-finder application uses to
+tune the characterization and detection of anomalies within the data.  Most
+of these are already described in the :ref:`Methodology` section.  Follow
+the links for detailed descriptions of each parameter.
+
+.. figure:: /images/parameters/detection_parameters.png
+   :align: left
+
+
+- :ref:`Smoothing window <Smoothing>`
+- :ref:`Minimum Amplitude (%) <Minimum Amplitude>`
+- :ref:`Minimum Value <Minimum Data Value>`
+- :ref:`Minimum Width (m) <Minimum Width>`
+- :ref:`Max Peak Migration (m) <Maximum Peak Migration>`
+- :ref:`Minimum # Channels <Minimum number of channels>`
+- :ref:`Merge # Peaks <Merge N Peaks>`
+- :ref:`Max Separation <Max Group Separation>`
 
 
 Visual Parameters
@@ -130,34 +148,9 @@ ____________
 
    Update docstring and add figure showing the effect of flipping y.
 
-Select group colors
-___________________
 
-.. todo::
-
-   Add figure of color picker widget.  Move this ui to visualization group?
-
-Detection Parameters
-~~~~~~~~~~~~~~~~~~~~
-
-The detection parameters are those that the peak-finder application uses to
-tune the characterization and detection of anomalies within the data.  Most
-of these are already described in the :ref:`Methodology` section.  Follow
-the links for detailed descriptions of each parameter.
-
-.. figure:: /images/parameters/detection_parameters.png
-   :align: left
-
-
-- :ref:`Smoothing window <Smoothing>`
-- :ref:`Minimum Amplitude (%) <Minimum Amplitude>`
-- :ref:`Minimum Value <Minimum Data Value>`
-- :ref:`Minimum Width (m) <Minimum Width>`
-- :ref:`Max Peak Migration (m) <Maximum Peak Migration>`
-- :ref:`Minimum # Channels <Minimum number of channels>`
-- :ref:`Merge # Peaks <Merge N Peaks>`
-- :ref:`Max Separation <Max Group Separation>`
-
+Output Parameters
+~~~~~~~~~~~~~~~~~
 
 Save as
 _______
@@ -168,17 +161,7 @@ _______
 
    Update docstring and add figure showing resulting object saved in GA.
 
-Output Path
-___________
-
-Provide absolute path to save the output to.
-
-Geoscience ANALYST Pro - Live link
-__________________________________
-
-If selected the output will be imported to the open GA sessions geoh5 file.
-
 EXPORT
 ______
 
-Saves the result
+Run the algorithm with the parameters selected and save the result to geoh5.

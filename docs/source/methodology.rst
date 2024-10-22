@@ -46,115 +46,18 @@ proximity:
 .. figure:: /images/methodology/peak_finder_params.png
     :name: anomaly
 
+Detection Parameters
+--------------------
 
-.. _Minimum Amplitude:
+.. _Masking Data:
 
-Minimum Amplitude
-~~~~~~~~~~~~~~~~~
+Masking Data
+~~~~~~~~~~~~
 
-.. autoproperty:: peak_finder.params.PeakFinderParams.min_amplitude
+.. autoproperty:: peak_finder.params.PeakFinderParams.masking_data
 
-Threshold value (:math:`\delta A`) for filtering small anomalies based on the anomaly
-minimum (:math:`d_{min}`) and maximum (:math:`d_{max}`).
-
-.. math::
-
-   \delta A = \left|\left|\frac{d_{max} - d_{min}}{d_{min}}\right|\right| \cdot 100
-
-See :ref:`figure <anomaly>` for a visual example of the anomaly amplitude.
-
-.. todo::
-
-   Add figure showing the effect on anomaly identification
-
-
-.. _Minimum Data Value:
-
-Minimum Data Value
-~~~~~~~~~~~~~~~~~~
-
-.. autoproperty:: peak_finder.params.PeakFinderParams.min_value
-
-The minimum data threshold (:math:`\delta_d`) (see :ref:`Figure <anomaly>`) can be defined by:
-
-.. math::
-
-   \begin{equation}
-   d_i =
-   \begin{cases}
-   d_i & \;\text{for } d_i > \delta_d \\
-   nan & \;\text{for } d_i \leq \delta_d\\
-   \end{cases}
-   \end{equation}
-
-.. todo::
-
-    Add figure showing the effect on anomaly identification
-
-
-.. _Minimum Width:
-
-Minimum Width
-~~~~~~~~~~~~~
-
-.. autoproperty:: peak_finder.params.PeakFinderParams.min_width
-
-.. todo::
-
-    Add figure showing the effect of anomaly identification
-
-See :ref:`figure <anomaly>` for a visual example of the anomaly width.
-
-.. _Maximum Peak Migration:
-
-Maximum Peak Migration
-~~~~~~~~~~~~~~~~~~~~~~
-
-.. autoproperty:: peak_finder.params.PeakFinderParams.max_migration
-
-.. todo::
-
-    Add figure showing the effect of anomaly identification
-
-See :ref:`figure <anomaly>` for a visual example of migration within a
-group of anomalies.
-
-.. _Minimum number of channels:
-
-Minimum number of channels
-~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-.. autoproperty:: peak_finder.params.PeakFinderParams.min_channels
-
-.. todo::
-
-    Add figure showing the effect of anomaly identification
-
-See :ref:`figure <anomaly>` for a visual example of channels making up a
-group of anomalies.
-
-.. _Merge N Peaks:
-
-Merge N Peaks
-~~~~~~~~~~~~~
-
-.. autoproperty:: peak_finder.params.PeakFinderParams.n_groups
-
-.. todo::
-
-    Add figure showing the effect of anomaly identification
-
-.. _Max Group Separation:
-
-Max Group Separation
-~~~~~~~~~~~~~~~~~~~~
-
-.. autoproperty:: peak_finder.params.PeakFinderParams.max_separation
-
-.. todo::
-
-    Add figure showing the effect of anomaly identification
-
+Masking data is used to filter out data points that are not considered by the algorithm.
+This is useful for focusing on specific regions of interest.
 
 .. _Smoothing:
 
@@ -176,16 +79,106 @@ neighbours used in the mean.
 
    Add reference figure shown for plot residuals.
 
-Show residual
+
+.. _Minimum Amplitude:
+
+Minimum Amplitude
+~~~~~~~~~~~~~~~~~
+
+.. autoproperty:: peak_finder.params.PeakFinderParams.min_amplitude
+
+Threshold value (:math:`\delta A`) for filtering small anomalies based on the anomaly
+minimum (:math:`d_{min}`) and maximum (:math:`d_{max}`).
+
+.. math::
+
+   \delta A = \left|\left|\frac{d_{max} - d_{min}}{d_{min}}\right|\right| \cdot 100
+
+See :ref:`figure <anomaly>` for a visual example of the anomaly amplitude.
+
+.. figure:: /images/methodology/min amplitude.png
+    :name: amplitude
+
+
+.. _Minimum Data Value:
+
+Minimum Data Value
+~~~~~~~~~~~~~~~~~~
+
+.. autoproperty:: peak_finder.params.PeakFinderParams.min_value
+
+The minimum data threshold (:math:`\delta_d`) (see :ref:`Figure <anomaly>`) can be defined by:
+
+.. math::
+
+   \begin{equation}
+   d_i =
+   \begin{cases}
+   d_i & \;\text{for } d_i > \delta_d \\
+   nan & \;\text{for } d_i \leq \delta_d\\
+   \end{cases}
+   \end{equation}
+
+.. figure:: /images/methodology/min value.png
+    :name: value
+
+
+.. _Minimum Width:
+
+Minimum Width
 ~~~~~~~~~~~~~
 
-Option to show the positive (blue) and negative (red) :ref:`residual <anomaly>` between the
-original and smoothed profile. Useful to highlight smaller anomalies within
-larger trends.
+.. autoproperty:: peak_finder.params.PeakFinderParams.min_width
 
-.. _Masking Data:
+The minimum distance (m) between the start and the end of an anomaly group to be considered.
 
-Masking Data
-~~~~~~~~~~~~
+.. figure:: /images/methodology/min width.png
+    :name: width
 
-.. autoproperty:: peak_finder.params.PeakFinderParams.masking_data
+
+.. _Maximum Peak Migration:
+
+Maximum Peak Migration
+~~~~~~~~~~~~~~~~~~~~~~
+
+.. autoproperty:: peak_finder.params.PeakFinderParams.max_migration
+
+The maximum distance (m) between the peaks within a group of anomalies. This
+parameter depends on the :ref:`Minimum number of channels <Minimum number of channels>`.
+
+See :ref:`figure <anomaly>` for a visual example of migration within a
+group of anomalies.
+
+.. _Minimum number of channels:
+
+Minimum number of channels
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. autoproperty:: peak_finder.params.PeakFinderParams.min_channels
+
+The minimum number of data channels required to form a group of anomalies.
+
+See :ref:`figure <anomaly>` for a visual example of channels making up a
+group of anomalies.
+
+.. _Merge N Peaks:
+
+Merge N Peaks
+~~~~~~~~~~~~~
+
+.. autoproperty:: peak_finder.params.PeakFinderParams.n_groups
+
+Post-grouping of anomalies based on the number of consicutive peaks. The parameter
+depends on the :ref:`Max Group Separation <Max Group Separation>`.
+
+.. figure:: /images/methodology/merge peaks.png
+    :name: merge
+
+.. _Max Group Separation:
+
+Max Group Separation
+~~~~~~~~~~~~~~~~~~~~
+
+.. autoproperty:: peak_finder.params.PeakFinderParams.max_separation
+
+The maximum distance (m) between the start and the end of a neighboring groups.
