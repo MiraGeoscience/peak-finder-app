@@ -122,7 +122,7 @@ Run a trend line detection algorithm on the result of the Peak Finder algorithm.
 with the same group ID as the Peak Finder result.
 
 
- figure:: /images/parameters/visualization/trend_lines.png
+.. figure:: /images/parameters/visualization/trend_lines.png
 
 
 Save as

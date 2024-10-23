@@ -4,7 +4,7 @@ Methodology
 ===========
 
 This section provides technical details regarding the algorithm used for the
-detection of 1D anomalies.
+detection of anomalies along profile.
 
 Anomalies are identified from the detection of maximum, minimum and inflection
 points calculated from the first and second order derivatives of individual
