@@ -33,7 +33,7 @@ the mode of operation.
 - *Color*: Hex color code used to label the peaks identified. A default value is provided that will
   suffice in most cases.
 - *Save as*: Name of the output group holding the results.
-- *Export all markger*: If selected, all markers will be exported to the output group. If not selected,
+- *Export all markers*: If selected, all markers will be exported to the output group. If not selected,
   only the peak group centers will be exported.
 - *Create trend lines*: If selected, trend lines are created connecting the peak group centers across survey lines. See
   the `Trend Line <https://mirageoscience-curve-apps.readthedocs-hosted.com/en/latest/trend_lines.html#trend-lines>`_
