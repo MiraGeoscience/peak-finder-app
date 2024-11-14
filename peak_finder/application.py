@@ -36,7 +36,7 @@ from peak_finder.line_position import LinePosition
 from peak_finder.params import PeakFinderParams
 from peak_finder.utils import get_ordered_survey_lines
 
-# pylint: disable=R0917
+# pylint: disable=too-many-positional-arguments
 
 
 class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-methods, too-many-instance-attributes
