@@ -269,7 +269,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
             for group in self.property_groups.values():
                 for channel in group["properties"]:
                     chan = self.workspace.get_entity(uuid.UUID(channel))[0]
-                    if isinstance(chan, Data):
+                    if isinstance(chan, Data) and chan.values is not None:
                         self._active_channels[channel] = {
                             "name": chan.name,
                             "values": chan.values.copy(),
@@ -2011,6 +2011,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
 if __name__ == "__main__":
     print("Loading geoh5 file . . .")
     FILE = sys.argv[1]
+    # FILE = r"C:\Users\dominiquef\Desktop\Tests\peak_finder.ui.json"
     ifile = InputFile.read_ui_json(FILE)
     if ifile.data["launch_dash"]:
         ifile.workspace.open("r")

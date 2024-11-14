@@ -14,7 +14,7 @@ from typing import cast
 import numpy as np
 from curve_apps.trend_lines.driver import TrendLinesDriver
 from curve_apps.trend_lines.params import TrendLineParameters
-from dask import compute
+from dask import compute, delayed
 from dask.diagnostics import ProgressBar
 from geoapps_utils.driver.driver import BaseDriver
 from geoapps_utils.utils.conversions import hex_to_rgb
@@ -30,6 +30,12 @@ from tqdm import tqdm
 from peak_finder.constants import validations
 from peak_finder.line_anomaly import LineAnomaly
 from peak_finder.params import PeakFinderParams
+
+
+@delayed
+def line_computation(line_anomaly: LineAnomaly):
+    line_anomaly._anomalies = line_anomaly.find_anomalies()
+    return line_anomaly
 
 
 class PeakFinderDriver(BaseDriver):
@@ -72,11 +78,6 @@ class PeakFinderDriver(BaseDriver):
         :param n_groups: Number of groups to use for grouping anomalies.
         :param max_separation: Maximum separation between anomalies in meters.
         """
-
-        # @delayed
-        # def line_computation(line_anomaly):
-        #     line_anomaly._anomalies = line_anomaly.find_anomalies()
-        #     return line_anomaly
 
         anomalies = []
         for line_id in tqdm(list(line_ids)):
@@ -188,8 +189,13 @@ class PeakFinderDriver(BaseDriver):
 
             for uid, channel_params in active_channels.items():
                 obj = self.params.geoh5.get_entity(uid)[0]
+                values = obj.values
+
+                if values is None:
+                    continue
+
                 channel_params["values"] = (
-                    obj.values.copy() * (-1.0) ** self.params.flip_sign
+                    values.copy() * (-1.0) ** self.params.flip_sign
                 )
 
             print("Submitting parallel jobs:")
@@ -394,4 +400,5 @@ class PeakFinderDriver(BaseDriver):
 
 if __name__ == "__main__":
     FILE = sys.argv[1]
+    # FILE = r"C:\Users\dominiquef\Desktop\Tests\peak_finder.ui.json"
     PeakFinderDriver.start(FILE)

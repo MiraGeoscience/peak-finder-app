@@ -52,7 +52,6 @@ class LineGroup:
         self._n_groups = n_groups
         self._max_separation = max_separation
         self._minimal_output = minimal_output
-        self._channels: dict[uuid.UUID, LineData] | None = None
         self._groups: list[AnomalyGroup] | None = None
 
     @property
@@ -140,19 +139,6 @@ class LineGroup:
     @max_separation.setter
     def max_separation(self, value):
         self._max_separation = value
-
-    @property
-    def channels(self) -> dict | None:
-        """
-        Dict of active channels and values.
-        """
-        if self._channels is None:
-            channels = {}
-            for uid in self.property_group.properties:  # type: ignore
-                channels[uid] = self.line_dataset[uid]
-            self._channels = channels
-
-        return self._channels
 
     @property
     def minimal_output(self) -> bool:
@@ -290,7 +276,7 @@ class LineGroup:
 
         :return: List of merged anomaly groups.
         """
-        if self.position.sampling is None or self.channels is None:
+        if self.position.sampling is None or self.line_dataset is None:
             return groups
 
         return_groups: list[AnomalyGroup] = []
@@ -337,7 +323,7 @@ class LineGroup:
         groups: list = []
         group_id = -1
 
-        if self.channels is None or self.n_groups is None:
+        if self.line_dataset is None or self.n_groups is None:
             return groups
 
         # Get full lists of anomaly attributes
@@ -345,7 +331,7 @@ class LineGroup:
             full_anomalies,
             full_channels,
             full_peak_positions,
-        ) = self.get_anomaly_attributes(list(self.channels.values()))
+        ) = self.get_anomaly_attributes(list(self.line_dataset.values()))
 
         full_group_ids = np.ones(len(full_anomalies), dtype="bool") * -1
         for ind, _ in enumerate(full_anomalies):
