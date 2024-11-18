@@ -36,6 +36,8 @@ from peak_finder.line_position import LinePosition
 from peak_finder.params import PeakFinderParams
 from peak_finder.utils import get_ordered_survey_lines
 
+# pylint: disable=too-many-positional-arguments
+
 
 class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-methods, too-many-instance-attributes
     """
@@ -622,7 +624,6 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
 
     def compute_lines(  # pylint: disable=too-many-arguments, too-many-locals
         self,
-        *,
         lines_computation_trigger: int,
         line_indices_trigger: int,
         survey_trigger: int,
@@ -757,7 +758,6 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
 
     def update_figure_lines(  # pylint: disable=too-many-arguments, too-many-locals, too-many-branches  # noqa: C901
         self,
-        *,
         figure_lines_trigger: int,
         lines_computation_trigger: int,
         line_indices_trigger: dict,
@@ -941,7 +941,6 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
 
     @staticmethod
     def add_markers(  # pylint: disable=too-many-arguments, too-many-locals
-        *,
         trace_dict: dict,
         peak_markers_x: list[float],
         peak_markers_y: list[float],
@@ -1040,7 +1039,6 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
 
     def update_figure_markers(  # noqa: C901  # pylint: disable=too-many-arguments, too-many-locals, too-many-branches, too-many-statements
         self,
-        *,
         figure_markers_trigger: int,
         lines_computation_trigger: int,
         line_indices_trigger: int,
@@ -1296,7 +1294,6 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
 
     def update_figure_residuals(  # pylint: disable=too-many-arguments, too-many-locals
         self,
-        *,
         figure_residuals_trigger: int,
         lines_computation_trigger: int,
         line_indices_trigger: int,
@@ -1441,7 +1438,6 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
 
     def update_figure_click_data(
         self,
-        *,
         figure_click_data_trigger: int,
         lines_computation_trigger: int,
         line_click_data: dict | None,
@@ -1509,7 +1505,6 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
 
     def update_figure_layout(  # pylint: disable=too-many-arguments
         self,
-        *,
         y_label: str | None,
         y_tickvals: np.ndarray | None,
         y_ticktext: list[str] | None,
@@ -1746,7 +1741,6 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
 
     def update_survey_figure(  # pylint: disable=too-many-arguments, too-many-locals, too-many-branches
         self,
-        *,
         lines_computation_trigger: int,
         figure: dict | None,
         line_click_data: dict | None,
@@ -1918,7 +1912,6 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
 
     def trigger_click(  # pylint: disable=too-many-arguments, too-many-locals
         self,
-        *,
         n_clicks: int,
         flip_sign: list[bool],
         trend_lines: list[bool],
