@@ -12,11 +12,12 @@ from copy import deepcopy
 
 import numpy as np
 from geoapps_utils.driver.params import BaseParams
+from geoh5py import Workspace
 from geoh5py.data import Data, ReferencedData
 from geoh5py.groups import PropertyGroup
 from geoh5py.objects import Curve
 from geoh5py.ui_json import InputFile
-
+from geoh5py.ui_json.utils import fetch_active_workspace
 from peak_finder.constants import default_ui_json, defaults, validations
 
 
@@ -63,7 +64,9 @@ class PeakFinderParams(BaseParams):  # pylint: disable=R0902, R0904
         self._template_data: Data | None = None
         self._template_color: str | None = None
         self._plot_result: bool = True
+        self._survey: Curve | None = None
         self._title: str | None = None
+        self._temp_workspace: Workspace | None = None
 
         if input_file is None:
             ui_json = deepcopy(self._default_ui_json)
@@ -482,3 +485,19 @@ class PeakFinderParams(BaseParams):  # pylint: disable=R0902, R0904
             return line_field_obj
 
         return self.line_field
+
+    @property
+    def survey(self):
+        if self._survey is None and self.objects is not None:
+            self._temp_workspace = Workspace()
+            with fetch_active_workspace(self.geoh5):
+                self._survey = self.objects.copy(parent=self._temp_workspace)
+
+        return self._survey
+
+    @survey.setter
+    def survey(self, val: Curve | None):
+        if not isinstance(val, Curve | type(None)):
+            raise TypeError(f"Survey must be of type {Curve}")
+
+        self._survey = val

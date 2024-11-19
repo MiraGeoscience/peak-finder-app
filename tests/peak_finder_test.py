@@ -127,7 +127,7 @@ def test_peak_finder_app(tmp_path: Path):  # pylint: disable=too-many-locals
 
     params = PeakFinderParams(geoh5=str(h5file_path))
     app = PeakFinder(
-        params=params,
+        params,
         ui_json_data={
             "objects": objects,
             "line_field": line_field,
@@ -229,7 +229,7 @@ def test_merging_peaks(tmp_path: Path):  # pylint: disable=too-many-locals
 
     params = PeakFinderParams(geoh5=str(h5file_path))
     app = PeakFinder(
-        params=params,
+        params,
         ui_json_data={
             "objects": objects,
             "line_field": line_field,
@@ -352,7 +352,7 @@ def test_masking_peaks(tmp_path: Path):  # pylint: disable=too-many-locals
 
     params = PeakFinderParams(geoh5=str(h5file_path))
     app = PeakFinder(
-        params=params,
+        params,
         ui_json_data={
             "objects": objects,
             "line_field": line_field,
@@ -438,7 +438,7 @@ def test_map_locations(tmp_path: Path):  # pylint: disable=too-many-locals
 
     params = PeakFinderParams(geoh5=str(h5file_path))
     app = PeakFinder(
-        params=params,
+        params,
         ui_json_data={
             "objects": survey,
             "line_field": line_field,
