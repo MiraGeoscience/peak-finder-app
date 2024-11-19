@@ -1,18 +1,14 @@
 .. _usage:
 
-Basic usage
-===========
+User interface
+==============
 
-The main entry point is the ui.json (stored under peak-finder-assets) for the peak-finder application that can be rendered by Geoscience ANALYST. The interface has two sections:
+The main entry point is the ``peak_finder.ui.json`` file
+(stored under `peak-finder-assets <https://github.com/MiraGeoscience/peak-finder-app/blob/develop/peak_finder-assets/uijson/peak_finder.ui.json>`_)
+for the peak-finder application that can be rendered by Geoscience ANALYST. The interface has two sections:
 
  - :ref:`General Parameters <General Parameters>` (required)
  - :ref:`Optional Parameters <Optional Parameters>`
-
-The ui.json for the peak-finder application can operate in two modes:
-
- - :ref:`Interactive <interactive_application>`
- - :ref:`Standalone <standalone_application>`
-
 
 ui.json interface
 ~~~~~~~~~~~~~~~~~
@@ -32,10 +28,18 @@ the mode of operation.
 
 
 - *Object*: Curve entity containing the data and line ID information.
-- *Line Field*: Referenced data defining the line identifier
-- *Property Group*: Property group data to be used in the detection and grouping.
+- *Line Field*: [Optional] Referenced data defining the line identifier. If omitted, the line ID
+  is inferred from the unique curve parts.
+- *Property Group*: Property group data to be used in the detection and grouping. To add more groups, see
+  the :ref:`Optional Parameters <grouping parameters>` section.
 - *Color*: Hex color code used to label the peaks identified. A default value is provided that will
   suffice in most cases.
+- *Save as*: Name of the output group holding the results.
+- *Export all markers*: If selected, all markers will be exported to the output group. If not selected,
+  only the peak group centers will be exported.
+- *Create trend lines*: If selected, trend lines are created connecting the peak group centers across survey lines. See
+  the `Trend Line <https://mirageoscience-curve-apps.readthedocs-hosted.com/en/latest/trend_lines.html#trend-lines>`_
+  documentation page for more information.
 - *Run interactive app*: If selected, the ui.json parameters will be
   used to initialize an interactive application.  In this mode, any changes made
   through the ui will override the values set in the ui.json.  Without the
