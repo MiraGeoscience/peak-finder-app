@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import os
+import sys
 import uuid
 
 import numpy as np
@@ -371,10 +372,11 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         specify_values = {}
         if self.ordered_survey_lines is not None and self.property_groups is not None:
             # Line dropdown options
-            selected_line_options = [
+            selected_line_options = [{"label": "Select here", "value": 0}] + [
                 {"label": label, "value": id}
                 for id, label in self.ordered_survey_lines.items()
             ]
+
             # Initial line
             selected_line = None
             if len(selected_line_options) > 0:
@@ -554,6 +556,10 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
             return []
 
         survey_line_ids = list(self.ordered_survey_lines.keys())
+
+        if selected_line not in survey_line_ids:
+            return []
+
         selected_line_ind = survey_line_ids.index(selected_line)
 
         survey_lines = survey_line_ids[
@@ -1969,9 +1975,8 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
 
 
 if __name__ == "__main__":
-    print("Loading geoh5 file . . .")
-    # FILE = sys.argv[1]
-    FILE = r"C:\Users\dominiquef\Desktop\Tests\peak_finder.ui.json"
+    print("Loading the geoh5 file . . .")
+    FILE = sys.argv[1]
     ifile = InputFile.read_ui_json(FILE)
     if ifile.data["launch_dash"]:
         peak_parameters = PeakFinderParams(input_file=ifile)

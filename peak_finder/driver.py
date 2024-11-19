@@ -24,6 +24,7 @@ from geoh5py.groups import ContainerGroup, PropertyGroup
 from geoh5py.objects import Curve, Points
 from geoh5py.shared.utils import fetch_active_workspace
 from tqdm import tqdm
+from scipy.spatial import QhullError
 
 from peak_finder.constants import validations
 from peak_finder.line_anomaly import LineAnomaly
@@ -379,10 +380,15 @@ class PeakFinderDriver(BaseDriver):
 
                     params = TrendLineParameters.build(inputs)
                     driver = TrendLinesDriver(params)
-                    out_trend = driver.make_curve()
 
-                    if out_trend is not None:
-                        driver.add_ui_json(out_trend)
+                    try:
+                        out_trend = driver.make_curve()
+
+                        if out_trend is not None:
+                            driver.add_ui_json(out_trend)
+
+                    except QhullError as e:
+                        print(f"Warning - Skipping Trend Lines! ! ! \n{e}")
 
             if self.params.structural_markers and any(anom_locs):
                 anom_points = Points.create(
