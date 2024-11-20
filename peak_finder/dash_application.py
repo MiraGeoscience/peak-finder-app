@@ -45,6 +45,8 @@ from PySide2.QtWidgets import (  # pylint: disable=no-name-in-module
 
 from peak_finder.layout import object_selection_layout
 
+# pylint: disable=R0917
+
 
 class BaseDashApplication(ABC):
     """
