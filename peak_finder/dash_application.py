@@ -45,7 +45,7 @@ from PySide2.QtWidgets import (  # pylint: disable=no-name-in-module
 
 from peak_finder.layout import object_selection_layout
 
-# pylint: disable=R0917
+# pylint: disable=too-many-positional-arguments
 
 
 class BaseDashApplication(ABC):
