@@ -1,9 +1,9 @@
 |coverage| |precommit_ci| |docs| |style| |version| |status| |pyversions|
 
 
-.. |docs| image:: https://readthedocs.org/projects/peak-finder-app/badge/
+.. |docs| image:: https://readthedocs.com/projects/mirageoscience-peak-finder-app/badge/?version=latest
     :alt: Documentation Status
-    :target: https://peak-finder-app.readthedocs.io/en/latest/?badge=latest
+    :target: https://mirageoscience-peak-finder-app.readthedocs-hosted.com/en/latest/?badge=latest
 
 .. |coverage| image:: https://codecov.io/gh/MiraGeoscience/peak-finder-app/branch/develop/graph/badge.svg
     :alt: Code coverage
