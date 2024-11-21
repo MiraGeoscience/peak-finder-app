@@ -113,7 +113,8 @@
         "main": true,
         "group": "3 - Python run preferences",
         "label": "Save As",
-        "value": "peak_finder"
+        "value": "Peak Finder",
+        "visible": false
     },
     "structural_markers": {
         "main": true,

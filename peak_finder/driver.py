@@ -208,7 +208,7 @@ class PeakFinderDriver(BaseDriver):
             if out_group is None:
                 out_group = UIJsonGroup.create(
                     self.params.geoh5,
-                    name="Peak Finder",
+                    name=self.params.ga_group_name,
                 )
                 self.params.input_file.data = self.params.to_dict()
                 out_group.options = self.params.to_dict(ui_json_format=True)
