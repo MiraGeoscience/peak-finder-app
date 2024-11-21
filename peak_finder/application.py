@@ -8,6 +8,9 @@
 
 from __future__ import annotations
 
+
+import logging
+
 import os
 import sys
 import uuid
@@ -34,6 +37,8 @@ from peak_finder.params import PeakFinderParams
 from peak_finder.utils import get_ordered_survey_lines
 
 # pylint: disable=too-many-positional-arguments
+
+logger = logging.getLogger(__name__)
 
 
 class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-methods, too-many-instance-attributes
@@ -1977,7 +1982,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
 
 
 if __name__ == "__main__":
-    print("Loading the geoh5 file . . .")
+    logger.info("Loading the geoh5 file . . .")
     FILE = sys.argv[1]
     ifile = InputFile.read_ui_json(FILE)
     if ifile.data["launch_dash"]:
@@ -1985,9 +1990,9 @@ if __name__ == "__main__":
 
         with peak_parameters.geoh5.open(mode="r"):
             getattr(peak_parameters, "survey")
-            print("Loaded. Launching peak finder app . . .")
+            logger.info("Loaded. Launching peak finder app . . .")
             ObjectSelection.run("Peak Finder", PeakFinder, peak_parameters)
     else:
-        print("Loaded. Running peak finder driver . . .")
+        logger.info("Loaded. Running peak finder driver . . .")
         PeakFinderDriver.start(FILE)
-    print("Done")
+    logger.info("Done")

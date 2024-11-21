@@ -8,6 +8,8 @@
 # pylint: disable=duplicate-code
 
 from __future__ import annotations
+
+import logging
 import sys
 from typing import cast
 import numpy as np
@@ -17,10 +19,9 @@ from dask import compute, delayed, config
 from dask.diagnostics import ProgressBar
 from geoapps_utils.driver.driver import BaseDriver
 from geoapps_utils.utils.conversions import hex_to_rgb
-from geoapps_utils.utils.formatters import string_name
 from geoh5py import Workspace
 from geoh5py.data import NumericData, ReferencedData
-from geoh5py.groups import ContainerGroup, PropertyGroup
+from geoh5py.groups import PropertyGroup, UIJsonGroup
 from geoh5py.objects import Curve, Points
 from geoh5py.shared.utils import fetch_active_workspace
 from tqdm import tqdm
@@ -29,6 +30,9 @@ from scipy.spatial import QhullError
 from peak_finder.constants import validations
 from peak_finder.line_anomaly import LineAnomaly
 from peak_finder.params import PeakFinderParams
+
+
+logger = logging.getLogger(__name__)
 
 config.set(scheduler="processes")
 
@@ -199,9 +203,15 @@ class PeakFinderDriver(BaseDriver):
             if survey is None:
                 raise ValueError("Survey object not found.")
 
-            output_group = ContainerGroup.create(
-                self.params.geoh5, name=string_name(self.params.ga_group_name)
-            )
+            out_group = self.params.out_group
+
+            if out_group is None:
+                out_group = UIJsonGroup.create(
+                    self.params.geoh5,
+                    name="Peak Finder",
+                )
+                self.params.input_file.data = self.params.to_dict()
+                out_group.options = self.params.to_dict(ui_json_format=True)
 
             channel_groups = self.params.get_property_groups()
             # Create reference values and color_map
@@ -227,7 +237,7 @@ class PeakFinderDriver(BaseDriver):
                     values.copy() * (-1.0) ** self.params.flip_sign
                 )
 
-            print("Submitting parallel jobs:")
+            logger.info("Submitting parallel jobs:")
             property_groups = [
                 survey.fetch_property_group(name=name) for name in channel_groups
             ]
@@ -294,7 +304,7 @@ class PeakFinderDriver(BaseDriver):
                 line_ids,
             ) = ([], [], [], [], [], [], [])
 
-            print("Processing and collecting results:")
+            logger.info("Processing and collecting results:")
 
             with ProgressBar():
                 results = compute(anomalies)[0]
@@ -331,14 +341,14 @@ class PeakFinderDriver(BaseDriver):
                                 anom_end.append(inds_map[anom.end])
                                 peaks.append(inds_map[anom.peak])
 
-            print("Exporting . . .")
+            logger.info("Exporting . . .")
             group_points = None
             if centers:
                 group_points = Points.create(
                     self.params.geoh5,
                     name="Anomaly Groups",
                     vertices=np.vstack(centers),
-                    parent=output_group,
+                    parent=out_group,
                 )
 
                 group_points.entity_type.name = self.params.ga_group_name
@@ -388,14 +398,18 @@ class PeakFinderDriver(BaseDriver):
                             driver.add_ui_json(out_trend)
 
                     except QhullError as e:
-                        print(f"Warning - Skipping Trend Lines! ! ! \n{e}")
+                        logger.info(
+                            "Warning - Skipping Trend Lines! ! ! "
+                            "Likely due to overlapping points. \n%s",
+                            e,
+                        )
 
             if self.params.structural_markers and any(anom_locs):
                 anom_points = Points.create(
                     self.params.geoh5,
                     name="Anomalies",
                     vertices=np.vstack(anom_locs),
-                    parent=output_group,
+                    parent=out_group,
                 )
                 anom_points.add_data(
                     {
@@ -414,7 +428,7 @@ class PeakFinderDriver(BaseDriver):
                     }
                 )
 
-            self.update_monitoring_directory(output_group)
+            self.update_monitoring_directory(out_group)
 
     @property
     def params(self) -> PeakFinderParams:

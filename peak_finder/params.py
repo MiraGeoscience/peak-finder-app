@@ -14,7 +14,7 @@ import numpy as np
 from geoapps_utils.driver.params import BaseParams
 from geoh5py import Workspace
 from geoh5py.data import Data, ReferencedData
-from geoh5py.groups import PropertyGroup
+from geoh5py.groups import PropertyGroup, UIJsonGroup
 from geoh5py.objects import Curve
 from geoh5py.ui_json import InputFile
 from geoh5py.ui_json.utils import fetch_active_workspace
@@ -67,6 +67,7 @@ class PeakFinderParams(BaseParams):  # pylint: disable=R0902, R0904
         self._survey: Curve | None = None
         self._title: str | None = None
         self._temp_workspace: Workspace | None = None
+        self._out_group: UIJsonGroup | None = None
 
         if input_file is None:
             ui_json = deepcopy(self._default_ui_json)
@@ -225,6 +226,17 @@ class PeakFinderParams(BaseParams):  # pylint: disable=R0902, R0904
     @objects.setter
     def objects(self, val):
         self.setter_validator("objects", val, fun=self._uuid_promoter)
+
+    @property
+    def out_group(self) -> UIJsonGroup | None:
+        """
+        UIJson group to use store results.
+        """
+        return self._out_group
+
+    @out_group.setter
+    def out_group(self, val):
+        self.setter_validator("out_group", val, fun=self._uuid_promoter)
 
     @property
     def plot_result(self):
