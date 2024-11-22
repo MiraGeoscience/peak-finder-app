@@ -1317,11 +1317,9 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
         if flip_sign:
             sign *= -1
 
-        triggers = [t["prop_id"].split(".")[0] for t in callback_context.triggered]
-        if "lines_computation_trigger" in triggers or show_residuals:
-            for ind in range(len(trace_map), len(self.figure.data)):
-                self.figure.data[ind]["x"] = []
-                self.figure.data[ind]["y"] = []
+        for ind in range(len(trace_map), len(self.figure.data)):
+            self.figure.data[ind]["x"] = []
+            self.figure.data[ind]["y"] = []
 
         if not show_residuals:
             self.figure.data[trace_map["pos_residuals_legend"]]["visible"] = False
