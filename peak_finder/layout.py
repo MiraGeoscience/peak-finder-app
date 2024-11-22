@@ -278,7 +278,7 @@ detection_params_layout = html.Div(
         html.Div(
             [
                 dcc.Markdown(
-                    children="Select Line",
+                    children="Line ID:",
                     style={
                         "width": "30%",
                         "display": "inline-block",
