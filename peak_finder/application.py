@@ -1318,9 +1318,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
             sign *= -1
 
         triggers = [t["prop_id"].split(".")[0] for t in callback_context.triggered]
-        if "lines_computation_trigger" in triggers or (
-            "show_residuals" in triggers and not show_residuals
-        ):
+        if "lines_computation_trigger" in triggers or show_residuals:
             for ind in range(len(trace_map), len(self.figure.data)):
                 self.figure.data[ind]["x"] = []
                 self.figure.data[ind]["y"] = []
