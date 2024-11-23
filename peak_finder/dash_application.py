@@ -19,7 +19,6 @@ import sys
 import threading
 import uuid
 from abc import ABC, abstractmethod
-from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -46,6 +45,8 @@ from PySide2.QtWidgets import (  # pylint: disable=no-name-in-module
 
 from peak_finder.layout import object_selection_layout
 
+# pylint: disable=too-many-positional-arguments
+
 
 class BaseDashApplication(ABC):
     """
@@ -57,9 +58,8 @@ class BaseDashApplication(ABC):
 
     def __init__(
         self,
-        ui_json: InputFile | None = None,
+        params: BaseParams,
         ui_json_data: dict | None = None,
-        params: BaseParams | None = None,
     ):
         """
         Set initial ui_json_data from input file and open workspace.
@@ -67,38 +67,21 @@ class BaseDashApplication(ABC):
         self._app_initializer: dict | None = None
         self._workspace: Workspace | None = None
 
-        if isinstance(params, BaseParams):
-            # Launched from notebook
-            # Params for initialization are coming from params
-            # ui_json_data is provided
-            self.params = params
+        if not isinstance(params, BaseParams):
+            raise TypeError(
+                f"Input parameters must be an instance of {BaseParams}. Got {type(params)}"
+            )
 
-        elif (
-            ui_json is not None
-            and ui_json.path is not None
-            and Path(ui_json.path).exists()
-        ):
-            # Launched from terminal
-            # Params for initialization are coming from ui_json
-            # ui_json_data starts as None
-            self.params = self._param_class(ui_json)
-
-        input_file = self.params.input_file
-
-        if input_file is None:
-            raise ValueError("No input file provided.")
+        self._params = params
 
         if ui_json_data is not None:
             with fetch_active_workspace(self.params.geoh5):
                 for key, value in ui_json_data.items():
                     setattr(self.params, key, value)
 
-        json_data = input_file.demote(self.params.to_dict())
+        json_data = InputFile.demote(self.params.to_dict())
 
         self._ui_json_data = json_data
-
-        assert self.params is not None, "No parameters provided."
-        self.workspace = self.params.geoh5
 
         if self._driver_class is not None:
             self.driver = self._driver_class(self.params)
@@ -126,16 +109,22 @@ class BaseDashApplication(ABC):
         :return options: Data dropdown options.
         """
         obj = None
-        if trigger == "ui_json_data" and object_name in ui_json_data:
-            if is_uuid(ui_json_data[object_name]):
-                object_uid = ui_json_data[object_name]
-            elif self.workspace.get_entity(ui_json_data[object_name])[0] is not None:
-                object_uid = self.workspace.get_entity(ui_json_data[object_name])[0].uid
+        with fetch_active_workspace(self.params.geoh5):
+            if trigger == "ui_json_data" and object_name in ui_json_data:
+                if is_uuid(ui_json_data[object_name]):
+                    object_uid = ui_json_data[object_name]
+                elif (
+                    self.params.geoh5.get_entity(ui_json_data[object_name])[0]
+                    is not None
+                ):
+                    object_uid = self.params.geoh5.get_entity(
+                        ui_json_data[object_name]
+                    )[0].uid
 
-        if object_uid is not None and is_uuid(object_uid):
-            for entity in self.workspace.get_entity(uuid.UUID(object_uid)):
-                if isinstance(entity, ObjectBase):
-                    obj = entity
+            if object_uid is not None and is_uuid(object_uid):
+                for entity in self.params.geoh5.get_entity(uuid.UUID(object_uid)):
+                    if isinstance(entity, ObjectBase):
+                        obj = entity
 
         if obj:
             options = []
@@ -187,8 +176,8 @@ class BaseDashApplication(ABC):
                     # Checking for values that Dash has given as int when they should be floats.
                     output_dict[key] = float(update_dict[key])
                     continue
-            if is_uuid(update_dict[key]):
-                output_dict[key] = self.workspace.get_entity(
+            if is_uuid(update_dict[key]) and self.workspace is not None:
+                output_dict[key] = self.workspace.get_entity(  # pylint: disable=no-member
                     uuid.UUID(update_dict[key])
                 )[0]
             else:
@@ -276,16 +265,8 @@ class BaseDashApplication(ABC):
         """
         return self._params
 
-    @params.setter
-    def params(self, params: BaseParams):
-        assert isinstance(
-            params, BaseParams
-        ), f"Input parameters must be an instance of {BaseParams}"
-
-        self._params = params
-
     @property
-    def workspace(self):
+    def workspace(self) -> Workspace | None:
         """
         Current workspace.
         """
@@ -361,7 +342,7 @@ class ObjectSelection:
             Input(component_id="launch_app", component_property="n_clicks"),
         )(self.launch_qt)
 
-    def update_object_options(  # pylint: disable=too-many-positional-arguments
+    def update_object_options(
         self,
         ui_json_data: dict,
         filename: str,
@@ -482,9 +463,8 @@ class ObjectSelection:
     def start_server(
         port: int,
         app_class: type[BaseDashApplication],
-        ui_json: InputFile | None = None,
+        params: BaseParams,
         ui_json_data: dict | None = None,
-        params: BaseParams | None = None,
     ):
         """
         Launch dash app server using given port.
@@ -495,7 +475,7 @@ class ObjectSelection:
         :param ui_json_data: Dict of current params to provide to app init.
         :param params: Current params to pass to new app.
         """
-        app = app_class(ui_json=ui_json, ui_json_data=ui_json_data, params=params)
+        app = app_class(params, ui_json_data=ui_json_data)
         app.app.run(jupyter_mode="external", host="127.0.0.1", port=port)
 
     @staticmethod
@@ -576,7 +556,7 @@ class ObjectSelection:
                         param_dict[key] = temp_group.uid
 
     @staticmethod
-    def run(app_name: str, app_class: type[BaseDashApplication], ui_json: InputFile):
+    def run(app_name: str, app_class: type[BaseDashApplication], params: BaseParams):
         """
         Launch Qt app from terminal.
 
@@ -588,7 +568,7 @@ class ObjectSelection:
         port = ObjectSelection.get_port()
         threading.Thread(
             target=ObjectSelection.start_server,
-            args=(port, app_class, ui_json),
+            args=(port, app_class, params),
             daemon=True,
         ).start()
 

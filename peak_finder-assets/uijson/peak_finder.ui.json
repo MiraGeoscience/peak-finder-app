@@ -5,13 +5,6 @@
     "run_command": "peak_finder.application",
     "geoh5": "",
     "monitoring_directory": "",
-    "run_command_boolean": {
-        "value": false,
-        "label": "Run python module ",
-        "tooltip": "Warning: launches process to run python model on save",
-        "main": true
-    },
-    "conda_environment_boolean": false,
     "objects": {
         "main": true,
         "group": "1 - Data",
@@ -120,7 +113,8 @@
         "main": true,
         "group": "3 - Python run preferences",
         "label": "Save As",
-        "value": "peak_finder"
+        "value": "Peak Finder",
+        "visible": false
     },
     "structural_markers": {
         "main": true,
@@ -238,5 +232,13 @@
         "main": true,
         "label": "Run interactive app",
         "value": true
+    },
+    "out_group": {
+        "label": "UIJson group",
+        "value": "",
+        "groupType": "{BB50AC61-A657-4926-9C82-067658E246A0}",
+        "visible": true,
+        "optional": true,
+        "enabled": false
     }
 }
