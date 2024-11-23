@@ -21,6 +21,20 @@ project_copyright = "%Y, Mira Geoscience Ltd"
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
+autodoc_mock_imports = [
+    "curve_apps",
+    "dash",
+    "dask",
+    "flask",
+    "geoapps_utils",
+    "geoh5py",
+    "numpy",
+    "plotly",
+    "pyqtwebengine",
+    "pyside2",
+    "scipy",
+    "tqdm",
+]
 extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.autosummary",
