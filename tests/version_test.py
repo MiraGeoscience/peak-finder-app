@@ -16,6 +16,7 @@ from packaging.version import Version
 
 import peak_finder
 
+
 def get_pyproject_version():
     path = Path(__file__).resolve().parents[1] / "pyproject.toml"
 
