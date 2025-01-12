@@ -432,9 +432,9 @@ class ObjectSelection:
 
     def _ui_json_data_from_params(self) -> dict[str, Any]:
         """Returns app json data initialized from self.params"""
-        assert (
-            self.params.input_file is not None
-        ), "No input file provided in parameters."
+        assert self.params.input_file is not None, (
+            "No input file provided in parameters."
+        )
 
         ifile = InputFile(
             ui_json=self.params.input_file.ui_json,

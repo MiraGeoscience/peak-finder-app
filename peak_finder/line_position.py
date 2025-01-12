@@ -196,9 +196,9 @@ class LinePosition:  # pylint: disable=R0902
 
     @smoothing.setter
     def smoothing(self, value):
-        assert (
-            isinstance(value, int) and value >= 0
-        ), "Smoothing parameter must be an integer >0"
+        assert isinstance(value, int) and value >= 0, (
+            "Smoothing parameter must be an integer >0"
+        )
         if value != self._smoothing:
             self._smoothing = value
 
