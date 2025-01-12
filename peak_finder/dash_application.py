@@ -1,4 +1,11 @@
-#  Copyright (c) 2024 Mira Geoscience Ltd.
+# '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+#  Copyright (c) 2024-2025 Mira Geoscience Ltd.                                     '
+#                                                                                   '
+#  This file is part of peak-finder-app package.                                    '
+#                                                                                   '
+#  peak-finder-app is distributed under the terms and conditions of the MIT License '
+#  (see LICENSE file at the root of this source code package).                      '
+# '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 #
 #  This file is part of peak-finder-app.
 #
@@ -425,9 +432,9 @@ class ObjectSelection:
 
     def _ui_json_data_from_params(self) -> dict[str, Any]:
         """Returns app json data initialized from self.params"""
-        assert (
-            self.params.input_file is not None
-        ), "No input file provided in parameters."
+        assert self.params.input_file is not None, (
+            "No input file provided in parameters."
+        )
 
         ifile = InputFile(
             ui_json=self.params.input_file.ui_json,
