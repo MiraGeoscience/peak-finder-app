@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "peak-finder-app"
-version = "0.2.0-beta.4"
+version = "0.2.0-rc.1"
 license = "MIT"
 description = "Peak Finder App"
 authors = ["Mira Geoscience <support@mirageoscience.com>"]
@@ -54,13 +54,13 @@ tqdm = "^4.66.1"
 
 ## Pip dependencies from Git repositories
 #----------------------------------------
-geoh5py = {version = ">=0.10.0-beta.1, <0.11.0a.dev", source = "pypi", allow-prereleases = true}  # also in geoapps-utils
+geoh5py = {version = ">=0.10.0-rc.1, <0.11.0a.dev", source = "pypi", allow-prereleases = true}  # also in geoapps-utils
 #geoh5py = {git = "https://github.com/MiraGeoscience/geoh5py.git", rev = "release/0.10.0"}
 
-geoapps-utils = {version = ">=0.4.0-beta.1, <0.5.0a.dev", source = "pypi", allow-prereleases = true}
+geoapps-utils = {version = ">=0.4.0-rc.1, <0.5.0a.dev", source = "pypi", allow-prereleases = true}
 #geoapps-utils = {git = "https://github.com/MiraGeoscience/geoapps-utils.git", rev = "release/0.4.0"}
 
-curve-apps = {version = ">=0.2.0-beta.1, <0.3.0a.dev", source = "pypi", allow-prereleases = true}
+curve-apps = {version = ">=0.2.0-rc.1, <0.3.0a.dev", source = "pypi", allow-prereleases = true}
 #curve-apps = {git = "https://github.com/MiraGeoscience/curve-apps.git", rev = "release/0.2.0"}
 
 ## force some versions to resolve incompatible resolution between PyPI and Conda
