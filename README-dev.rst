@@ -335,4 +335,4 @@ Here is a suggestion for some plugins you can install in PyCharm.
 
 Copyright
 ^^^^^^^^^
-Copyright (c) 2024 Mira Geoscience Ltd.
+Copyright (c) 2024-2025 Mira Geoscience Ltd.
