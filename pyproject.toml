@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "peak-finder-app"
-version = "0.2.0-rc.1"
+version = "0.2.0"
 license = "MIT"
 description = "Peak Finder App"
 authors = ["Mira Geoscience <support@mirageoscience.com>"]
@@ -20,7 +20,6 @@ include = [
     { path = "COPYING.LESSER" },
     { path = "LICENSE" },
     { path = "README.rst" },
-    { path = "THIRD_PARTY_SOFTWARE.rst" },
     { path = "docs/**/THIRD_PARTY_SOFTWARE.rst" },
 ]
 
