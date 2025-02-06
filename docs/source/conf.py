@@ -5,6 +5,7 @@
 
 from importlib.metadata import version
 from datetime import datetime
+from packaging.version import Version
 
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
@@ -14,7 +15,7 @@ project = "peak-finder"
 # The full version, including alpha/beta/rc tags.
 release = version("peak-finder-app")
 # The short X.Y.Z version.
-version = ".".join(release.split(".")[:3])
+version = Version(release).base_version
 
 project_copyright = "%Y, Mira Geoscience Ltd"
 
