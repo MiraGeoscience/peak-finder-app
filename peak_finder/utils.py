@@ -1,12 +1,14 @@
-#  Copyright (c) 2024 Mira Geoscience Ltd.
-#
-#  This file is part of peak-finder-app project.
-#
-#  All rights reserved.
-#
+# '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+#  Copyright (c) 2024-2025 Mira Geoscience Ltd.                                     '
+#                                                                                   '
+#  This file is part of peak-finder-app package.                                    '
+#                                                                                   '
+#  peak-finder-app is distributed under the terms and conditions of the MIT License '
+#  (see LICENSE file at the root of this source code package).                      '
+# '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 import numpy as np
-from geoapps_utils.numerical import traveling_salesman
+from geoapps_utils.utils.numerical import traveling_salesman
 from geoh5py.data import Data
 from geoh5py.objects import Curve
 
@@ -24,7 +26,7 @@ def get_ordered_survey_lines(survey: Curve, line_field: Data) -> dict:
     line_ids = []
     line_labels = []
     locs = []
-    value_map = line_field.value_map.map  # type: ignore
+    value_map = line_field.value_map()  # type: ignore
 
     for line_id in np.unique(line_field.values):
         line_indices = np.where(line_field.values == line_id)[0]

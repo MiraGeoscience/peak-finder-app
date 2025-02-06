@@ -1,16 +1,16 @@
-#  Copyright (c) 2024 Mira Geoscience Ltd.
-#
-#  This file is part of peak-finder-app project.
-#
-#  All rights reserved.
-#
-
+# '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+#  Copyright (c) 2024-2025 Mira Geoscience Ltd.                                     '
+#                                                                                   '
+#  This file is part of peak-finder-app package.                                    '
+#                                                                                   '
+#  peak-finder-app is distributed under the terms and conditions of the MIT License '
+#  (see LICENSE file at the root of this source code package).                      '
+# '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 from __future__ import annotations
-
+from uuid import UUID
 import numpy as np
-from geoh5py.groups import PropertyGroup
-from geoh5py.objects import Curve
+
 
 from peak_finder.line_data import LineData
 from peak_finder.line_group import LineGroup
@@ -26,11 +26,13 @@ class LineAnomaly:  # pylint: disable=R0902, duplicate-code
 
     def __init__(  # pylint: disable=R0913, R0914
         self,
-        entity,
+        *,
+        vertices,
+        cells,
         line_id,
         line_indices: np.ndarray,
         line_start: np.ndarray,
-        property_groups,
+        property_groups: dict[str, dict[UUID, list[np.ndarray]]],
         max_migration=50.0,
         minimal_output=False,
         min_amplitude=25,
@@ -43,7 +45,8 @@ class LineAnomaly:  # pylint: disable=R0902, duplicate-code
         use_residual=False,
     ):
         """
-        :param entity: Survey object.
+        :param vertices: Array of vertices.
+        :param cells: Array of cells.
         :param line_id: Line ID.
         :param line_indices: Indices of vertices for line profile.
         :param line_start: Start location of line.
@@ -59,9 +62,8 @@ class LineAnomaly:  # pylint: disable=R0902, duplicate-code
         """
         self._position: LinePosition | None = None
         self._anomalies: list[LineGroup] | None = None
-        self._locations: np.ndarray | None = None
-
-        self.entity = entity
+        self.locations = vertices
+        self.cells = cells
         self.line_id = line_id
         self.line_indices = line_indices
         self.line_start = line_start
@@ -73,23 +75,16 @@ class LineAnomaly:  # pylint: disable=R0902, duplicate-code
         self.min_channels = min_channels
         self.use_residual = use_residual
         self.minimal_output = minimal_output
-        self.property_groups = property_groups
+        self.property_groups = self.validate_property_groups(property_groups)
         self.n_groups = n_groups
         self.max_separation = max_separation
 
-    @property
-    def entity(self) -> Curve:
-        """
-        Survey object.
-        """
-        return self._entity
-
-    @entity.setter
-    def entity(self, value):
-        if not isinstance(value, Curve):
-            raise TypeError("Entity must be a Curve.")
-
-        self._entity = value
+        # Metrics
+        self.centers: np.ndarray | None = None
+        self.starts: np.ndarray | None = None
+        self.ends: np.ndarray | None = None
+        self.amplitudes: np.ndarray | None = None
+        self.group_ids: np.ndarray | None = None
 
     @property
     def line_id(self) -> int | None:
@@ -127,36 +122,14 @@ class LineAnomaly:  # pylint: disable=R0902, duplicate-code
     def line_start(self, value):
         self._line_start = value
 
-    @property
-    def channels(self) -> list:
-        """
-        List of active channels.
-        """
-        return self._channels
-
-    @property
-    def property_groups(self) -> list[PropertyGroup]:
-        """
-        List of property groups.
-        """
-        return self._property_groups
-
-    @property_groups.setter
-    def property_groups(self, value):
-        if not isinstance(value, list) or not all(
-            isinstance(item, PropertyGroup) for item in value
+    @staticmethod
+    def validate_property_groups(value):
+        if not isinstance(value, dict) or not all(
+            isinstance(item, dict) for item in value.values()
         ):
-            raise TypeError("Property groups must be a list of PropertyGroups.")
+            raise TypeError("Property groups must be a dict.")
 
-        self._property_groups = value
-        channels = []
-        for group in self._property_groups:
-            if group.properties is None:
-                continue
-
-            channels += [self.entity.get_entity(uid)[0] for uid in group.properties]
-
-        self._channels = list(set(channels))
+        return value
 
     @property
     def smoothing(self) -> int:
@@ -272,13 +245,32 @@ class LineAnomaly:  # pylint: disable=R0902, duplicate-code
         self._minimal_output = value
 
     @property
-    def locations(self) -> np.ndarray | None:
+    def locations(self) -> np.ndarray:
         """
-        Survey vertices.
+        Vertices for the underlying curve object.
         """
-        if self._locations is None:
-            self._locations = self.entity.vertices
         return self._locations
+
+    @locations.setter
+    def locations(self, value: np.ndarray):
+        if not isinstance(value, np.ndarray):
+            raise TypeError("Vertices must be a numpy array.")
+
+        self._locations = value
+
+    @property
+    def cells(self) -> np.ndarray:
+        """
+        Curve object cells.
+        """
+        return self._cells
+
+    @cells.setter
+    def cells(self, value: np.ndarray):
+        if not isinstance(value, np.ndarray):
+            raise TypeError("Curve indices must be a numpy array.")
+
+        self._cells = value
 
     @property
     def anomalies(self) -> list[LineGroup] | None:
@@ -287,22 +279,49 @@ class LineAnomaly:  # pylint: disable=R0902, duplicate-code
         """
         if self._anomalies is None:
             self._anomalies = self.find_anomalies()
+            self._store_metrics()
+
         return self._anomalies
+
+    def _store_metrics(self):
+        """
+        Store metrics for line anomalies.
+        """
+        if self._anomalies is None:
+            return
+
+        centers = []
+        starts = []
+        ends = []
+        amplitudes = []
+        group_ids = []
+        group_names = list(self.property_groups)
+        for anomaly in self._anomalies:
+            for group in anomaly.groups:
+                centers.append(group.center)
+                starts.append(group.start)
+                ends.append(group.end)
+                amplitudes.append(group.amplitude)
+                group_ids.append(group_names.index(anomaly.property_group))
+
+        if len(centers) == 0:
+            return
+
+        self.centers = np.vstack(centers)
+        self.starts = np.hstack(starts)
+        self.ends = np.hstack(ends)
+        self.amplitudes = np.hstack(amplitudes)
+        self.group_ids = np.hstack(group_ids)
 
     @property
     def position(self) -> LinePosition | None:
         """
         Line position and interpolation.
         """
-        if (
-            self._position is None
-            and self.locations is not None
-            and self.entity.cells is not None
-            and self.line_indices is not None
-        ):
-            bool_cells = np.all(self.line_indices[self.entity.cells], axis=1)
+        if self._position is None:
+            bool_cells = np.all(self.line_indices[self.cells], axis=1)
 
-            active_cells = self.entity.cells[bool_cells]
+            active_cells = self.cells[bool_cells]
 
             if active_cells.size == 0:
                 return None
@@ -310,10 +329,10 @@ class LineAnomaly:  # pylint: disable=R0902, duplicate-code
             sorting = np.concatenate((active_cells[:, 0], [active_cells[-1, 1]]))
 
             self._position = LinePosition(
-                self.locations,
-                self.line_indices,
-                self.line_start,
-                sorting,
+                locations=self.locations,
+                line_indices=self.line_indices,
+                line_start=self.line_start,
+                sorting=sorting,
                 smoothing=self.smoothing,
                 residual=self.use_residual,
             )
@@ -321,7 +340,7 @@ class LineAnomaly:  # pylint: disable=R0902, duplicate-code
 
     def find_anomalies(  # pylint: disable=R0914
         self,
-    ) -> list[LineGroup] | None:
+    ) -> list[LineGroup]:
         """
         Find all anomalies along a line profile of data.
         Anomalies are detected based on the lows, inflection points and peaks.
@@ -329,41 +348,32 @@ class LineAnomaly:  # pylint: disable=R0902, duplicate-code
 
         :return: List of groups and line profile.
         """
-        if self.position is None:
-            return None
-
-        locs = self.position.locations_resampled
-
-        if locs is None:
-            return None
-
-        line_dataset = {}
-        # Iterate over channels and add to anomalies
-        for data in self.channels:
-            if data is None or data.values is None:
-                continue
-            # Make LineData with current channel values
-            line_data = LineData(
-                data,
-                self.position,
-                self.min_amplitude,
-                self.min_width,
-                self.max_migration,
-                self.min_value,
-            )
-
-            line_dataset[data.uid] = line_data
-
-        if len(line_dataset) == 0:
-            return None
-
         # Group anomalies
-        line_groups = []
-        for property_group in self.property_groups:
+        if self.position is None:
+            return []
+
+        line_groups: list[LineGroup] = []
+        for name, data_dict in self.property_groups.items():
+            line_dataset = [
+                LineData(
+                    uid,
+                    data,
+                    self.position,
+                    min_amplitude=self.min_amplitude,
+                    min_width=self.min_width,
+                    max_migration=self.max_migration,
+                    min_value=self.min_value,
+                )
+                for uid, data in data_dict.items()
+            ]
+
+            if len(line_dataset) == 0:
+                continue
+
             line_group = LineGroup(
                 position=self.position,
                 line_dataset=line_dataset,
-                property_group=property_group,
+                property_group=name,
                 max_migration=self.max_migration,
                 min_channels=self.min_channels,
                 n_groups=self.n_groups,

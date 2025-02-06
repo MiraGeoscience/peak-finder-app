@@ -1,9 +1,11 @@
-#  Copyright (c) 2024 Mira Geoscience Ltd.
-#
-#  This file is part of peak-finder-app project.
-#
-#  All rights reserved.
-#
+# '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+#  Copyright (c) 2024-2025 Mira Geoscience Ltd.                                     '
+#                                                                                   '
+#  This file is part of peak-finder-app package.                                    '
+#                                                                                   '
+#  peak-finder-app is distributed under the terms and conditions of the MIT License '
+#  (see LICENSE file at the root of this source code package).                      '
+# '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 from __future__ import annotations
 
@@ -21,6 +23,7 @@ from scipy import stats
 
 from peak_finder.application import PeakFinder, PeakFinderDriver
 from peak_finder.params import PeakFinderParams
+
 
 # pylint: disable=R0801
 
@@ -126,7 +129,7 @@ def test_peak_finder_app(tmp_path: Path):  # pylint: disable=too-many-locals
 
     params = PeakFinderParams(geoh5=str(h5file_path))
     app = PeakFinder(
-        params=params,
+        params,
         ui_json_data={
             "objects": objects,
             "line_field": line_field,
@@ -228,7 +231,7 @@ def test_merging_peaks(tmp_path: Path):  # pylint: disable=too-many-locals
 
     params = PeakFinderParams(geoh5=str(h5file_path))
     app = PeakFinder(
-        params=params,
+        params,
         ui_json_data={
             "objects": objects,
             "line_field": line_field,
@@ -351,7 +354,7 @@ def test_masking_peaks(tmp_path: Path):  # pylint: disable=too-many-locals
 
     params = PeakFinderParams(geoh5=str(h5file_path))
     app = PeakFinder(
-        params=params,
+        params,
         ui_json_data={
             "objects": objects,
             "line_field": line_field,
@@ -437,7 +440,7 @@ def test_map_locations(tmp_path: Path):  # pylint: disable=too-many-locals
 
     params = PeakFinderParams(geoh5=str(h5file_path))
     app = PeakFinder(
-        params=params,
+        params,
         ui_json_data={
             "objects": survey,
             "line_field": line_field,

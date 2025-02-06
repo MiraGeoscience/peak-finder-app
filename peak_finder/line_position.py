@@ -1,14 +1,16 @@
-#  Copyright (c) 2024 Mira Geoscience Ltd.
-#
-#  This file is part of peak-finder-app project.
-#
-#  All rights reserved.
-#
+# '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+#  Copyright (c) 2024-2025 Mira Geoscience Ltd.                                     '
+#                                                                                   '
+#  This file is part of peak-finder-app package.                                    '
+#                                                                                   '
+#  peak-finder-app is distributed under the terms and conditions of the MIT License '
+#  (see LICENSE file at the root of this source code package).                      '
+# '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 from __future__ import annotations
 
 import numpy as np
-from geoapps_utils.numerical import running_mean
+from geoapps_utils.utils.numerical import running_mean
 from scipy.interpolate import interp1d
 
 
@@ -30,6 +32,7 @@ class LinePosition:  # pylint: disable=R0902
 
     def __init__(  # pylint: disable=R0913
         self,
+        *,
         locations: np.ndarray,
         line_indices: np.ndarray,
         line_start: np.ndarray,
@@ -193,9 +196,9 @@ class LinePosition:  # pylint: disable=R0902
 
     @smoothing.setter
     def smoothing(self, value):
-        assert (
-            isinstance(value, int) and value >= 0
-        ), "Smoothing parameter must be an integer >0"
+        assert isinstance(value, int) and value >= 0, (
+            "Smoothing parameter must be an integer >0"
+        )
         if value != self._smoothing:
             self._smoothing = value
 

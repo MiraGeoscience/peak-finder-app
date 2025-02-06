@@ -1,9 +1,9 @@
 |coverage| |precommit_ci| |docs| |style| |version| |status| |pyversions|
 
 
-.. |docs| image:: https://readthedocs.org/projects/peak-finder-app/badge/
+.. |docs| image:: https://readthedocs.com/projects/mirageoscience-peak-finder-app/badge/?version=latest
     :alt: Documentation Status
-    :target: https://peak-finder-app.readthedocs.io/en/latest/?badge=latest
+    :target: https://mirageoscience-peak-finder-app.readthedocs-hosted.com/en/latest/?badge=latest
 
 .. |coverage| image:: https://codecov.io/gh/MiraGeoscience/peak-finder-app/branch/develop/graph/badge.svg
     :alt: Code coverage
@@ -174,14 +174,14 @@ SOFTWARE.
 
 Third Party Software
 ^^^^^^^^^^^^^^^^^^^^
-The peak-finder-app Software may provide links to third party libraries or code (collectively “Third Party Software”)
+The peak-finder-app Software may provide links to third party libraries or code (collectively "Third Party Software")
 to implement various functions. Third Party Software does not comprise part of the Software.
 The use of Third Party Software is governed by the terms of such software license(s).
 Third Party Software notices and/or additional terms and conditions are located in the
 `THIRD_PARTY_SOFTWARE.rst`_ file.
 
-.. _THIRD_PARTY_SOFTWARE.rst: THIRD_PARTY_SOFTWARE.rst
+.. _THIRD_PARTY_SOFTWARE.rst: ./docs/source/THIRD_PARTY_SOFTWARE.rst
 
 Copyright
 ^^^^^^^^^
-Copyright (c) 2024 Mira Geoscience Ltd.
+Copyright (c) 2024-2025 Mira Geoscience Ltd.

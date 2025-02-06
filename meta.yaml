@@ -1,0 +1,69 @@
+{% set name = "peak-finder-app" %}
+{% set version = "0.2.0" %}
+
+package:
+  name: {{ name|lower }}
+  version: {{ version }}
+
+source:
+  path: ../{{ name }}
+
+build:
+  noarch: python
+  script: {{ PYTHON }} -m pip install . -vv --no-deps --no-build-isolation
+  number: 0
+
+requirements:
+  host:
+    - python >=3.10.0,<3.11
+    - poetry-core >=1.0.0
+    - setuptools
+    - pip
+  run:
+    - python >=3.10.0,<3.11
+    - dask-core 2024.06.*
+    - distributed 2024.06.*
+    - numpy >=1.26.0,<1.27.0
+    - plotly >=5.19.0,<5.20.0
+    - scipy >=1.14.0,<1.15.0
+    - tqdm >=4.66.1,<5.0.0
+    - geoh5py >=0.10.0b1,<0.11.0a.dev
+    - geoapps-utils >=0.4.0b1,<0.5.0a.dev
+    - curve-apps >=0.2.0b1,<0.3.0a.dev
+    - h5py >=3.2.1,<4.0.0
+    - pillow >=10.3.0,<10.4.0
+    - pydantic >=2.5.2,<2.6.0
+    - scikit-image >=0.24.0,<0.25.0
+  run_constrained:
+    - dash >=2.12.0,<3.0.0
+    - dash-daq >=0.5.0,<0.6.0
+    - flask >=3.0.3,<4.0.0
+    - pyqtwebengine >=5.15.2,<5.15.7
+    - pyside2 >=5.15.2.1,<5.15.3
+    - pyqt5-qt5 5.15.2
+    - pyqtwebengine-qt5 5.15.2
+
+test:
+  imports:
+    - peak_finder
+  commands:
+    - pip check
+  requires:
+    - pip
+
+about:
+  home: https://www.mirageoscience.com/mining-industry-software/python-integration/
+  summary: 'Peak Finder App'
+  description: |
+    Peak-finder-app is a package for the detection and grouping of time-domain electromagnetic
+    (TEM) anomalies measured along flight lines.
+  license: MIT
+  license_file:
+    - LICENSE
+  doc_url: https://mirageoscience-peak-finder-app.readthedocs-hosted.com/
+  dev_url: https://github.com/MiraGeoscience/peak-finder-app
+
+extra:
+  recipe-maintainers:
+    - SophieCurinier
+    - sebhmg

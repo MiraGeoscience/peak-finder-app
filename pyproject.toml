@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "peak-finder-app"
-version = "0.1.0"
+version = "0.2.0"
 license = "MIT"
 description = "Peak Finder App"
 authors = ["Mira Geoscience <support@mirageoscience.com>"]
@@ -16,12 +16,11 @@ packages = [
 ]
 
 include = [
-    { path = "COPYING", format = ["sdist", "wheel"] },
-    { path = "COPYING.LESSER", format = ["sdist", "wheel"] },
-    { path = "LICENSE", format = ["sdist", "wheel"] },
-    { path = "README.rst", format = ["sdist", "wheel"] },
-    { path = "THIRD_PARTY_SOFTWARE.rst", format = ["sdist", "wheel"] },
-    { path = "docs/**/THIRD_PARTY_SOFTWARE.rst", format = ["sdist", "wheel"] },
+    { path = "COPYING" },
+    { path = "COPYING.LESSER" },
+    { path = "LICENSE" },
+    { path = "README.rst" },
+    { path = "docs/**/THIRD_PARTY_SOFTWARE.rst" },
 ]
 
 classifiers = [
@@ -38,40 +37,30 @@ classifiers = [
 ]
 
 [tool.poetry.dependencies]
-python = "^3.10, <3.11"
+python = "^3.10, <3.11"  # limited to 3.10 because of PySide2
 
 dash = {version="^2.12", optional = true}  # also in geoapps-utils[dash]
-dash-daq = {version="~0.5.0", optional = true}
-dask = {version = "2022.10.*", extras = ["distributed"]}
-distributed = "2022.10.*"  # because conda-lock doesn't take dask extras into account
+dash-daq = {version="0.5.*", optional = true}
+dask = {version = "2024.6.*", extras = ["distributed"]}
+distributed = "2024.6.*"  # because conda-lock doesn't take dask extras into account
 flask = {version="^3.0.3", optional = true}  # also in geoapps-utils[dash]
-numpy = "~1.23.5"  # also in geoapps-utils, geoh5py
+numpy = "~1.26.0"  # also in geoapps-utils, geoh5py
 plotly = "~5.19.0"
-scipy = "~1.10.1"
+pyqtwebengine = {version = "~5.15.2, <5.15.7", optional = true}  # also in geoapps-utils[dash]
+pyside2 = {version = ">=5.15.2.1, <5.15.7", optional = true}  # also in geoapps-utils[dash]
+scipy = "~1.14.0"
 tqdm = "^4.66.1"
 
 ## Pip dependencies from Git repositories
 #----------------------------------------
-geoh5py = {version = "~0.9.0", source = "pypi", allow-prereleases = true}  # also in geoapps-utils
-#geoh5py = {url = "https://github.com/MiraGeoscience/geoh5py/archive/refs/heads/release/0.9.0.zip#sha256="}
-#geoh5py = {url = "http://localhost:8888/geoh5py.tar.gz#sha256="}
+geoh5py = {version = ">=0.10.0-rc.1, <0.11.0a.dev", source = "pypi", allow-prereleases = true}  # also in geoapps-utils
+#geoh5py = {git = "https://github.com/MiraGeoscience/geoh5py.git", rev = "release/0.10.0"}
 
-geoapps-utils = {version = "~0.3.0", source = "pypi", allow-prereleases = true}
-#geoapps-utils = { url = "https://github.com/MiraGeoscience/geoapps-utils/archive/refs/heads/release/0.3.0.zip#sha256=" }
-#geoapps-utils = {url = "http://localhost:8888/geoapps-utils.tar.gz#sha256="}
+geoapps-utils = {version = ">=0.4.0-rc.1, <0.5.0a.dev", source = "pypi", allow-prereleases = true}
+#geoapps-utils = {git = "https://github.com/MiraGeoscience/geoapps-utils.git", rev = "release/0.4.0"}
 
-curve-apps = {version = "~0.1.0", source = "pypi", allow-prereleases = true}
-#curve-apps = {url = "https://github.com/MiraGeoscience/curve-apps/archive/refs/heads/release/0.1.0.zip#sha256="}
-#curve-apps = {url = "http://localhost:8888/curve-apps.tar.gz#sha256="}
-
-## indirect dependencies, forcing them here for installation through Conda not pip
-#---------------------------------------------------------------------------------
-h5py = "^3.2.1"  # from geoh5py
-Pillow = "~10.3.0"  # from geoh5py
-pydantic = "~2.5.2"  # from geoapps-utils, curve-apps, also used by petro-lingo
-pyqtwebengine = {version = "~5.15.2, <5.15.7", optional = true}  # from geoapps-utils[dash]
-pyside2 = {version = "~5.15.2.1", optional = true}  # from geoapps-utils[dash]
-scikit-image = "~0.20.0"  # from curve-apps, also used by geo-unsup-mapper
+curve-apps = {version = ">=0.2.0-rc.1, <0.3.0a.dev", source = "pypi", allow-prereleases = true}
+#curve-apps = {git = "https://github.com/MiraGeoscience/curve-apps.git", rev = "release/0.2.0"}
 
 ## force some versions to resolve incompatible resolution between PyPI and Conda
 #-------------------------------------------------------------------------------
@@ -80,27 +69,33 @@ scikit-image = "~0.20.0"  # from curve-apps, also used by geo-unsup-mapper
 pyqt5-qt5 = {version="5.15.2", source = "pypi", optional=true}  # to avoid conda-lock resolving to a dependency version not available on PyPI
 pyqtwebengine-qt5 = {version="5.15.2", source = "pypi", optional=true}  # to avoid conda-lock resolving to a dependency version not available on PyPI
 
-# pin down package versions when conda is behind pypi
-#----------------------------------------------------
-tifffile = "2024.2.12"  # from scikit-image (through curve-apps)
-
 ## about pip dependencies
 # to be specified to work with conda-lock
 # - from PyPI: my_package = { version = "1.2.3", source = "pypi" }
-# - from URL:
-#   - for a tags: my_package = { url = "https://github.com/ORGANISATION/REPO/archive/refs/tags/VERSION_TAG.zip#sha256=" }
-#   - for a branch: my_package = { url = "https://github.com/ORGANISATION/REPO/archive/refs/heads/BRANCH.zip#sha256=" }
-# Note - conda-lock does not support the syntax: my_package = { git = ... }
-#        while poetry2conda supports only { git = "...", tag = "..." }, and not { url = ... }
+# - from URL: !!! no actual lock, as tag or branch can move and installation will fetch current !!!
+#   - for a tag:    my_package = { url = "https://github.com/ORGANISATION/REPO/archive/refs/tags/TAG.tar.gz" }
+#   - for a branch: my_package = { url = "https://github.com/ORGANISATION/REPO/archive/refs/heads/BRANCH.tar.gz" }
+# - to actually lock on a revision: my_package = { git = "https://github.com/ORGANISATION/REPO.git", rev = "GIT_REV" }
+#   (where rev value is a tag, a branch name or a commit hash). Can also use ``branch`` or ``tag`` instead of ``rev``
 
 [tool.conda-lock.dependencies]
 pyside2 = {version = "5.15.*", optional = true}  # allow Conda to resolve to a higher existing version than in PyPI
+
+## indirect dependencies, forcing them here for installation through Conda not pip
+#---------------------------------------------------------------------------------
+h5py = ">=3.2.1, <4.0.0"  # from geoh5py
+Pillow = ">=10.3.0, <10.4.0"  # from geoh5py
+pydantic = ">=2.5.2, <3.0.0"  # from geoh5py, curve-apps, geoapps-utils
+scikit-image = ">=0.24.0, <0.25.0"  # from curve-apps, also used by geo-unsup-mapper
 
 [tool.poetry.group.dev.dependencies]
 Pygments = "*"
 pylint = "*"
 pytest = "*"
 pytest-cov = "*"
+pyyaml = '*'
+jinja2 = '*'
+packaging = '*'
 readthedocs-sphinx-ext = "*"
 sphinx = "^5.0"
 tomli = "*" # for tests only

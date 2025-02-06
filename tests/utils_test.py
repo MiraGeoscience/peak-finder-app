@@ -1,9 +1,12 @@
-#  Copyright (c) 2024 Mira Geoscience Ltd.
-#
-#  This file is part of peak-finder-app project.
-#
-#  All rights reserved.
-#
+# '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+#  Copyright (c) 2024-2025 Mira Geoscience Ltd.                                     '
+#                                                                                   '
+#  This file is part of peak-finder-app package.                                    '
+#                                                                                   '
+#  peak-finder-app is distributed under the terms and conditions of the MIT License '
+#  (see LICENSE file at the root of this source code package).                      '
+# '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
 from pathlib import Path
 
 import numpy as np
@@ -18,7 +21,7 @@ def test_get_ordered_survey_lines(tmp_path: Path):
     # Create line field with non-adjacent labels
     h5file_path = tmp_path / r"testOrderingSurveyLines.geoh5"
     # Create temp workspace
-    temp_ws = Workspace(h5file_path)
+    temp_ws = Workspace.create(h5file_path)
 
     x = np.c_[
         np.zeros(30), np.tile(np.arange(0, 10), 3), np.repeat(np.arange(0, 30, 10), 10)

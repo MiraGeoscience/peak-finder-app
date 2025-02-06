@@ -1,14 +1,16 @@
-#  Copyright (c) 2024 Mira Geoscience Ltd.
-#
-#  This file is part of peak-finder-app project.
-#
-#  All rights reserved.
-#
+# '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+#  Copyright (c) 2024-2025 Mira Geoscience Ltd.                                     '
+#                                                                                   '
+#  This file is part of peak-finder-app package.                                    '
+#                                                                                   '
+#  peak-finder-app is distributed under the terms and conditions of the MIT License '
+#  (see LICENSE file at the root of this source code package).                      '
+# '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 from __future__ import annotations
-
+from uuid import UUID
 import numpy as np
-from geoh5py.data import FloatData
+
 
 from peak_finder.anomaly import Anomaly
 from peak_finder.line_position import LinePosition
@@ -21,14 +23,17 @@ class LineData:  # pylint: disable=too-many-instance-attributes
 
     def __init__(  # pylint: disable=too-many-arguments
         self,
-        data: FloatData,
+        data_id: UUID,
+        data_values: np.ndarray,
         position: LinePosition,
+        *,
         min_amplitude: int,
         min_width: float,
         max_migration: float,
         min_value: float = -np.inf,
     ):
-        self.data_entity = data
+        self.data_values = data_values
+        self.data_id = data_id
         self.position: LinePosition = position
         self.min_amplitude = min_amplitude
         self.min_width = min_width
@@ -49,8 +54,8 @@ class LineData:  # pylint: disable=too-many-instance-attributes
         Original values sorted along line.
         """
         if self._values is None:
-            if self.data_entity is not None and self.position.sorting is not None:
-                self._values = self.data_entity.values[  # type: ignore
+            if self.data_values is not None and self.position.sorting is not None:
+                self._values = self.data_values[  # type: ignore
                     self.position.sorting
                 ]
 
@@ -65,24 +70,24 @@ class LineData:  # pylint: disable=too-many-instance-attributes
         return self._values
 
     @property
-    def data_entity(self) -> FloatData:
+    def data_values(self) -> np.ndarray:
         """
         Data entity.
         """
-        return self._data_entity
+        return self._data_values
 
-    @data_entity.setter
-    def data_entity(self, data):
+    @data_values.setter
+    def data_values(self, data):
         """
         Data entity.
         """
-        if getattr(self, "_data_entity", None) is not None:
+        if getattr(self, "_data_values", None) is not None:
             raise ValueError("Data entity is already set.")
 
-        if not isinstance(data, FloatData):
-            raise TypeError("Data entity must be of type geoh5py.data.FloatData.")
+        if not isinstance(data, np.ndarray):
+            raise TypeError("Data entity must be of type np.ndarray.")
 
-        self._data_entity = data
+        self._data_values = data
 
     @property
     def values_resampled(self) -> np.ndarray:
@@ -178,9 +183,7 @@ class LineData:  # pylint: disable=too-many-instance-attributes
             self._peaks = np.where(
                 (np.diff(np.sign(dx)) != 0)
                 & (ddx[1:] < 0)
-                & (
-                    values[:-1] > self.min_value
-                )  # pylint: disable=unsubscriptable-object
+                & (values[:-1] > self.min_value)  # pylint: disable=unsubscriptable-object
             )[0]
         return self._peaks
 
@@ -198,9 +201,7 @@ class LineData:  # pylint: disable=too-many-instance-attributes
             lows = np.where(
                 (np.diff(np.sign(dx)) != 0)
                 & (ddx[1:] > 0)
-                & (
-                    values[:-1] >= self.min_value
-                )  # pylint: disable=unsubscriptable-object
+                & (values[:-1] >= self.min_value)  # pylint: disable=unsubscriptable-object
             )[0]
             self._lows = np.r_[0, lows, self.position.locations_resampled.shape[0] - 1]
         return self._lows
@@ -219,9 +220,7 @@ class LineData:  # pylint: disable=too-many-instance-attributes
             self._inflect_up = np.where(
                 (np.diff(np.sign(ddx)) != 0)
                 & (dx[1:] > 0)
-                & (
-                    values[:-1] >= self.min_value
-                )  # pylint: disable=unsubscriptable-object
+                & (values[:-1] >= self.min_value)  # pylint: disable=unsubscriptable-object
             )[0]
         return self._inflect_up
 
@@ -239,9 +238,7 @@ class LineData:  # pylint: disable=too-many-instance-attributes
             self._inflect_down = np.where(
                 (np.diff(np.sign(ddx)) != 0)
                 & (dx[1:] < 0)
-                & (
-                    values[:-1] >= self.min_value
-                )  # pylint: disable=unsubscriptable-object
+                & (values[:-1] >= self.min_value)  # pylint: disable=unsubscriptable-object
             )[0]
         return self._inflect_down
 
@@ -271,9 +268,7 @@ class LineData:  # pylint: disable=too-many-instance-attributes
                 np.min(
                     [
                         values[anomaly.peak]  # pylint: disable=unsubscriptable-object
-                        - values[
-                            anomaly.start
-                        ],  # pylint: disable=unsubscriptable-object
+                        - values[anomaly.start],  # pylint: disable=unsubscriptable-object
                         values[anomaly.peak]  # pylint: disable=unsubscriptable-object
                         - values[anomaly.end],  # pylint: disable=unsubscriptable-object
                     ]
@@ -287,9 +282,7 @@ class LineData:  # pylint: disable=too-many-instance-attributes
 
         # Amplitude
         amplitude = (
-            np.sum(
-                np.abs(values[anomaly.start : anomaly.end])
-            )  # pylint: disable=unsubscriptable-object
+            np.sum(np.abs(values[anomaly.start : anomaly.end]))  # pylint: disable=unsubscriptable-object
             * self.position.sampling
         )
 

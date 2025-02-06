@@ -1,9 +1,11 @@
-#  Copyright (c) 2024 Mira Geoscience Ltd.
-#
-#  This file is part of peak-finder-app project.
-#
-#  All rights reserved.
-#
+# '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+#  Copyright (c) 2024-2025 Mira Geoscience Ltd.                                     '
+#                                                                                   '
+#  This file is part of peak-finder-app package.                                    '
+#                                                                                   '
+#  peak-finder-app is distributed under the terms and conditions of the MIT License '
+#  (see LICENSE file at the root of this source code package).                      '
+# '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 from __future__ import annotations
 
@@ -12,11 +14,12 @@ from copy import deepcopy
 
 import numpy as np
 from geoapps_utils.driver.params import BaseParams
+from geoh5py import Workspace
 from geoh5py.data import Data, ReferencedData
-from geoh5py.groups import PropertyGroup
+from geoh5py.groups import PropertyGroup, UIJsonGroup
 from geoh5py.objects import Curve
 from geoh5py.ui_json import InputFile
-
+from geoh5py.ui_json.utils import fetch_active_workspace
 from peak_finder.constants import default_ui_json, defaults, validations
 
 
@@ -31,9 +34,9 @@ class PeakFinderParams(BaseParams):  # pylint: disable=R0902, R0904
         self._free_parameter_keys: list = ["data", "color"]
         self._free_parameter_identifier: str = "group"
         self._validations: dict | None = validations
-        self._objects: Curve
+        self._objects: Curve | None = None
+        self._line_field: ReferencedData | None = None
         self._flip_sign: bool = False
-        self._line_field: ReferencedData
         self._masking_data: Data | None = None
         self._smoothing: int = 0
         self._min_amplitude: int = 1
@@ -63,7 +66,10 @@ class PeakFinderParams(BaseParams):  # pylint: disable=R0902, R0904
         self._template_data: Data | None = None
         self._template_color: str | None = None
         self._plot_result: bool = True
+        self._survey: Curve | None = None
         self._title: str | None = None
+        self._temp_workspace: Workspace | None = None
+        self._out_group: UIJsonGroup | None = None
 
         if input_file is None:
             ui_json = deepcopy(self._default_ui_json)
@@ -113,7 +119,7 @@ class PeakFinderParams(BaseParams):  # pylint: disable=R0902, R0904
         self.setter_validator("ga_group_name", val)
 
     @property
-    def line_field(self) -> ReferencedData:
+    def line_field(self) -> ReferencedData | None:
         """
         Object containing line ids and associated names.
         """
@@ -213,7 +219,7 @@ class PeakFinderParams(BaseParams):  # pylint: disable=R0902, R0904
         self.setter_validator("monitoring_directory", val)
 
     @property
-    def objects(self) -> Curve:
+    def objects(self) -> Curve | None:
         """
         Objects to use for line profile.
         """
@@ -222,6 +228,17 @@ class PeakFinderParams(BaseParams):  # pylint: disable=R0902, R0904
     @objects.setter
     def objects(self, val):
         self.setter_validator("objects", val, fun=self._uuid_promoter)
+
+    @property
+    def out_group(self) -> UIJsonGroup | None:
+        """
+        UIJson group to use store results.
+        """
+        return self._out_group
+
+    @out_group.setter
+    def out_group(self, val):
+        self.setter_validator("out_group", val, fun=self._uuid_promoter)
 
     @property
     def plot_result(self):
@@ -465,9 +482,7 @@ class PeakFinderParams(BaseParams):  # pylint: disable=R0902, R0904
         """
         Get the line field object.
         """
-        line_field_obj = self.line_field
-
-        if line_field_obj is None:
+        if self.line_field is None:
             unique_parts = np.unique(survey.parts.astype(int)) + 1
             line_field_obj = survey.add_data(
                 {
@@ -478,4 +493,25 @@ class PeakFinderParams(BaseParams):  # pylint: disable=R0902, R0904
                     }
                 }
             )
-        return line_field_obj
+            if not isinstance(line_field_obj, ReferencedData):
+                raise TypeError("Issue creating a ReferencedData'line_field'.")
+
+            return line_field_obj
+
+        return self.line_field
+
+    @property
+    def survey(self):
+        if self._survey is None and self.objects is not None:
+            self._temp_workspace = Workspace()
+            with fetch_active_workspace(self.geoh5):
+                self._survey = self.objects.copy(parent=self._temp_workspace)
+
+        return self._survey
+
+    @survey.setter
+    def survey(self, val: Curve | None):
+        if not isinstance(val, Curve | type(None)):
+            raise TypeError(f"Survey must be of type {Curve}")
+
+        self._survey = val

@@ -9,18 +9,36 @@ section of data along a single line and a plan view to locate the chosen and
 adjacent lines and anomaly picks in cartesian space.
 
 .. figure:: /images/interactive/visualizations.png
-    :scale: 40%
 
 
 The ui controls section is divided into three subsections:
 
-- `Visual Parameters`_
-- `Data Selection`_
 - `Detection Parameters`_
+- `Visual Parameters`_
 
 .. figure:: /images/interactive/ui_controls.png
-    :scale: 40%
 
+
+Detection Parameters
+~~~~~~~~~~~~~~~~~~~~
+
+The detection parameters are those that the peak-finder application uses to
+tune the characterization and detection of anomalies within the data.  Most
+of these are already described in the :ref:`Methodology` section.  Follow
+the links for detailed descriptions of each parameter.
+
+.. figure:: /images/parameters/detection_parameters.png
+   :align: left
+
+
+- :ref:`Smoothing window <Smoothing>`
+- :ref:`Minimum Amplitude (%) <Minimum Amplitude>`
+- :ref:`Minimum Value <Minimum Data Value>`
+- :ref:`Minimum Width (m) <Minimum Width>`
+- :ref:`Max Peak Migration (m) <Maximum Peak Migration>`
+- :ref:`Minimum # Channels <Minimum number of channels>`
+- :ref:`Merge # Peaks <Merge N Peaks>`
+- :ref:`Max Separation <Max Group Separation>`
 
 
 Visual Parameters
@@ -30,6 +48,18 @@ This section controls the appearance of the plotting area.
 
 .. figure:: /images/parameters/visual_parameters.png
    :align: left
+
+
+N Outward Lines
+_______________
+
+Number of lines to display on either side of the selected line in the plan view. The ``Survey figure`` option must be
+selected to see the effect of this parameter.
+
+.. figure:: /images/parameters/visualization/outward_lines_1.png
+
+    The plan view with 1 outward line on either side of the selected line.
+
 
 X-axis Label
 ____________
@@ -45,9 +75,6 @@ ______________
 
 Updates the scaling of the y-axis of the data section view
 
-.. todo::
-
-   Add a figure showing data with both linear and symlog scaling
 
 Linear threshold
 ________________
@@ -83,80 +110,19 @@ Switches on and off the markers outlining the character of each anomaly
    Markers are used to indicate the left and right edges, the center,
    and the inflection point in curvature of each anomaly.
 
-Data Selection
-~~~~~~~~~~~~~~
-.. figure:: /images/parameters/data_selection_parameters.png
-   :width: 80%
-   :align: left
-
-Lines Field
-___________
-
-.. autoproperty:: peak_finder.params.PeakFinderParams.line_field
-
-Select Line
-___________
-
-.. autoproperty:: peak_finder.params.PeakFinderParams.line_id
-
-.. todo::
-
-   Add a figure showing the plan view line selection (black).
-
-:ref:`Masking Data`
-___________________
-
-.. todo::
-
-   Add a figure of a working masked result.
-
-N outward lines
-_______________
-
-Includes N lines in plan view on either side of the selected line.
-
-.. figure:: /images/parameters/data_selection/outward_line_compare.png
-   :scale: 40%
-
-   Comparing the plan view with 1 outward line (left) and 2 outward lines
-   (right).
-
-Flip Y (-1x)
-____________
-
-.. autoproperty:: peak_finder.params.PeakFinderParams.flip_sign
-
-.. todo::
-
-   Update docstring and add figure showing the effect of flipping y.
-
-Select group colors
-___________________
-
-.. todo::
-
-   Add figure of color picker widget.  Move this ui to visualization group?
-
-Detection Parameters
-~~~~~~~~~~~~~~~~~~~~
-
-The detection parameters are those that the peak-finder application uses to
-tune the characterization and detection of anomalies within the data.  Most
-of these are already described in the :ref:`Methodology` section.  Follow
-the links for detailed descriptions of each parameter.
-
-.. figure:: /images/parameters/detection_parameters.png
-   :align: left
 
 
-- :ref:`Smoothing window <Smoothing>`
-- :ref:`Minimum Amplitude (%) <Minimum Amplitude>`
-- :ref:`Minimum Value <Minimum Data Value>`
-- :ref:`Minimum Width (m) <Minimum Width>`
-- :ref:`Max Peak Migration (m) <Maximum Peak Migration>`
-- :ref:`Minimum # Channels <Minimum number of channels>`
-- :ref:`Merge # Peaks <Merge N Peaks>`
-- :ref:`Max Separation <Max Group Separation>`
+Output Parameters
+~~~~~~~~~~~~~~~~~
+
+Create trend line
+__________________
+
+Run a trend line detection algorithm on the result of the Peak Finder algorithm. Results are stored as a curve object in the geoh5 file
+with the same group ID as the Peak Finder result.
+
+
+.. figure:: /images/parameters/visualization/trend_lines.png
 
 
 Save as
@@ -164,21 +130,9 @@ _______
 
 .. autoproperty:: peak_finder.params.PeakFinderParams.ga_group_name
 
-.. todo::
+Name of the group in the geoh5 file where the results will be saved.  The default is ``peak_finder``.
 
-   Update docstring and add figure showing resulting object saved in GA.
-
-Output Path
-___________
-
-Provide absolute path to save the output to.
-
-Geoscience ANALYST Pro - Live link
-__________________________________
-
-If selected the output will be imported to the open GA sessions geoh5 file.
-
-EXPORT
+Export
 ______
 
-Saves the result
+Run the algorithm with the parameters selected and save the result to geoh5.

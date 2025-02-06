@@ -1,22 +1,23 @@
-#  Copyright (c) 2024 Mira Geoscience Ltd.
-#
-#  This file is part of peak-finder-app project.
-#
-#  All rights reserved.
-#
+# '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+#  Copyright (c) 2024-2025 Mira Geoscience Ltd.                                     '
+#                                                                                   '
+#  This file is part of peak-finder-app package.                                    '
+#                                                                                   '
+#  peak-finder-app is distributed under the terms and conditions of the MIT License '
+#  (see LICENSE file at the root of this source code package).                      '
+# '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 # pylint: disable=too-many-arguments
 
 from __future__ import annotations
 
-import uuid
 
 import numpy as np
-from geoh5py.groups import PropertyGroup
 
 from peak_finder.anomaly_group import AnomalyGroup
 from peak_finder.line_data import LineData
 from peak_finder.line_position import LinePosition
+
 
 # pylint: disable=duplicate-code
 
@@ -29,8 +30,9 @@ class LineGroup:
     def __init__(
         self,
         position: LinePosition,
-        line_dataset: dict[uuid.UUID, LineData],
-        property_group: PropertyGroup,
+        line_dataset: list[LineData],
+        property_group: str,
+        *,
         max_migration: float,
         min_channels: int,
         n_groups: int,
@@ -43,18 +45,17 @@ class LineGroup:
         :param max_migration: Maximum peak migration.
         """
         self._position = position
-        self._line_dataset = line_dataset
+        self.line_dataset = line_dataset
         self.property_group = property_group
         self._max_migration = max_migration
         self._min_channels = min_channels
         self._n_groups = n_groups
         self._max_separation = max_separation
         self._minimal_output = minimal_output
-        self._channels: dict[uuid.UUID, LineData] | None = None
         self._groups: list[AnomalyGroup] | None = None
 
     @property
-    def groups(self) -> list[AnomalyGroup] | None:
+    def groups(self) -> list[AnomalyGroup]:
         """
         List of anomaly groups.
         """
@@ -74,7 +75,7 @@ class LineGroup:
         self._position = value
 
     @property
-    def line_dataset(self) -> dict[uuid.UUID, LineData]:
+    def line_dataset(self) -> list[LineData]:
         """
         List of line data.
         """
@@ -85,7 +86,7 @@ class LineGroup:
         self._line_dataset = value
 
     @property
-    def property_group(self) -> PropertyGroup:
+    def property_group(self) -> str:
         """
         Property group.
         """
@@ -138,19 +139,6 @@ class LineGroup:
     @max_separation.setter
     def max_separation(self, value):
         self._max_separation = value
-
-    @property
-    def channels(self) -> dict | None:
-        """
-        Dict of active channels and values.
-        """
-        if self._channels is None:
-            channels = {}
-            for uid in self.property_group.properties:  # type: ignore
-                channels[uid] = self.line_dataset[uid]
-            self._channels = channels
-
-        return self._channels
 
     @property
     def minimal_output(self) -> bool:
@@ -288,7 +276,7 @@ class LineGroup:
 
         :return: List of merged anomaly groups.
         """
-        if self.position.sampling is None or self.channels is None:
+        if self.position.sampling is None:
             return groups
 
         return_groups: list[AnomalyGroup] = []
@@ -310,7 +298,6 @@ class LineGroup:
             )
 
             for branch in branches:
-
                 indices = np.unique(branch)
 
                 if len(indices) < self.n_groups:
@@ -336,7 +323,7 @@ class LineGroup:
         groups: list = []
         group_id = -1
 
-        if self.channels is None or self.n_groups is None:
+        if self.n_groups is None:
             return groups
 
         # Get full lists of anomaly attributes
@@ -344,7 +331,7 @@ class LineGroup:
             full_anomalies,
             full_channels,
             full_peak_positions,
-        ) = self.get_anomaly_attributes(list(self.channels.values()))
+        ) = self.get_anomaly_attributes(self.line_dataset)
 
         full_group_ids = np.ones(len(full_anomalies), dtype="bool") * -1
         for ind, _ in enumerate(full_anomalies):

@@ -1,4 +1,11 @@
-#  Copyright (c) 2024 Mira Geoscience Ltd.
+# '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+#  Copyright (c) 2024-2025 Mira Geoscience Ltd.                                     '
+#                                                                                   '
+#  This file is part of peak-finder-app package.                                    '
+#                                                                                   '
+#  peak-finder-app is distributed under the terms and conditions of the MIT License '
+#  (see LICENSE file at the root of this source code package).                      '
+# '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 #
 #  This file is part of peak-finder-app.
 #
@@ -7,6 +14,9 @@
 # pylint: disable=W0613, C0302, duplicate-code
 
 from __future__ import annotations
+
+
+import logging
 
 import os
 import sys
@@ -17,32 +27,28 @@ import plotly.graph_objects as go
 from dash import Dash, callback_context, ctx, dcc, no_update
 from dash.dependencies import Input, Output, State
 from dash.exceptions import MissingCallbackContextException
-from dask import compute
-from dask.diagnostics import ProgressBar
 from flask import Flask
-from geoapps_utils.application.dash_application import (
-    BaseDashApplication,
-    ObjectSelection,
-)
-from geoapps_utils.plotting import format_axis, symlog
-from geoh5py import Workspace
+from geoapps_utils.utils.plotting import format_axis, symlog
 from geoh5py.data import BooleanData, Data, ReferencedData
 from geoh5py.objects import Curve
-from geoh5py.shared.utils import fetch_active_workspace, is_uuid
+from geoh5py.shared.utils import fetch_active_workspace
 from geoh5py.ui_json import InputFile
 from tqdm import tqdm
 
 from peak_finder.anomaly_group import AnomalyGroup
+from peak_finder.dash_application import BaseDashApplication, ObjectSelection
 from peak_finder.driver import PeakFinderDriver
 from peak_finder.layout import peak_finder_layout
 from peak_finder.line_position import LinePosition
 from peak_finder.params import PeakFinderParams
 from peak_finder.utils import get_ordered_survey_lines
 
+# pylint: disable=too-many-positional-arguments
 
-class PeakFinder(
-    BaseDashApplication
-):  # pylint: disable=too-many-public-methods, too-many-instance-attributes
+logger = logging.getLogger(__name__)
+
+
+class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-methods, too-many-instance-attributes
     """
     Dash app to fine tune Peak Finder parameters.
     """
@@ -52,14 +58,12 @@ class PeakFinder(
 
     def __init__(
         self,
-        ui_json: InputFile | None = None,
+        params: PeakFinderParams,
         ui_json_data: dict | None = None,
-        params: PeakFinderParams | None = None,
     ):
         """
         Initialize the peak finder layout, callbacks, and server.
 
-        :param ui_json: ui.json file to load.
         :param ui_json_data: Data from ui.json file.
         :param params: Peak finder params.
         """
@@ -71,8 +75,9 @@ class PeakFinder(
         self._survey: Curve | None = None
         self._property_groups = None
         self._ordered_survey_lines: dict | None = None
+        self.masking_data = "None"
 
-        super().__init__(ui_json, ui_json_data, params)
+        super().__init__(params, ui_json_data=ui_json_data)
 
         self._app = None
 
@@ -269,14 +274,14 @@ class PeakFinder(
         if self.property_groups is None:
             return None
 
-        if self._active_channels is None:
+        if self._active_channels is None and self.survey is not None:
             self._active_channels = {}
             for group in self.property_groups.values():
                 for channel in group["properties"]:
-                    chan = self.workspace.get_entity(uuid.UUID(channel))[0]
-                    if isinstance(chan, Data):
+                    chan = self.survey.get_entity(uuid.UUID(channel))[0]
+                    if isinstance(chan, Data) and chan.values is not None:
                         self._active_channels[channel] = {
-                            "name": chan.name,
+                            "uid": chan.uid,
                             "values": chan.values.copy(),
                         }
         return self._active_channels
@@ -308,22 +313,9 @@ class PeakFinder(
         """
         Line labels for survey.
         """
+        if self._line_field is None and self.survey is not None:
+            self._line_field = self.params.get_line_field(self.survey)
         return self._line_field
-
-    @line_field.setter
-    def line_field(self, value):
-        if is_uuid(value):
-            data = self.workspace.get_entity(uuid.UUID(value))[0]
-
-            if not isinstance(data, ReferencedData):
-                raise TypeError("Line field must be of type ReferencedData.")
-
-            self._line_field = data
-
-        elif isinstance(value, ReferencedData):
-            self._line_field = value
-        else:
-            self._line_field = None
 
     @property
     def computed_lines(self) -> dict | None:
@@ -341,16 +333,7 @@ class PeakFinder(
         """
         Current survey object.
         """
-        if self._survey is None:
-            self.workspace: Workspace = Workspace()
-            with fetch_active_workspace(self.params.geoh5):
-                self._survey = self.params.objects.copy(parent=self.workspace)
-                self._line_field = self.params.get_line_field(self._survey)
-
-            self._active_channels = None
-            self._ordered_survey_lines = None
-
-        return self._survey
+        return self.params.survey
 
     @property
     def property_groups(self) -> dict | None:
@@ -403,10 +386,11 @@ class PeakFinder(
         specify_values = {}
         if self.ordered_survey_lines is not None and self.property_groups is not None:
             # Line dropdown options
-            selected_line_options = [
+            selected_line_options = [{"label": "Select here", "value": 0}] + [
                 {"label": label, "value": id}
                 for id, label in self.ordered_survey_lines.items()
             ]
+
             # Initial line
             selected_line = None
             if len(selected_line_options) > 0:
@@ -530,17 +514,23 @@ class PeakFinder(
         :return: Trigger to indicate survey object has been updated.
         :return: Minimum value for figure, which changes on object change.
         """
-        if self.survey is None:
+        if self.survey is None or masking_data == self.masking_data:
             return no_update, no_update
 
-        if masking_data is not None and masking_data != "None":
-            self._survey = None
+        self._survey = None
+        self._line_field = None
+        self._active_channels = None
+        self._ordered_survey_lines = None
+        self.computed_lines = None
 
+        if masking_data is not None and masking_data != "None":
             if self.survey is not None and hasattr(self.survey, "remove_vertices"):
                 masking_data_obj = self.survey.get_data(uuid.UUID(masking_data))[0]
                 masking_array = masking_data_obj.values
                 if masking_array is not None:
                     self.survey.remove_vertices(~masking_array)
+
+        self.masking_data = masking_data
 
         min_value = no_update
         if self.active_channels is not None:
@@ -580,6 +570,10 @@ class PeakFinder(
             return []
 
         survey_line_ids = list(self.ordered_survey_lines.keys())
+
+        if selected_line not in survey_line_ids:
+            return []
+
         selected_line_ind = survey_line_ids.index(selected_line)
 
         survey_lines = survey_line_ids[
@@ -698,10 +692,8 @@ class PeakFinder(
             min_channels=min_channels,
             n_groups=n_groups,
             max_separation=max_separation,
+            parallelized=False,
         )
-
-        with ProgressBar():
-            results = compute(line_computation)[0]
 
         # Remove un-needed lines
         if self.computed_lines is not None and "n_lines" in triggers:
@@ -714,8 +706,7 @@ class PeakFinder(
             self.computed_lines = {}
 
         # Add new lines
-        for line_anomaly in tqdm(results):
-
+        for line_anomaly in tqdm(line_computation):
             if "n_lines" in triggers and line_anomaly.line_id in self.computed_lines:
                 continue
 
@@ -820,15 +811,15 @@ class PeakFinder(
         for channel_dict in list(  # pylint: disable=too-many-nested-blocks
             self.active_channels.values()
         ):
-            if "values" not in channel_dict:
+            if "values" not in channel_dict or selected_line not in self.computed_lines:
                 continue
             full_values = sign * np.array(channel_dict["values"])
 
             for position, anomalies in zip(
                 self.computed_lines[selected_line]["position"],
                 self.computed_lines[selected_line]["anomalies"],
+                strict=True,
             ):
-
                 locs = position.locations_resampled
 
                 if position.line_indices.sum() < 2 or locs is None:
@@ -852,10 +843,10 @@ class PeakFinder(
                 for anomaly_group in anomalies:
                     for subgroup in anomaly_group.subgroups:
                         channels = np.array(
-                            [a.parent.data_entity.name for a in subgroup.anomalies]
+                            [a.parent.data_id for a in subgroup.anomalies]
                         )
-                        group_name = subgroup.property_group.name
-                        query = np.where(np.array(channels) == channel_dict["name"])[0]
+                        group_name = subgroup.property_group
+                        query = np.where(np.array(channels) == channel_dict["uid"])[0]
                         if len(query) == 0:
                             continue
 
@@ -875,9 +866,9 @@ class PeakFinder(
                             trace_dict["property_groups"][group_name]["y"] += list(
                                 sym_values[start:end]
                             ) + [None]
-                            trace_dict["property_groups"][group_name][
-                                "customdata"
-                            ] += list(values[start:end]) + [None]
+                            trace_dict["property_groups"][group_name]["customdata"] += (
+                                list(values[start:end]) + [None]
+                            )
 
         if np.isinf(y_min) or self.property_groups is None:
             return no_update, None, None, None
@@ -923,14 +914,14 @@ class PeakFinder(
 
         # Update figure layout
         self.update_figure_layout(
-            y_label,
-            y_tickvals,
-            y_ticktext,
-            y_min,
-            y_max,
-            symlog(min_value, threshold),
-            x_label,
-            self.computed_lines[selected_line]["position"],
+            y_label=y_label,
+            y_tickvals=y_tickvals,
+            y_ticktext=y_ticktext,
+            y_min=y_min,
+            y_max=y_max,
+            min_value=symlog(min_value, threshold),
+            x_label=x_label,
+            line_position=self.computed_lines[selected_line]["position"],
         )
         return (
             figure_lines_trigger + 1,
@@ -1126,6 +1117,7 @@ class PeakFinder(
         for position, anomalies in zip(
             self.computed_lines[selected_line]["position"],
             self.computed_lines[selected_line]["anomalies"],
+            strict=True,
         ):
             indices = position.line_indices
 
@@ -1149,33 +1141,16 @@ class PeakFinder(
                 for anomaly_group in anomalies:
                     for subgroup in anomaly_group.subgroups:
                         channels = np.array(
-                            [a.parent.data_entity.name for a in subgroup.anomalies]
+                            [a.parent.data_id for a in subgroup.anomalies]
                         )
-                        group_name = subgroup.property_group.name
+                        group_name = subgroup.property_group
                         color = self.property_groups[group_name]["color"]
-                        query = np.where(np.array(channels) == channel_dict["name"])[0]
+                        query = np.where(np.array(channels) == channel_dict["uid"])[0]
                         if len(query) == 0:
                             continue
 
                         i = query[0]
-                        if subgroup.azimuth < 180:  # type: ignore
-                            ori = "right"
-                        else:
-                            ori = "left"
-
                         peak = subgroup.peaks[i]
-                        # Add markers
-                        if i == 0:
-                            trace_dict["markers"][ori + "_azimuth"]["x"] += [  # type: ignore
-                                locs[peak]
-                            ]
-                            trace_dict["markers"][ori + "_azimuth"]["y"] += [  # type: ignore
-                                sym_values[peak]
-                            ]
-                            trace_dict["markers"][ori + "_azimuth"][  # type: ignore
-                                "customdata"
-                            ] += [values[peak]]
-
                         peak_markers_x += [locs[peak]]
                         peak_markers_y += [sym_values[peak]]
                         peak_markers_customdata += [values[peak]]
@@ -1203,23 +1178,23 @@ class PeakFinder(
 
         # Add markers to trace_dict
         trace_dict = PeakFinder.add_markers(
-            trace_dict,
-            peak_markers_x,
-            peak_markers_y,
-            peak_markers_customdata,
-            peak_markers_c,
-            start_markers_x,
-            start_markers_y,
-            start_markers_customdata,
-            end_markers_x,
-            end_markers_y,
-            end_markers_customdata,
-            up_markers_x,
-            up_markers_y,
-            up_markers_customdata,
-            dwn_markers_x,
-            dwn_markers_y,
-            dwn_markers_customdata,
+            trace_dict=trace_dict,
+            peak_markers_x=peak_markers_x,
+            peak_markers_y=peak_markers_y,
+            peak_markers_customdata=peak_markers_customdata,
+            peak_markers_c=peak_markers_c,
+            start_markers_x=start_markers_x,
+            start_markers_y=start_markers_y,
+            start_markers_customdata=start_markers_customdata,
+            end_markers_x=end_markers_x,
+            end_markers_y=end_markers_y,
+            end_markers_customdata=end_markers_customdata,
+            up_markers_x=up_markers_x,
+            up_markers_y=up_markers_y,
+            up_markers_customdata=up_markers_customdata,
+            dwn_markers_x=dwn_markers_x,
+            dwn_markers_y=dwn_markers_y,
+            dwn_markers_customdata=dwn_markers_customdata,
         )
 
         # Update figure markers from trace_dict
@@ -1349,13 +1324,9 @@ class PeakFinder(
         if flip_sign:
             sign *= -1
 
-        triggers = [t["prop_id"].split(".")[0] for t in callback_context.triggered]
-        if "lines_computation_trigger" in triggers or (
-            "show_residuals" in triggers and not show_residuals
-        ):
-            for ind in range(len(trace_map), len(self.figure.data)):
-                self.figure.data[ind]["x"] = []
-                self.figure.data[ind]["y"] = []
+        for ind in range(len(trace_map), len(self.figure.data)):
+            self.figure.data[ind]["x"] = []
+            self.figure.data[ind]["y"] = []
 
         if not show_residuals:
             self.figure.data[trace_map["pos_residuals_legend"]]["visible"] = False
@@ -1371,6 +1342,7 @@ class PeakFinder(
         for position, anomalies in zip(
             self.computed_lines[selected_line]["position"],
             self.computed_lines[selected_line]["anomalies"],
+            strict=True,
         ):
             indices = position.line_indices
 
@@ -1394,9 +1366,9 @@ class PeakFinder(
 
                 for anomaly_group in anomalies:
                     channels = np.array(
-                        [a.parent.data_entity.name for a in anomaly_group.anomalies]
+                        [a.parent.data_id for a in anomaly_group.anomalies]
                     )
-                    query = np.where(np.array(channels) == channel_dict["name"])[0]
+                    query = np.where(np.array(channels) == channel_dict["uid"])[0]
                     if len(query) == 0:
                         continue
 
@@ -1592,7 +1564,7 @@ class PeakFinder(
         }
 
         # Add property groups
-        for ind, (key, val) in enumerate(property_groups.items()):
+        for key, val in property_groups.items():
             all_traces[key] = {
                 "x": [None],
                 "y": [None],
@@ -1882,12 +1854,8 @@ class PeakFinder(
                         peak = position.locations[anom.peaks[0]]
                         x_val = x_min + peak
                         ind = (np.abs(x_locs - x_val)).argmin()
-                        anomaly_traces[anom.property_group.name]["x"].append(
-                            x_locs[ind]
-                        )
-                        anomaly_traces[anom.property_group.name]["y"].append(
-                            y_locs[ind]
-                        )
+                        anomaly_traces[anom.property_group]["x"].append(x_locs[ind])
+                        anomaly_traces[anom.property_group]["y"].append(y_locs[ind])
 
         for trace in list(line_dict.values()):
             figure.add_trace(  # type: ignore
@@ -2017,14 +1985,17 @@ class PeakFinder(
 
 
 if __name__ == "__main__":
-    print("Loading geoh5 file . . .")
+    logger.info("Loading the geoh5 file . . .")
     FILE = sys.argv[1]
     ifile = InputFile.read_ui_json(FILE)
     if ifile.data["launch_dash"]:
-        ifile.workspace.open("r")
-        print("Loaded. Launching peak finder app . . .")
-        ObjectSelection.run("Peak Finder", PeakFinder, ifile)
+        peak_parameters = PeakFinderParams(input_file=ifile)
+
+        with peak_parameters.geoh5.open(mode="r"):
+            getattr(peak_parameters, "survey")
+            logger.info("Loaded. Launching peak finder app . . .")
+            ObjectSelection.run("Peak Finder", PeakFinder, peak_parameters)
     else:
-        print("Loaded. Running peak finder driver . . .")
+        logger.info("Loaded. Running peak finder driver . . .")
         PeakFinderDriver.start(FILE)
-    print("Done")
+    logger.info("Done")
