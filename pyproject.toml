@@ -9,7 +9,7 @@ repository = "https://github.com/MiraGeoscience/peak-finder-app"
 documentation = "https://mirageoscience-peak-finder-app.readthedocs-hosted.com/"
 homepage = "https://www.mirageoscience.com/mining-industry-software/python-integration/"
 
-readme = "README.rst"
+readme = "package.rst"
 packages = [
      { include = "peak_finder" },
      { include = "peak_finder-assets" },
