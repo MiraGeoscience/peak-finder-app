@@ -1,7 +1,8 @@
 Peak-finder
 ===========
 
-The **peak-finder** package lets users generate and run ui.json applications over a suite of values.
+**peak-finder-app** is a package for the detection and grouping of time-domain
+electromagnetic (TEM) anomalies measured along flight lines.
 
 
 Installation
