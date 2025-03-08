@@ -51,11 +51,14 @@ tests:
   - python:
       imports:
         - peak_finder
-  - requirements:
+  - script:
+      - pytest ./tests
+    requirements:
       run:
-        - pip
-    script:
-      - pip check
+        - pytest
+    files:
+      source:
+        - tests/
 
 about:
   summary: Peak Finder App
