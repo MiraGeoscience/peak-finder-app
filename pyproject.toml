@@ -37,17 +37,17 @@ classifiers = [
 ]
 
 [tool.poetry.dependencies]
-python = "^3.10, <3.11"  # limited to 3.10 because of PySide2
+python = "^3.10, <3.13"
 
-dash = {version="^2.12", optional = true}  # also in geoapps-utils[dash]
+dash = {version="^2.12", optional = true}
 dash-daq = {version="0.5.*", optional = true}
 dask = {version = "2024.6.*", extras = ["distributed"]}
 distributed = "2024.6.*"  # because conda-lock doesn't take dask extras into account
-flask = {version="^3.0.3", optional = true}  # also in geoapps-utils[dash]
+flask = {version="^3.0.3", optional = true}
 numpy = "~1.26.0"  # also in geoapps-utils, geoh5py
 plotly = "~5.19.0"
-pyqtwebengine = {version = "~5.15.2, <5.15.7", optional = true}  # also in geoapps-utils[dash]
-pyside2 = {version = ">=5.15.2.1, <5.15.7", optional = true}  # also in geoapps-utils[dash]
+pyqtwebengine = {version = "~5.15.9", optional = true}
+pyside2 = {version = "~5.15.15", optional = true}
 scipy = "~1.14.0"
 tqdm = "^4.66.1"
 
@@ -62,13 +62,6 @@ geoapps-utils = {git = "https://github.com/MiraGeoscience/geoapps-utils.git", re
 #curve-apps = {version = ">=0.3.0a1, <0.4.0a.dev", source = "pypi", allow-prereleases = true}
 curve-apps = {git = "https://github.com/MiraGeoscience/curve-apps.git", rev = "develop"}
 
-## force some versions to resolve incompatible resolution between PyPI and Conda
-#-------------------------------------------------------------------------------
-# these two *-qt5 dependencies are not relevant for Conda and will be discarded,
-# but conda-lock still look for them in PyPI during its dependency resolution
-pyqt5-qt5 = {version="5.15.2", source = "pypi", optional=true}  # to avoid conda-lock resolving to a dependency version not available on PyPI
-pyqtwebengine-qt5 = {version="5.15.2", source = "pypi", optional=true}  # to avoid conda-lock resolving to a dependency version not available on PyPI
-
 ## about pip dependencies
 # to be specified to work with conda-lock
 # - from PyPI: my_package = { version = "1.2.3", source = "pypi" }
@@ -77,9 +70,6 @@ pyqtwebengine-qt5 = {version="5.15.2", source = "pypi", optional=true}  # to avo
 #   - for a branch: my_package = { url = "https://github.com/ORGANISATION/REPO/archive/refs/heads/BRANCH.tar.gz" }
 # - to actually lock on a revision: my_package = { git = "https://github.com/ORGANISATION/REPO.git", rev = "GIT_REV" }
 #   (where rev value is a tag, a branch name or a commit hash). Can also use ``branch`` or ``tag`` instead of ``rev``
-
-[tool.conda-lock.dependencies]
-pyside2 = {version = "5.15.*", optional = true}  # allow Conda to resolve to a higher existing version than in PyPI
 
 ## indirect dependencies, forcing them here for installation through Conda not pip
 #---------------------------------------------------------------------------------
