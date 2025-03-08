@@ -25,19 +25,21 @@ requirements:
     - pip
   run:
     - python >=${{ python_min }}
-    - curve-apps >=0.3.0a1,<0.4.0a.dev
+    # Mira packages
+    - curve-apps >=0.3.0a, <0.4.dev
+    - geoapps-utils >=0.5.0a, <0.6.dev
+    - geoh5py >=0.11.0a, <0.12.dev
+    # direct dependencies
     - dask-core 2024.06.*
     - distributed 2024.06.*
-    - geoapps-utils >=0.5.0a1,<0.6.0a.dev
-    - geoh5py >=0.11.0a1,<0.12.0a.dev
-    - h5py >=3.2.1,<4.0.dev
-    - numpy >=1.26.0,<1.27.dev
-    - pillow >=10.3.0,<10.4.dev
-    - plotly >=5.19.0,<5.20.dev
-    - pydantic >=2.5.2,<2.6.dev
-    - scikit-image >=0.24.0,<0.25.dev
-    - scipy >=1.14.0,<1.15.dev
-    - tqdm >=4.66.1,<5.0.dev
+    - h5py >=3.2.1, <4.0.dev
+    - numpy >=1.26.0, <1.27.dev
+    - pillow >=10.3.0, <10.4.dev
+    - plotly >=5.19.0, <5.20.dev
+    - pydantic >=2.5.2, <3.0.dev
+    - scikit-image >=0.24.0, <0.25.dev
+    - scipy >=1.14.0, <1.15.dev
+    - tqdm >=4.66.1, <5.0.dev
   run_constraints:
     - dash >=2.12.0,<3.0.dev
     - dash-daq >=0.5.0,<0.6.dev

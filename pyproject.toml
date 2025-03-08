@@ -37,7 +37,7 @@ classifiers = [
 ]
 
 [tool.poetry.dependencies]
-python = "^3.10, <3.13"
+python = ">=3.10, <3.13"
 
 dash = {version="^2.12", optional = true}
 dash-daq = {version="0.5.*", optional = true}
@@ -53,13 +53,13 @@ tqdm = "^4.66.1"
 
 ## Pip dependencies from Git repositories
 #----------------------------------------
-#geoh5py = {version = ">=0.11.0a1, <0.12.0a.dev", source = "pypi", allow-prereleases = true}  # also in geoapps-utils
+#geoh5py = {version = ">=0.11.0a1, <0.12.dev", source = "pypi", allow-prereleases = true}  # also in geoapps-utils
 geoh5py = {git = "https://github.com/MiraGeoscience/geoh5py.git", rev = "develop"}
 
-#geoapps-utils = {version = ">=0.5.0a1, <0.6.0a.dev", source = "pypi", allow-prereleases = true}
+#geoapps-utils = {version = ">=0.5.0a1, <0.6.dev", source = "pypi", allow-prereleases = true}
 geoapps-utils = {git = "https://github.com/MiraGeoscience/geoapps-utils.git", rev = "develop"}
 
-#curve-apps = {version = ">=0.3.0a1, <0.4.0a.dev", source = "pypi", allow-prereleases = true}
+#curve-apps = {version = ">=0.3.0a1, <0.4.dev", source = "pypi", allow-prereleases = true}
 curve-apps = {git = "https://github.com/MiraGeoscience/curve-apps.git", rev = "develop"}
 
 ## about pip dependencies
@@ -73,10 +73,10 @@ curve-apps = {git = "https://github.com/MiraGeoscience/curve-apps.git", rev = "d
 
 ## indirect dependencies, forcing them here for installation through Conda not pip
 #---------------------------------------------------------------------------------
-h5py = ">=3.2.1, <4.0.0"  # from geoh5py
-Pillow = ">=10.3.0, <10.4.0"  # from geoh5py
-pydantic = ">=2.5.2, <3.0.0"  # from geoh5py, curve-apps, geoapps-utils
-scikit-image = ">=0.24.0, <0.25.0"  # from curve-apps, also used by geo-unsup-mapper
+h5py = ">=3.2.1, <4.0.dev"  # from geoh5py
+Pillow = ">=10.3.0, <10.4.dev"  # from geoh5py
+pydantic = ">=2.5.2, <3.0.dev"  # from geoh5py, curve-apps, geoapps-utils
+scikit-image = ">=0.24.0, <0.25.dev"  # from curve-apps, also used by geo-unsup-mapper
 
 [tool.poetry.group.dev.dependencies]
 Pygments = "*"
