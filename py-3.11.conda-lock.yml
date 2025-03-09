@@ -17,8 +17,8 @@
 version: 1
 metadata:
   content_hash:
-    win-64: 332e833ade22cd92755bda35250268f94e9c268e088ef93adb596e36fa309d1d
-    linux-64: fca5bca1dca5eb782351d7cdefab04355f6f8ea8ded01d6a5b0a163444ab83de
+    win-64: dba65f0043d9fb46dcecdc94bc83e1fa0d1c8865ad250bbe6db2a42d142c068f
+    linux-64: 712c9c30ff3145efbceed85cd0e8327da358dd741387ae3c9d11c79253270642
   channels:
   - url: conda-forge
     used_env_vars: []
@@ -1304,27 +1304,27 @@ package:
   category: main
   optional: false
 - name: fsspec
-  version: 2025.2.0
+  version: 2025.3.0
   manager: conda
   platform: linux-64
   dependencies:
     python: '>=3.9'
-  url: https://packages.prefix.dev/conda-forge/noarch/fsspec-2025.2.0-pyhd8ed1ab_0.conda
+  url: https://packages.prefix.dev/conda-forge/noarch/fsspec-2025.3.0-pyhd8ed1ab_0.conda
   hash:
-    md5: d9ea16b71920b03beafc17fcca16df90
-    sha256: 7433b8469074985b651693778ec6f03d2a23fad9919a515e3b8545996b5e721a
+    md5: 5ecafd654e33d1f2ecac5ec97057593b
+    sha256: 9cbba3b36d1e91e4806ba15141936872d44d20a4d1e3bb74f4aea0ebeb01b205
   category: main
   optional: false
 - name: fsspec
-  version: 2025.2.0
+  version: 2025.3.0
   manager: conda
   platform: win-64
   dependencies:
     python: '>=3.9'
-  url: https://packages.prefix.dev/conda-forge/noarch/fsspec-2025.2.0-pyhd8ed1ab_0.conda
+  url: https://packages.prefix.dev/conda-forge/noarch/fsspec-2025.3.0-pyhd8ed1ab_0.conda
   hash:
-    md5: d9ea16b71920b03beafc17fcca16df90
-    sha256: 7433b8469074985b651693778ec6f03d2a23fad9919a515e3b8545996b5e721a
+    md5: 5ecafd654e33d1f2ecac5ec97057593b
+    sha256: 9cbba3b36d1e91e4806ba15141936872d44d20a4d1e3bb74f4aea0ebeb01b205
   category: main
   optional: false
 - name: gettext
@@ -7080,13 +7080,13 @@ package:
     pydantic: '>=2.5.2,<3.0.0'
     scikit-image: ==0.24.*
     scipy: '>=1.14.0,<1.15.0'
-    tqdm: '>=4.66.1,<4.67.0'
-  url: git+https://github.com/MiraGeoscience/curve-apps.git@e0e29d6cbfc18373f194ec2cc33d236de8909bcc
+    tqdm: '>=4.66.1,<5.0.0'
+  url: git+https://github.com/MiraGeoscience/curve-apps.git@ec6f3c602c13f7e0f9054688e03aa0d71acdb6eb
   hash:
-    sha256: e0e29d6cbfc18373f194ec2cc33d236de8909bcc
+    sha256: ec6f3c602c13f7e0f9054688e03aa0d71acdb6eb
   source:
     type: url
-    url: git+https://github.com/MiraGeoscience/curve-apps.git@e0e29d6cbfc18373f194ec2cc33d236de8909bcc
+    url: git+https://github.com/MiraGeoscience/curve-apps.git@ec6f3c602c13f7e0f9054688e03aa0d71acdb6eb
   category: main
   optional: false
 - name: curve-apps
@@ -7100,13 +7100,13 @@ package:
     pydantic: '>=2.5.2,<3.0.0'
     scikit-image: ==0.24.*
     scipy: '>=1.14.0,<1.15.0'
-    tqdm: '>=4.66.1,<4.67.0'
-  url: git+https://github.com/MiraGeoscience/curve-apps.git@e0e29d6cbfc18373f194ec2cc33d236de8909bcc
+    tqdm: '>=4.66.1,<5.0.0'
+  url: git+https://github.com/MiraGeoscience/curve-apps.git@ec6f3c602c13f7e0f9054688e03aa0d71acdb6eb
   hash:
-    sha256: e0e29d6cbfc18373f194ec2cc33d236de8909bcc
+    sha256: ec6f3c602c13f7e0f9054688e03aa0d71acdb6eb
   source:
     type: url
-    url: git+https://github.com/MiraGeoscience/curve-apps.git@e0e29d6cbfc18373f194ec2cc33d236de8909bcc
+    url: git+https://github.com/MiraGeoscience/curve-apps.git@ec6f3c602c13f7e0f9054688e03aa0d71acdb6eb
   category: main
   optional: false
 - name: geoapps-utils
@@ -7118,12 +7118,12 @@ package:
     numpy: '>=1.26.0,<1.27.0'
     pydantic: '>=2.5.2,<3.0.0'
     scipy: '>=1.14.0,<1.15.0'
-  url: git+https://github.com/MiraGeoscience/geoapps-utils.git@1ed273892ca0494a3b612d075a66dd4a1de2283a
+  url: git+https://github.com/MiraGeoscience/geoapps-utils.git@de8092abbc030d2230720fd256d97dd87da42688
   hash:
-    sha256: 1ed273892ca0494a3b612d075a66dd4a1de2283a
+    sha256: de8092abbc030d2230720fd256d97dd87da42688
   source:
     type: url
-    url: git+https://github.com/MiraGeoscience/geoapps-utils.git@1ed273892ca0494a3b612d075a66dd4a1de2283a
+    url: git+https://github.com/MiraGeoscience/geoapps-utils.git@de8092abbc030d2230720fd256d97dd87da42688
   category: main
   optional: false
 - name: geoapps-utils
@@ -7135,12 +7135,12 @@ package:
     numpy: '>=1.26.0,<1.27.0'
     pydantic: '>=2.5.2,<3.0.0'
     scipy: '>=1.14.0,<1.15.0'
-  url: git+https://github.com/MiraGeoscience/geoapps-utils.git@1ed273892ca0494a3b612d075a66dd4a1de2283a
+  url: git+https://github.com/MiraGeoscience/geoapps-utils.git@de8092abbc030d2230720fd256d97dd87da42688
   hash:
-    sha256: 1ed273892ca0494a3b612d075a66dd4a1de2283a
+    sha256: de8092abbc030d2230720fd256d97dd87da42688
   source:
     type: url
-    url: git+https://github.com/MiraGeoscience/geoapps-utils.git@1ed273892ca0494a3b612d075a66dd4a1de2283a
+    url: git+https://github.com/MiraGeoscience/geoapps-utils.git@de8092abbc030d2230720fd256d97dd87da42688
   category: main
   optional: false
 - name: geoh5py
@@ -7152,12 +7152,12 @@ package:
     numpy: '>=1.26.0,<1.27.0'
     pillow: '>=10.3.0,<10.4.0'
     pydantic: '>=2.5.2,<3.0.0'
-  url: git+https://github.com/MiraGeoscience/geoh5py.git@fcd14f4a511583b410f91c3d8e97be1fc755bdb5
+  url: git+https://github.com/MiraGeoscience/geoh5py.git@d5298460115bff5ae1f6cfeed6d53361cd26c82a
   hash:
-    sha256: fcd14f4a511583b410f91c3d8e97be1fc755bdb5
+    sha256: d5298460115bff5ae1f6cfeed6d53361cd26c82a
   source:
     type: url
-    url: git+https://github.com/MiraGeoscience/geoh5py.git@fcd14f4a511583b410f91c3d8e97be1fc755bdb5
+    url: git+https://github.com/MiraGeoscience/geoh5py.git@d5298460115bff5ae1f6cfeed6d53361cd26c82a
   category: main
   optional: false
 - name: geoh5py
@@ -7169,11 +7169,11 @@ package:
     numpy: '>=1.26.0,<1.27.0'
     pillow: '>=10.3.0,<10.4.0'
     pydantic: '>=2.5.2,<3.0.0'
-  url: git+https://github.com/MiraGeoscience/geoh5py.git@fcd14f4a511583b410f91c3d8e97be1fc755bdb5
+  url: git+https://github.com/MiraGeoscience/geoh5py.git@d5298460115bff5ae1f6cfeed6d53361cd26c82a
   hash:
-    sha256: fcd14f4a511583b410f91c3d8e97be1fc755bdb5
+    sha256: d5298460115bff5ae1f6cfeed6d53361cd26c82a
   source:
     type: url
-    url: git+https://github.com/MiraGeoscience/geoh5py.git@fcd14f4a511583b410f91c3d8e97be1fc755bdb5
+    url: git+https://github.com/MiraGeoscience/geoh5py.git@d5298460115bff5ae1f6cfeed6d53361cd26c82a
   category: main
   optional: false

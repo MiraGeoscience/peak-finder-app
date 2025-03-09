@@ -54,13 +54,13 @@ tqdm = "^4.66.1"
 ## Pip dependencies from Git repositories
 #----------------------------------------
 #geoh5py = {version = ">=0.11.0a1, <0.12.dev", source = "pypi", allow-prereleases = true}  # also in geoapps-utils
-geoh5py = {git = "https://github.com/MiraGeoscience/geoh5py.git", rev = "develop"}
+geoh5py = {git = "https://github.com/MiraGeoscience/geoh5py.git", rev = "GEOPY-2049"}
 
 #geoapps-utils = {version = ">=0.5.0a1, <0.6.dev", source = "pypi", allow-prereleases = true}
-geoapps-utils = {git = "https://github.com/MiraGeoscience/geoapps-utils.git", rev = "develop"}
+geoapps-utils = {git = "https://github.com/MiraGeoscience/geoapps-utils.git", rev = "GEOPY-2049"}
 
 #curve-apps = {version = ">=0.3.0a1, <0.4.dev", source = "pypi", allow-prereleases = true}
-curve-apps = {git = "https://github.com/MiraGeoscience/curve-apps.git", rev = "develop"}
+curve-apps = {git = "https://github.com/MiraGeoscience/curve-apps.git", rev = "GEOPY-2049"}
 
 ## about pip dependencies
 # to be specified to work with conda-lock
