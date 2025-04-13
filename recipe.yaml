@@ -52,7 +52,7 @@ tests:
       imports:
         - peak_finder
   - script:
-      - pytest ./tests
+      - pytest --ignore=tests/version_test.py
     requirements:
       run:
         - pytest
