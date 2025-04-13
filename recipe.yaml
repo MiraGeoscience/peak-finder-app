@@ -19,7 +19,7 @@ build:
 
 requirements:
   host:
-    - python 3.10.*
+    - python ${{python_min}}.*
     - poetry-core >=1.0.0
     - setuptools
     - pip
