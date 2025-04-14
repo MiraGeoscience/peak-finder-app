@@ -2,7 +2,7 @@ schema_version: 1
 
 context:
   name: peak-finder-app
-  version: 0.2.1a2
+  version: 0.3.0a1
   python_min: "3.10"
 
 package:
