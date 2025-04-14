@@ -26,9 +26,9 @@ requirements:
   run:
     - python >=${{ python_min }}
     # Mira packages
-    - curve-apps >=0.2.1a1, <0.3.dev
-    - geoapps-utils >=0.5.0a3, <0.6.dev
-    - geoh5py >=0.11.0a3, <0.12.dev
+    - curve-apps >=0.3.0a, <0.4.dev
+    - geoapps-utils >=0.6.0a, <0.7.dev
+    - geoh5py >=0.12.0a, <0.13.dev
     # direct dependencies
     - dask-core >=2025.3,<2025.4.dev
     - distributed >=2025.3,<2025.4.dev
