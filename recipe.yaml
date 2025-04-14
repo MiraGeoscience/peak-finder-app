@@ -2,7 +2,8 @@ schema_version: 1
 
 context:
   name: peak-finder-app
-  version: 0.3.0a1
+  version: 0.2.1a2
+  python_min: "3.10"
 
 package:
   name: ${{ name|lower }}
@@ -18,43 +19,61 @@ build:
 
 requirements:
   host:
-    - python >=3.10.0,<3.11
+    - python ${{python_min}}.*
     - poetry-core >=1.0.0
     - setuptools
     - pip
   run:
-    - python >=3.10.0,<3.11
-    - dask-core 2024.06.*
-    - distributed 2024.06.*
-    - numpy >=1.26.0,<1.27.0
-    - plotly >=5.19.0,<5.20.0
-    - scipy >=1.14.0,<1.15.0
-    - tqdm >=4.66.1,<5.0.0
-    - geoh5py >=0.11.0a1,<0.12.0a.dev
-    - geoapps-utils >=0.5.0a1,<0.6.0a.dev
-    - curve-apps >=0.3.0a1,<0.4.0a.dev
-    - h5py >=3.2.1,<4.0.0
-    - pillow >=10.3.0,<10.4.0
-    - pydantic >=2.5.2,<2.6.0
-    - scikit-image >=0.24.0,<0.25.0
+    - python >=${{ python_min }}
+    # Mira packages
+    - curve-apps >=0.2.1a1, <0.3.dev
+    - geoapps-utils >=0.5.0a3, <0.6.dev
+    - geoh5py >=0.11.0a3, <0.12.dev
+    # direct dependencies
+    - dask-core >=2025.3,<2025.4.dev
+    - distributed >=2025.3,<2025.4.dev
+    - h5py >=3.2.1, <4.0.dev
+    - numpy >=1.26.0, <1.27.dev
+    - pillow >=10.3.0, <10.4.dev
+    - plotly >=5.19.0, <5.20.dev
+    - pydantic >=2.5.2, <3.0.dev
+    - scikit-image >=0.24.0, <0.25.dev
+    - scipy >=1.14.0, <1.15.dev
+    - tqdm >=4.66.1, <5.0.dev
   run_constraints:
-    - dash >=2.12.0,<3.0.0
-    - dash-daq >=0.5.0,<0.6.0
-    - flask >=3.0.3,<4.0.0
-    - pyqtwebengine >=5.15.2,<5.15.7
-    - pyside2 >=5.15.2.1,<5.15.3
-    - pyqt5-qt5 5.15.2
-    - pyqtwebengine-qt5 5.15.2
+    - dash >=2.12.0,<3.0.dev
+    - dash-daq >=0.5.0,<0.6.dev
+    - flask >=3.0.3,<4.0.dev
+    - pyqtwebengine >=5.15.9,<5.16.dev
+    - pyside2 >=5.15.15,<5.16.dev
 
 tests:
   - python:
       imports:
         - peak_finder
-  - requirements:
+        - geoh5py
+        - dask
+        - distributed
+
+      # `pip check` fails on missing dask-core because it only sees name 'dask'
+      # Possibly, use custom mapping for dask => dask-core
+      # See `conda-lock --pypi_to_conda_lookup_file`, or the `pixi` option "conda-pypi-map"
+      pip_check: false
+  - script:
+      - pytest --ignore=tests/version_test.py
+      - pip list
+    requirements:
       run:
         - pip
-    script:
-      - pip check
+        - pytest
+        - dash >=2.12.0,<3.0.dev
+        - dash-daq >=0.5.0,<0.6.dev
+        - flask >=3.0.3,<4.0.dev
+        - pyqtwebengine >=5.15.9,<5.16.dev
+        - pyside2 >=5.15.15,<5.16.dev
+    files:
+      source:
+        - tests/
 
 about:
   summary: Peak Finder App
@@ -70,5 +89,5 @@ about:
 
 extra:
   recipe-maintainers:
-    - SophieCurinier
+    - andrewg-mira
     - sebhmg
