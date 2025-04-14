@@ -51,10 +51,20 @@ tests:
   - python:
       imports:
         - peak_finder
+        - geoh5py
+        - dask
+        - distributed
+
+      # `pip check` fails on missing dask-core because it only sees name 'dask'
+      # Possibly, use custom mapping for dask => dask-core
+      # See `conda-lock --pypi_to_conda_lookup_file`, or the `pixi` option "conda-pypi-map"
+      pip_check: false
   - script:
       - pytest --ignore=tests/version_test.py
+      - pip list
     requirements:
       run:
+        - pip
         - pytest
     files:
       source:
