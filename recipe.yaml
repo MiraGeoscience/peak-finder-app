@@ -13,9 +13,9 @@ source:
   path: ../${{ name }}
 
 build:
-  number: 0
+  number: 1
   noarch: python
-  script: ${{ PYTHON }} -m pip install . -vv --no-deps --no-build-isolation
+  script: ${{ PYTHON }} -m pip install .[dash] -vv --no-deps --no-build-isolation
 
 requirements:
   host:
@@ -29,7 +29,7 @@ requirements:
     - curve-apps >=0.2.1a1, <0.3.dev
     - geoapps-utils >=0.5.0a3, <0.6.dev
     - geoh5py >=0.11.0a3, <0.12.dev
-    # direct dependencies
+    # other direct dependencies
     - dask-core >=2025.3,<2025.4.dev
     - distributed >=2025.3,<2025.4.dev
     - h5py >=3.2.1, <4.0.dev
@@ -40,7 +40,7 @@ requirements:
     - scikit-image >=0.24.0, <0.25.dev
     - scipy >=1.14.0, <1.15.dev
     - tqdm >=4.66.1, <5.0.dev
-  run_constraints:
+    # dependencies for installation with extra=dash
     - dash >=2.12.0,<3.0.dev
     - dash-daq >=0.5.0,<0.6.dev
     - flask >=3.0.3,<4.0.dev
@@ -66,11 +66,6 @@ tests:
       run:
         - pip
         - pytest
-        - dash >=2.12.0,<3.0.dev
-        - dash-daq >=0.5.0,<0.6.dev
-        - flask >=3.0.3,<4.0.dev
-        - pyqtwebengine >=5.15.9,<5.16.dev
-        - pyside2 >=5.15.15,<5.16.dev
     files:
       source:
         - tests/
