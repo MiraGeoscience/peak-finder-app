@@ -57,6 +57,7 @@ tests:
         - geoh5py
         - dask
         - distributed
+        - PySide2.QtWebEngineWidgets
       pip_check: true
 
   - script:
