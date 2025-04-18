@@ -48,10 +48,17 @@ distributed = ">=2025.3, <2025.4.dev"  # for dask[distributed]
 flask = {version="^3.0.3", optional = true}
 numpy = "~1.26.0"  # also in geoapps-utils, geoh5py
 plotly = "~5.19.0"
-pyqtwebengine = {version = "~5.15.9", optional = true}
-pyside2 = {version = "~5.15.15", optional = true}
 scipy = "~1.14.0"
 tqdm = "^4.66.1"
+
+# Note about packages for pyside2 and pyqtwebengine:
+#   - latest version for pip packages is 5.12.2, while Conda has more recent 5.* versions
+#   - pip packages only exists for python < 3.11, while Conda has them for Python 3.11 and 3.12
+#   - limit below to Python < 3.11 is ignored by conda-lock,
+#   => conda-lock resolves to the latest version available in conda-forge for any Python versions
+#      and this dependency definition is still compatible for a pip install
+pyqtwebengine = {version = ">=5.15.2, <5.16.dev", optional = true, python = "<3.11"}
+pyside2 = {version = ">=5.15.2, <5.16.dev", optional = true, python = "<3.11"}
 
 ## Pip dependencies from Git repositories
 #----------------------------------------

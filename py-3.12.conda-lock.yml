@@ -17,8 +17,8 @@
 version: 1
 metadata:
   content_hash:
-    win-64: 12367c84edbe36db06d37f094e0d430f95260a12752c00827590237b9aacf136
-    linux-64: f73afee1e1ac4d7151af7ae8bd34c3312899641c9ed52521defed728f6a13511
+    win-64: 6e56deebf3c074295e8626072b3810c7598ba7619e95c3712f1977e4b5e3d7fb
+    linux-64: e7d85ddc388a02d22ff782bf73382138e48a18b2741077b62c716794d1a54b20
   channels:
   - url: conda-forge
     used_env_vars: []
@@ -2960,17 +2960,17 @@ package:
   category: main
   optional: false
 - name: libgpg-error
-  version: '1.53'
+  version: '1.54'
   manager: conda
   platform: linux-64
   dependencies:
     __glibc: '>=2.17,<3.0.a0'
     libgcc: '>=13'
     libstdcxx: '>=13'
-  url: https://packages.prefix.dev/conda-forge/linux-64/libgpg-error-1.53-hbd13f7d_0.conda
+  url: https://packages.prefix.dev/conda-forge/linux-64/libgpg-error-1.54-hbd13f7d_0.conda
   hash:
-    md5: 95c5d6d9342880f326dec08ab4cd6253
-    sha256: 64602a029d89356f62e4999c8f1b64a0a193fbaed6dfc79d8cd9a763545b2061
+    md5: 53fab32c797ccdb5bb7a4c147ea154d8
+    sha256: 6800627debbed15421bc211366df399ad8aa80ec9fb749c276e8bf5260ef1ec3
   category: dash
   optional: true
 - name: libhwloc
