@@ -41,11 +41,14 @@ requirements:
     - scipy >=1.14.0, <1.15.dev
     - tqdm >=4.66.1, <5.0.dev
     # dependencies for installation with extra=dash
-    - dash >=2.12.0,<3.0.dev
-    - dash-daq >=0.5.0,<0.6.dev
-    - flask >=3.0.3,<4.0.dev
-    - pyqtwebengine >=5.15.9,<5.16.dev
-    - pyside2 >=5.15.15,<5.16.dev
+    - dash >=2.12.0, <3.0.dev
+    - dash-core-components >=2, <3.dev
+    - dash-html-components >=2, <3.dev
+    - dash-table >=5, <6.dev
+    - dash-daq >=0.5.0, <0.6.dev
+    - flask >=3.0.3, <4.0.dev
+    - pyqtwebengine >=5.15.9, <5.16.dev
+    - pyside2 >=5.15.15, <5.16.dev
 
 tests:
   - python:
@@ -54,11 +57,9 @@ tests:
         - geoh5py
         - dask
         - distributed
+        - PySide2.QtWebEngineWidgets
+      pip_check: true
 
-      # `pip check` fails on missing dask-core because it only sees name 'dask'
-      # Possibly, use custom mapping for dask => dask-core
-      # See `conda-lock --pypi_to_conda_lookup_file`, or the `pixi` option "conda-pypi-map"
-      pip_check: false
   - script:
       - pytest --ignore=tests/version_test.py
       - pip list
@@ -76,8 +77,7 @@ about:
     Peak-finder-app is a package for the detection and grouping of time-domain electromagnetic
     (TEM) anomalies measured along flight lines.
   license: MIT
-  license_file:
-    - LICENSE
+  license_file: LICENSE
   homepage: https://www.mirageoscience.com/mining-industry-software/python-integration/
   repository: https://github.com/MiraGeoscience/peak-finder-app
   documentation: https://mirageoscience-peak-finder-app.readthedocs-hosted.com/
