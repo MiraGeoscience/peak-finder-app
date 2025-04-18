@@ -43,8 +43,8 @@ dash = {version="^2.12", optional = true}
 dash-daq = {version="0.5.*", optional = true}
 
 # note: py-deps-clock defines custom mapping from dask to dask-core
-dask = {version = "2025.3.*", source = "pypi"}  # also in simpeg[dask]
-distributed = "2025.3.*"  # for dask[distributed]
+dask = ">=2025.3, <2025.4.dev"  # also in simpeg[dask]
+distributed = ">=2025.3, <2025.4.dev"  # for dask[distributed]
 flask = {version="^3.0.3", optional = true}
 numpy = "~1.26.0"  # also in geoapps-utils, geoh5py
 plotly = "~5.19.0"
