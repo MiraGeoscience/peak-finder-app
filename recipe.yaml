@@ -41,11 +41,14 @@ requirements:
     - scipy >=1.14.0, <1.15.dev
     - tqdm >=4.66.1, <5.0.dev
     # dependencies for installation with extra=dash
-    - dash >=2.12.0,<3.0.dev
-    - dash-daq >=0.5.0,<0.6.dev
-    - flask >=3.0.3,<4.0.dev
-    - pyqtwebengine >=5.15.9,<5.16.dev
-    - pyside2 >=5.15.15,<5.16.dev
+    - dash >=2.12.0, <3.0.dev
+    - dash-core-components >=2, <3.dev
+    - dash-html-components >=2, <3.dev
+    - dash-table >=5, <6.dev
+    - dash-daq >=0.5.0, <0.6.dev
+    - flask >=3.0.3, <4.0.dev
+    - pyqtwebengine >=5.15.9, <5.16.dev
+    - pyside2 >=5.15.15, <5.16.dev
 
 tests:
   - python:
