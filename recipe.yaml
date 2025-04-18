@@ -54,11 +54,8 @@ tests:
         - geoh5py
         - dask
         - distributed
-
-      # `pip check` fails on missing dask-core because it only sees name 'dask'
-      # Possibly, use custom mapping for dask => dask-core
-      # See `conda-lock --pypi_to_conda_lookup_file`, or the `pixi` option "conda-pypi-map"
-      pip_check: false
+      pip_check: true
+  
   - script:
       - pytest --ignore=tests/version_test.py
       - pip list
@@ -76,8 +73,7 @@ about:
     Peak-finder-app is a package for the detection and grouping of time-domain electromagnetic
     (TEM) anomalies measured along flight lines.
   license: MIT
-  license_file:
-    - LICENSE
+  license_file: LICENSE
   homepage: https://www.mirageoscience.com/mining-industry-software/python-integration/
   repository: https://github.com/MiraGeoscience/peak-finder-app
   documentation: https://mirageoscience-peak-finder-app.readthedocs-hosted.com/

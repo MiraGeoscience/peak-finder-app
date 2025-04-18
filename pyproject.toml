@@ -41,8 +41,10 @@ python = ">=3.10, <3.13"
 
 dash = {version="^2.12", optional = true}
 dash-daq = {version="0.5.*", optional = true}
-dask-core = "2025.3.*"
-distributed = "2025.3.*"  # conda needs explicit dask-core etc for equivalent dask[distributed]
+
+# note: py-deps-clock defines custom mapping from dask to dask-core
+dask = {version = "2025.3.*", source = "pypi"}  # also in simpeg[dask]
+distributed = "2025.3.*"  # for dask[distributed]
 flask = {version="^3.0.3", optional = true}
 numpy = "~1.26.0"  # also in geoapps-utils, geoh5py
 plotly = "~5.19.0"
@@ -71,13 +73,6 @@ curve-apps = {version = ">=0.2.1a1, <0.3.dev", source = "pypi", allow-prerelease
 # - to actually lock on a revision: my_package = { git = "https://github.com/ORGANISATION/REPO.git", rev = "GIT_REV" }
 #   (where rev value is a tag, a branch name or a commit hash). Can also use ``branch`` or ``tag`` instead of ``rev``
 
-## indirect dependencies, forcing them here for installation through Conda not pip
-#---------------------------------------------------------------------------------
-h5py = ">=3.2.1, <4.0.dev"  # from geoh5py
-Pillow = ">=10.3.0, <10.4.dev"  # from geoh5py
-pydantic = ">=2.5.2, <3.0.dev"  # from geoh5py, curve-apps, geoapps-utils
-scikit-image = ">=0.24.0, <0.25.dev"  # from curve-apps, also used by geo-unsup-mapper
-
 [tool.poetry.group.dev.dependencies]
 Pygments = "*"
 pylint = "*"
@@ -104,6 +99,15 @@ dash = [
 [tool.conda-lock]
 platforms = ['win-64', 'linux-64']
 channels = ['conda-forge']
+
+[tool.conda-lock.dependencies]
+
+## indirect dependencies, forcing them here for installation through Conda not pip
+#---------------------------------------------------------------------------------
+h5py = ">=3.2.1, <4.0.dev"  # from geoh5py
+Pillow = ">=10.3.0, <10.4.dev"  # from geoh5py
+pydantic = ">=2.5.2, <3.0.dev"  # from geoh5py, curve-apps, geoapps-utils
+scikit-image = ">=0.24.0, <0.25.dev"  # from curve-apps, also used by geo-unsup-mapper
 
 [tool.isort]
 profile = "black"
