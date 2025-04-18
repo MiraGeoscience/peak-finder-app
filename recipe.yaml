@@ -55,7 +55,7 @@ tests:
         - dask
         - distributed
       pip_check: true
-  
+
   - script:
       - pytest --ignore=tests/version_test.py
       - pip list
