@@ -7,7 +7,7 @@
 #  (see LICENSE file at the root of this source code package).                      '
 # '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
-__version__ = "0.2.1-alpha.3"
+__version__ = "0.2.1-alpha.4"
 
 import os
 import warnings
