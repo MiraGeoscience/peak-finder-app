@@ -17,8 +17,8 @@
 version: 1
 metadata:
   content_hash:
-    win-64: 23146d2c02568016d41ffccf7239ec8360a2fb3dae68d37f16acb45ba084089a
-    linux-64: 5a6c097d1042e0bc9325540bd78d24d85b91a7792cb21b747615e07e911570ea
+    win-64: 8c602a761c056784141f1537a62de52eb450531334ad9aa47901f6d00595b057
+    linux-64: 3ea5651718f7d031367256a7e317161f4bb745e9952f0d08a58dc5d4cac7b01e
   channels:
   - url: conda-forge
     used_env_vars: []
@@ -887,6 +887,32 @@ package:
     sha256: 3d6c1366f1f3cd1f0793dce70fca10650518ace162bb65fca640bd4b33ce8986
   category: dash
   optional: true
+- name: dash-core-components
+  version: 2.0.0
+  manager: conda
+  platform: linux-64
+  dependencies:
+    dash: '>=2.0.0'
+    python: '>=3.6'
+  url: https://packages.prefix.dev/conda-forge/noarch/dash-core-components-2.0.0-pyhd8ed1ab_1.tar.bz2
+  hash:
+    md5: c8d6a25578f40106a36765e7932fda90
+    sha256: 62b1ab5d1d8bd5e4f36e8120a7d2b9643c716aad27ae84de9bdd555fb008b34f
+  category: dash
+  optional: true
+- name: dash-core-components
+  version: 2.0.0
+  manager: conda
+  platform: win-64
+  dependencies:
+    dash: '>=2.0.0'
+    python: '>=3.6'
+  url: https://packages.prefix.dev/conda-forge/noarch/dash-core-components-2.0.0-pyhd8ed1ab_1.tar.bz2
+  hash:
+    md5: c8d6a25578f40106a36765e7932fda90
+    sha256: 62b1ab5d1d8bd5e4f36e8120a7d2b9643c716aad27ae84de9bdd555fb008b34f
+  category: dash
+  optional: true
 - name: dash-daq
   version: 0.5.0
   manager: conda
@@ -911,6 +937,58 @@ package:
   hash:
     md5: 0e0f9a45cefd5e52030555503618cb18
     sha256: 3b9d0e8a34c7c3b73a17ab03727304165cb06bb6c833303263f61f109820d4f3
+  category: dash
+  optional: true
+- name: dash-html-components
+  version: 2.0.0
+  manager: conda
+  platform: linux-64
+  dependencies:
+    dash: '>=2.0.0'
+    python: '>=3.9'
+  url: https://packages.prefix.dev/conda-forge/noarch/dash-html-components-2.0.0-pyhd8ed1ab_2.conda
+  hash:
+    md5: 7ff2cab17bcfe46dff51259a7dd584d6
+    sha256: b78b6cd2a4ed2b7eded3288a144a52a934a95fae465080d19e557f90c19dcf31
+  category: dash
+  optional: true
+- name: dash-html-components
+  version: 2.0.0
+  manager: conda
+  platform: win-64
+  dependencies:
+    dash: '>=2.0.0'
+    python: '>=3.9'
+  url: https://packages.prefix.dev/conda-forge/noarch/dash-html-components-2.0.0-pyhd8ed1ab_2.conda
+  hash:
+    md5: 7ff2cab17bcfe46dff51259a7dd584d6
+    sha256: b78b6cd2a4ed2b7eded3288a144a52a934a95fae465080d19e557f90c19dcf31
+  category: dash
+  optional: true
+- name: dash-table
+  version: 5.0.0
+  manager: conda
+  platform: linux-64
+  dependencies:
+    dash: '>=2.0.0'
+    python: '>=3.6'
+  url: https://packages.prefix.dev/conda-forge/noarch/dash-table-5.0.0-pyhd8ed1ab_1.tar.bz2
+  hash:
+    md5: 0f3a1ab1be91a4a3fe0d36544a5c8bdd
+    sha256: 98dca97cb2ff00777647ed0c706a7e784270e7569cfa0644511d0100687a9396
+  category: dash
+  optional: true
+- name: dash-table
+  version: 5.0.0
+  manager: conda
+  platform: win-64
+  dependencies:
+    dash: '>=2.0.0'
+    python: '>=3.6'
+  url: https://packages.prefix.dev/conda-forge/noarch/dash-table-5.0.0-pyhd8ed1ab_1.tar.bz2
+  hash:
+    md5: 0f3a1ab1be91a4a3fe0d36544a5c8bdd
+    sha256: 98dca97cb2ff00777647ed0c706a7e784270e7569cfa0644511d0100687a9396
   category: dash
   optional: true
 - name: dask-core
