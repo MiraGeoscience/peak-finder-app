@@ -60,6 +60,12 @@ tqdm = "^4.66.1"
 pyqtwebengine = {version = ">=5.15.2, <5.16.dev", optional = true, python = "<3.11"}
 pyside2 = {version = ">=5.15.2, <5.16.dev", optional = true, python = "<3.11"}
 
+## Conda package is missing the Dash dependencies: list them explicitly
+#----------------------------------------------------------------------
+dash-core-components = {version = ">=2, <3.dev", optional = true}
+dash-html-components = {version = ">=2, <3.dev", optional = true}
+dash-table = {version = ">=5, <6.dev", optional = true}
+
 ## Pip dependencies from Git repositories
 #----------------------------------------
 #geoh5py = {version = ">=0.12.0a, <0.13.dev", source = "pypi", allow-prereleases = true}  # also in geoapps-utils
@@ -101,6 +107,10 @@ dash = [
     "pyqtwebengine",
     "pyqtwebengine-qt5",
     "pyside2",
+    # Dash dependencies (needed here as they got explicitly listed for Conda)
+    "dash-core-components",
+    "dash-html-components",
+    "dash-table",
 ]
 
 [tool.conda-lock]
