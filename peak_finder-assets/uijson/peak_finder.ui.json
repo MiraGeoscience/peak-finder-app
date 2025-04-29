@@ -1,6 +1,8 @@
 {
-    "version": "0.1.0",
-    "title": "Peak Finder Parameters",
+    "version": "0.2.1-alpha.3",
+    "title": "Peak Finder",
+    "icon": "profile_drag_single",
+    "documentation": "https://mirageoscience-peak-finder-app.readthedocs-hosted.com/",
     "conda_environment": "peak-finder-app",
     "run_command": "peak_finder.application",
     "geoh5": "",
@@ -17,7 +19,7 @@
     },
     "flip_sign": {
         "main": false,
-        "group": "Detection Parameters",
+        "group": "Detection parameters",
         "label": "Flip sign",
         "value": false
     },
@@ -26,7 +28,7 @@
         "dataType": "Referenced",
         "group": "Data",
         "main": true,
-        "label": "Line Field",
+        "label": "Line field",
         "parent": "objects",
         "optional": true,
         "enabled": false,
@@ -35,59 +37,59 @@
     "masking_data": {
         "association": "Vertex",
         "dataType": "Boolean",
-        "group": "Detection Parameters",
+        "group": "Detection parameters",
         "main": false,
-        "label": "Masking Data",
+        "label": "Masking data",
         "optional": true,
         "enabled": false,
         "parent": "objects",
         "value": ""
     },
     "smoothing": {
-        "group": "Detection Parameters",
+        "group": "Detection parameters",
         "label": "Smoothing window",
         "main": false,
         "value": 6
     },
     "min_amplitude": {
-        "group": "Detection Parameters",
-        "label": "Minimum Amplitude (%)",
+        "group": "Detection parameters",
+        "label": "Minimum amplitude (%)",
         "value": 1.0,
         "main": false
     },
     "min_value": {
-        "group": "Detection Parameters",
-        "label": "Minimum Value",
+        "group": "Detection parameters",
+        "label": "Minimum value",
         "value": 0.0,
         "main": false
     },
     "min_width": {
-        "group": "Detection Parameters",
-        "label": "Minimum Width (m)",
+        "group": "Detection parameters",
+        "label": "Minimum width (m)",
         "value": 100.0,
         "main": false
     },
     "max_migration": {
-        "group": "Detection Parameters",
-        "label": "Maximum Peak Migration (m)",
+        "group": "Detection parameters",
+        "label": "Maximum peak migration (m)",
         "value": 25.0,
         "main": false
     },
     "min_channels": {
-        "group": "Detection Parameters",
-        "label": "Minimum # Channels",
+        "group": "Detection parameters",
+        "label": "Minimum # channels",
         "value": 1,
         "main": false
     },
     "n_groups": {
-        "group": "Detection Parameters",
-        "label": "Merge # Peaks",
+        "group": "Detection parameters",
+        "label": "Merge # peaks",
         "value": 1,
         "main": false
     },
     "max_separation": {
-        "group": "Detection Parameters",
-        "label": "Max Separation",
+        "group": "Detection parameters",
+        "label": "Max separation",
         "value": 1.0,
         "main": false
     },
@@ -97,7 +99,7 @@
         "association": "Vertex",
         "group": "Group A",
         "dataGroupType": "Multi-element",
-        "label": "Property Group",
+        "label": "Data group",
         "parent": "objects",
         "value": ""
     },
@@ -105,7 +107,7 @@
         "main": true,
         "dataType": "Text",
         "group": "Group A",
-        "label": "Color",
+        "label": "Colour",
         "value": "#0000FF"
     },
     "ga_group_name": {
@@ -133,7 +135,7 @@
         "association": "Vertex",
         "group": "Group B",
         "dataGroupType": "Multi-element",
-        "label": "Property Group",
+        "label": "Data group",
         "parent": "objects",
         "optional": true,
         "enabled": false,
@@ -143,7 +145,7 @@
         "main": false,
         "dataType": "Text",
         "group": "Group B",
-        "label": "Color",
+        "label": "Colour",
         "dependency": "group_b_data",
         "dependencyType": "enabled",
         "value": "#FFFF00"
@@ -153,7 +155,7 @@
         "association": "Vertex",
         "group": "Group C",
         "dataGroupType": "Multi-element",
-        "label": "Property Group",
+        "label": "Data group",
         "parent": "objects",
         "optional": true,
         "enabled": false,
@@ -163,7 +165,7 @@
         "main": false,
         "dataType": "Text",
         "group": "Group C",
-        "label": "Color",
+        "label": "Colour",
         "dependency": "group_c_data",
         "dependencyType": "enabled",
         "value": "#FF0000"
@@ -173,7 +175,7 @@
         "association": "Vertex",
         "group": "Group D",
         "dataGroupType": "Multi-element",
-        "label": "Property Group",
+        "label": "Data group",
         "parent": "objects",
         "optional": true,
         "enabled": false,
@@ -183,7 +185,7 @@
         "main": false,
         "dataType": "Text",
         "group": "Group D",
-        "label": "Color",
+        "label": "Colour",
         "dependency": "group_d_data",
         "dependencyType": "enabled",
         "value": "#00FFFF"
@@ -193,7 +195,7 @@
         "association": "Vertex",
         "group": "Group E",
         "dataGroupType": "Multi-element",
-        "label": "Property Group",
+        "label": "Data group",
         "parent": "objects",
         "optional": true,
         "enabled": false,
@@ -203,7 +205,7 @@
         "main": false,
         "dataType": "Text",
         "group": "Group E",
-        "label": "Color",
+        "label": "Colour",
         "dependency": "group_e_data",
         "dependencyType": "enabled",
         "value": "#008000"
@@ -213,7 +215,7 @@
         "association": "Vertex",
         "group": "Group F",
         "dataGroupType": "Multi-element",
-        "label": "Property Group",
+        "label": "Data group",
         "parent": "objects",
         "optional": true,
         "enabled": false,
@@ -223,7 +225,7 @@
         "main": false,
         "dataType": "Text",
         "group": "Group F",
-        "label": "Color",
+        "label": "Colour",
         "dependency": "group_f_data",
         "dependencyType": "enabled",
         "value": "#FFA500"
