@@ -2,7 +2,7 @@ schema_version: 1
 
 context:
   name: peak-finder-app
-  version: 0.2.1a4
+  version: 0.2.1
   python_min: "3.10"
 
 package:
@@ -13,7 +13,7 @@ source:
   path: ../${{ name }}
 
 build:
-  number: 1
+  number: 0
   noarch: python
   script: ${{ PYTHON }} -m pip install .[dash] -vv --no-deps --no-build-isolation
 
@@ -26,9 +26,9 @@ requirements:
   run:
     - python >=${{ python_min }}
     # Mira packages
-    - curve-apps >=0.2.1a1, <0.3.dev
-    - geoapps-utils >=0.5.0a3, <0.6.dev
-    - geoh5py >=0.11.0a3, <0.12.dev
+    - curve-apps >=0.2.1, <0.3.dev
+    - geoapps-utils >=0.5.0, <0.6.dev
+    - geoh5py >=0.11.0, <0.12.dev
     # other direct dependencies
     - dask-core >=2025.3,<2025.4.dev
     - distributed >=2025.3,<2025.4.dev
