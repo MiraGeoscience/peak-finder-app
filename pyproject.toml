@@ -14,7 +14,7 @@ requires-python = ">=3.10,<4.0"
 license = { text = "MIT" }
 description = "Peak Finder App"
 authors = [{ name = "Mira Geoscience", email = "support@mirageoscience.com" }]
-maintainers = [  
+maintainers = [
       { name = "Dominique Fournier", email = "dominiquef@mirageoscience.com" }
 ]
 
@@ -180,4 +180,3 @@ fail_under = 75
 [tool.coverage.html]
 skip_empty = true
 skip_covered = true
-
