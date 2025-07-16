@@ -11,17 +11,17 @@ dependencies:
   - alabaster=0.7.16=pyhd8ed1ab_0
   - annotated-types=0.7.0=pyhd8ed1ab_1
   - aom=3.9.1=he0c23c2_0
-  - astroid=3.3.10=py310h5588dad_0
+  - astroid=3.3.11=py310h5588dad_0
   - babel=2.17.0=pyhd8ed1ab_0
   - blinker=1.9.0=pyhff2d567_0
   - blosc=1.21.6=hfd34d9b_1
   - brotli-python=1.1.0=py310h9e98ed7_3
   - bzip2=1.0.8=h2466b09_7
   - c-blosc2=2.19.0=h3cf07e4_0
-  - ca-certificates=2025.7.9=h4c7d964_0
+  - ca-certificates=2025.7.14=h4c7d964_0
   - cached-property=1.5.2=hd8ed1ab_1
   - cached_property=1.5.2=pyha770c72_1
-  - certifi=2025.7.9=pyhd8ed1ab_0
+  - certifi=2025.7.14=pyhd8ed1ab_0
   - cffi=1.17.1=py310ha8f682b_0
   - charls=2.4.2=h1537add_0
   - charset-normalizer=3.4.2=pyhd8ed1ab_0
@@ -43,7 +43,7 @@ dependencies:
   - exceptiongroup=1.3.0=pyhd8ed1ab_0
   - flask=3.1.1=pyhd8ed1ab_0
   - freetype=2.13.3=h57928b3_1
-  - fsspec=2025.5.1=pyhd8ed1ab_0
+  - fsspec=2025.7.0=pyhd8ed1ab_0
   - giflib=5.2.2=h64bf75a_0
   - glib=2.84.2=he8f994d_0
   - glib-tools=2.84.2=h4394cf3_0
@@ -204,9 +204,9 @@ dependencies:
   - zstandard=0.23.0=py310ha8f682b_2
   - zstd=1.5.7=hbeecb71_2
   - pip:
-    - curve-apps @ git+https://github.com/MiraGeoscience/curve-apps.git@f55b5dbff0a9d92b3194189217dac3bf8965ea52
+    - curve-apps @ git+https://github.com/MiraGeoscience/curve-apps.git@549ac806a7cc532deccdd261dc9315bcfe1f8031
     - geoapps-utils @ git+https://github.com/MiraGeoscience/geoapps-utils.git@c64e2db54bfdacc19ef675a7d54288aaad8b78a8
-    - geoh5py @ git+https://github.com/MiraGeoscience/geoh5py.git@87f68c3a25cb3fac2a4c9de8c0d74ec4e58d0963
+    - geoh5py @ git+https://github.com/MiraGeoscience/geoh5py.git@a29cd93edd90cc7ad20c227104c58150a69c6c34
 
 variables:
   KMP_WARNINGS: 0
