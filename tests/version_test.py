@@ -25,10 +25,12 @@ import peak_finder
 
 def get_pyproject_version():
     path = Path(__file__).resolve().parents[1] / "pyproject.toml"
+    print(f"Looking for pyproject.toml at: {path}")
 
     with open(str(path), encoding="utf-8") as file:
         pyproject = toml.loads(file.read())
 
+    print(f"Pyproject content: {pyproject}")
     return pyproject["project"]["version"]
 
 
