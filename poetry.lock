@@ -2346,4 +2346,4 @@ dash = ["dash", "dash-core-components", "dash-daq", "dash-html-components", "das
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10, <3.13"
-content-hash = "9b0a485d7e37408d8aeaad9fa02f8632ab221b2001e6f6844166d9b1958dcc9c"
+content-hash = "3834763aee372ab83346d2b93606ee801fcf3759875e9f6e54df4ef85feb6b08"
