@@ -129,7 +129,7 @@ dependencies:
   - libglvnd=1.7.0=ha4b6fd6_2
   - libglx=1.7.0=ha4b6fd6_2
   - libgpg-error=1.55=h3f2d84a_0
-  - libhwloc=2.11.2=default_h0d58e46_1001
+  - libhwloc=2.11.2=default_h3d81e11_1002
   - libhwy=1.2.0=hf40a0c7_0
   - libiconv=1.18=h4ce23a2_1
   - libjpeg-turbo=3.1.0=hb9d3cd8_0

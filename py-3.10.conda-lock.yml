@@ -3045,13 +3045,13 @@ package:
   platform: linux-64
   dependencies:
     __glibc: '>=2.17,<3.0.a0'
-    libgcc: '>=13'
-    libstdcxx: '>=13'
-    libxml2: '>=2.13.4,<2.14.0a0'
-  url: https://repo.prefix.dev/conda-forge/linux-64/libhwloc-2.11.2-default_h0d58e46_1001.conda
+    libgcc: '>=14'
+    libstdcxx: '>=14'
+    libxml2: '>=2.13.8,<2.14.0a0'
+  url: https://repo.prefix.dev/conda-forge/linux-64/libhwloc-2.11.2-default_h3d81e11_1002.conda
   hash:
-    md5: 804ca9e91bcaea0824a341d55b1684f2
-    sha256: d14c016482e1409ae1c50109a9ff933460a50940d2682e745ab1c172b5282a69
+    md5: 56aacccb6356b6b6134a79cdf5688506
+    sha256: 2823a704e1d08891db0f3a5ab415a2b7e391a18f1e16d27531ef6a69ec2d36b9
   category: main
   optional: false
 - name: libhwloc
@@ -3060,14 +3060,14 @@ package:
   platform: win-64
   dependencies:
     libwinpthread: '>=12.0.0.r4.gg4f2fc60ca'
-    libxml2: '>=2.13.4,<2.14.0a0'
+    libxml2: '>=2.13.8,<2.14.0a0'
     ucrt: '>=10.0.20348.0'
-    vc: '>=14.2,<15'
-    vc14_runtime: '>=14.29.30139'
-  url: https://repo.prefix.dev/conda-forge/win-64/libhwloc-2.11.2-default_ha69328c_1001.conda
+    vc: '>=14.3,<15'
+    vc14_runtime: '>=14.44.35208'
+  url: https://repo.prefix.dev/conda-forge/win-64/libhwloc-2.11.2-default_h88281d1_1002.conda
   hash:
-    md5: b87a0ac5ab6495d8225db5dc72dd21cd
-    sha256: 850e255997f538d5fb6ed651321141155a33bb781d43d326fc4ff62114dd2842
+    md5: 46621eae093570430d56aa6b4e298500
+    sha256: dbc7d0536b4e1fb2361ca90a80b52cde1c85e0b159fa001f795e7d40e99438b0
   category: main
   optional: false
 - name: libhwy
