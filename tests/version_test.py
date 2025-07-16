@@ -19,7 +19,7 @@ from pathlib import Path
 import tomli as toml
 import yaml
 from jinja2 import Template
-from packaging.version import Version
+from packaging.version import InvalidVersion, Version
 
 import peak_finder
 
@@ -30,7 +30,7 @@ def get_pyproject_version():
     with open(str(path), encoding="utf-8") as file:
         pyproject = toml.loads(file.read())
 
-    return pyproject["tool"]["poetry"]["version"]
+    return pyproject["project"]["version"]
 
 
 def get_conda_recipe_version():
