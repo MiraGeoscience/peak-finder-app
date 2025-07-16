@@ -20,11 +20,11 @@ dependencies:
   - bzip2=1.0.8=h4bc722e_7
   - c-ares=1.34.5=hb9d3cd8_0
   - c-blosc2=2.19.0=h3122c55_0
-  - ca-certificates=2025.7.9=hbd8a1cb_0
+  - ca-certificates=2025.7.14=hbd8a1cb_0
   - cached-property=1.5.2=hd8ed1ab_1
   - cached_property=1.5.2=pyha770c72_1
   - cairo=1.18.4=h3394656_0
-  - certifi=2025.7.9=pyhd8ed1ab_0
+  - certifi=2025.7.14=pyhd8ed1ab_0
   - cffi=1.17.1=py310h8deb56e_0
   - charls=2.4.2=h59595ed_0
   - charset-normalizer=3.4.2=pyhd8ed1ab_0
@@ -51,7 +51,7 @@ dependencies:
   - fonts-conda-ecosystem=1=0
   - fonts-conda-forge=1=0
   - freetype=2.13.3=ha770c72_1
-  - fsspec=2025.5.1=pyhd8ed1ab_0
+  - fsspec=2025.7.0=pyhd8ed1ab_0
   - gettext=0.25.1=h5888daf_0
   - gettext-tools=0.25.1=h5888daf_0
   - giflib=5.2.2=hd590300_0
@@ -119,7 +119,7 @@ dependencies:
   - libglvnd=1.7.0=ha4b6fd6_2
   - libglx=1.7.0=ha4b6fd6_2
   - libgpg-error=1.55=h3f2d84a_0
-  - libhwloc=2.11.2=default_h0d58e46_1001
+  - libhwloc=2.11.2=default_h3d81e11_1002
   - libhwy=1.2.0=hf40a0c7_0
   - libiconv=1.18=h4ce23a2_1
   - libjpeg-turbo=3.1.0=hb9d3cd8_0
@@ -154,7 +154,7 @@ dependencies:
   - libxslt=1.1.39=h76b75d6_0
   - libzlib=1.3.1=hb9d3cd8_2
   - libzopfli=1.0.3=h9c3ff4c_0
-  - llvm-openmp=20.1.7=h024ca30_0
+  - llvm-openmp=20.1.8=h4922eb0_0
   - locket=1.0.0=pyhd8ed1ab_0
   - lz4-c=1.10.0=h5888daf_1
   - markupsafe=3.0.2=py310h89163eb_1
@@ -253,9 +253,9 @@ dependencies:
   - zstandard=0.23.0=py310ha75aee5_2
   - zstd=1.5.7=hb8e6e7a_2
   - pip:
-    - curve-apps @ git+https://github.com/MiraGeoscience/curve-apps.git@f55b5dbff0a9d92b3194189217dac3bf8965ea52
+    - curve-apps @ git+https://github.com/MiraGeoscience/curve-apps.git@549ac806a7cc532deccdd261dc9315bcfe1f8031
     - geoapps-utils @ git+https://github.com/MiraGeoscience/geoapps-utils.git@c64e2db54bfdacc19ef675a7d54288aaad8b78a8
-    - geoh5py @ git+https://github.com/MiraGeoscience/geoh5py.git@87f68c3a25cb3fac2a4c9de8c0d74ec4e58d0963
+    - geoh5py @ git+https://github.com/MiraGeoscience/geoh5py.git@a29cd93edd90cc7ad20c227104c58150a69c6c34
 
 variables:
   KMP_WARNINGS: 0

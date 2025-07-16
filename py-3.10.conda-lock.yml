@@ -156,31 +156,31 @@ package:
   category: main
   optional: false
 - name: astroid
-  version: 3.3.10
+  version: 3.3.11
   manager: conda
   platform: linux-64
   dependencies:
     python: '>=3.10,<3.11.0a0'
     python_abi: 3.10.*
     typing_extensions: '>=4'
-  url: https://repo.prefix.dev/conda-forge/linux-64/astroid-3.3.10-py310hff52083_0.conda
+  url: https://repo.prefix.dev/conda-forge/linux-64/astroid-3.3.11-py310hff52083_0.conda
   hash:
-    md5: 23d30197602d01c464d5ffec91091289
-    sha256: 8fc36a19f99ce069add5036b7956c993d17e6fdffe6d89094269ee44d5258376
+    md5: a6ac735bba663f77669789c9ed1d4bd1
+    sha256: 7546e57aceee80ff58388c6cfcc072f8c0df057a87bed551325a404b13b9012d
   category: dev
   optional: true
 - name: astroid
-  version: 3.3.10
+  version: 3.3.11
   manager: conda
   platform: win-64
   dependencies:
     python: '>=3.10,<3.11.0a0'
     python_abi: 3.10.*
     typing_extensions: '>=4'
-  url: https://repo.prefix.dev/conda-forge/win-64/astroid-3.3.10-py310h5588dad_0.conda
+  url: https://repo.prefix.dev/conda-forge/win-64/astroid-3.3.11-py310h5588dad_0.conda
   hash:
-    md5: 6eb388b714751d500899de8cb4b4f0fe
-    sha256: 9b1d89a07594eea4b095e36df447fd2f64e4e492256b7b91388378e51996517c
+    md5: 6f5ec356c2f46223dc446283fd39acb7
+    sha256: 2f4d34b9b4fb7c3902ba1f63e4d43625084a544993a7f14fac8403fbc1376246
   category: dev
   optional: true
 - name: attr
@@ -433,27 +433,27 @@ package:
   category: main
   optional: false
 - name: ca-certificates
-  version: 2025.7.9
+  version: 2025.7.14
   manager: conda
   platform: linux-64
   dependencies:
     __unix: ''
-  url: https://repo.prefix.dev/conda-forge/noarch/ca-certificates-2025.7.9-hbd8a1cb_0.conda
+  url: https://repo.prefix.dev/conda-forge/noarch/ca-certificates-2025.7.14-hbd8a1cb_0.conda
   hash:
-    md5: 54521bf3b59c86e2f55b7294b40a04dc
-    sha256: d2d7327b09d990d0f51e7aec859a5879743675e377fcf9b4ec4db2dbeb75e15d
+    md5: d16c90324aef024877d8713c0b7fea5b
+    sha256: 29defbd83c7829788358678ec996adeee252fa4d4274b7cd386c1ed73d2b201e
   category: main
   optional: false
 - name: ca-certificates
-  version: 2025.7.9
+  version: 2025.7.14
   manager: conda
   platform: win-64
   dependencies:
     __win: ''
-  url: https://repo.prefix.dev/conda-forge/noarch/ca-certificates-2025.7.9-h4c7d964_0.conda
+  url: https://repo.prefix.dev/conda-forge/noarch/ca-certificates-2025.7.14-h4c7d964_0.conda
   hash:
-    md5: c7a9b2d28779665c251e6a4db1f8cd23
-    sha256: 35c83fc1cab4b9aedba317ba617e37fee20e5ed1cf7135d8eba6f4d8cdf9c4b3
+    md5: 40334594f5916bc4c0a0313d64bfe046
+    sha256: a7fe9bce8a0f9f985d44940ec13a297df571ee70fb2264b339c62fa190b2c437
   category: main
   optional: false
 - name: cached-property
@@ -534,27 +534,27 @@ package:
   category: main
   optional: false
 - name: certifi
-  version: 2025.7.9
+  version: 2025.7.14
   manager: conda
   platform: linux-64
   dependencies:
     python: '>=3.9'
-  url: https://repo.prefix.dev/conda-forge/noarch/certifi-2025.7.9-pyhd8ed1ab_0.conda
+  url: https://repo.prefix.dev/conda-forge/noarch/certifi-2025.7.14-pyhd8ed1ab_0.conda
   hash:
-    md5: fac657ab965a05f69ba777a7b934255a
-    sha256: d5bcebb3748005b50479055b69bd6a19753219effcf921b9158ef3ff588c752b
+    md5: 4c07624f3faefd0bb6659fb7396cfa76
+    sha256: f68ee5038f37620a4fb4cdd8329c9897dce80331db8c94c3ab264a26a8c70a08
   category: main
   optional: false
 - name: certifi
-  version: 2025.7.9
+  version: 2025.7.14
   manager: conda
   platform: win-64
   dependencies:
     python: '>=3.9'
-  url: https://repo.prefix.dev/conda-forge/noarch/certifi-2025.7.9-pyhd8ed1ab_0.conda
+  url: https://repo.prefix.dev/conda-forge/noarch/certifi-2025.7.14-pyhd8ed1ab_0.conda
   hash:
-    md5: fac657ab965a05f69ba777a7b934255a
-    sha256: d5bcebb3748005b50479055b69bd6a19753219effcf921b9158ef3ff588c752b
+    md5: 4c07624f3faefd0bb6659fb7396cfa76
+    sha256: f68ee5038f37620a4fb4cdd8329c9897dce80331db8c94c3ab264a26a8c70a08
   category: main
   optional: false
 - name: cffi
@@ -1315,27 +1315,27 @@ package:
   category: main
   optional: false
 - name: fsspec
-  version: 2025.5.1
+  version: 2025.7.0
   manager: conda
   platform: linux-64
   dependencies:
     python: '>=3.9'
-  url: https://repo.prefix.dev/conda-forge/noarch/fsspec-2025.5.1-pyhd8ed1ab_0.conda
+  url: https://repo.prefix.dev/conda-forge/noarch/fsspec-2025.7.0-pyhd8ed1ab_0.conda
   hash:
-    md5: 2d2c9ef879a7e64e2dc657b09272c2b6
-    sha256: cd6ae92ae5aa91a7e58cf39f1442d4821279f43f1c9499d15f45558d4793d1e0
+    md5: a31ce802cd0ebfce298f342c02757019
+    sha256: f734d98cd046392fbd9872df89ac043d72ac15f6a2529f129d912e28ab44609c
   category: main
   optional: false
 - name: fsspec
-  version: 2025.5.1
+  version: 2025.7.0
   manager: conda
   platform: win-64
   dependencies:
     python: '>=3.9'
-  url: https://repo.prefix.dev/conda-forge/noarch/fsspec-2025.5.1-pyhd8ed1ab_0.conda
+  url: https://repo.prefix.dev/conda-forge/noarch/fsspec-2025.7.0-pyhd8ed1ab_0.conda
   hash:
-    md5: 2d2c9ef879a7e64e2dc657b09272c2b6
-    sha256: cd6ae92ae5aa91a7e58cf39f1442d4821279f43f1c9499d15f45558d4793d1e0
+    md5: a31ce802cd0ebfce298f342c02757019
+    sha256: f734d98cd046392fbd9872df89ac043d72ac15f6a2529f129d912e28ab44609c
   category: main
   optional: false
 - name: gettext
@@ -3045,13 +3045,13 @@ package:
   platform: linux-64
   dependencies:
     __glibc: '>=2.17,<3.0.a0'
-    libgcc: '>=13'
-    libstdcxx: '>=13'
-    libxml2: '>=2.13.4,<2.14.0a0'
-  url: https://repo.prefix.dev/conda-forge/linux-64/libhwloc-2.11.2-default_h0d58e46_1001.conda
+    libgcc: '>=14'
+    libstdcxx: '>=14'
+    libxml2: '>=2.13.8,<2.14.0a0'
+  url: https://repo.prefix.dev/conda-forge/linux-64/libhwloc-2.11.2-default_h3d81e11_1002.conda
   hash:
-    md5: 804ca9e91bcaea0824a341d55b1684f2
-    sha256: d14c016482e1409ae1c50109a9ff933460a50940d2682e745ab1c172b5282a69
+    md5: 56aacccb6356b6b6134a79cdf5688506
+    sha256: 2823a704e1d08891db0f3a5ab415a2b7e391a18f1e16d27531ef6a69ec2d36b9
   category: main
   optional: false
 - name: libhwloc
@@ -3060,14 +3060,14 @@ package:
   platform: win-64
   dependencies:
     libwinpthread: '>=12.0.0.r4.gg4f2fc60ca'
-    libxml2: '>=2.13.4,<2.14.0a0'
+    libxml2: '>=2.13.8,<2.14.0a0'
     ucrt: '>=10.0.20348.0'
-    vc: '>=14.2,<15'
-    vc14_runtime: '>=14.29.30139'
-  url: https://repo.prefix.dev/conda-forge/win-64/libhwloc-2.11.2-default_ha69328c_1001.conda
+    vc: '>=14.3,<15'
+    vc14_runtime: '>=14.44.35208'
+  url: https://repo.prefix.dev/conda-forge/win-64/libhwloc-2.11.2-default_h88281d1_1002.conda
   hash:
-    md5: b87a0ac5ab6495d8225db5dc72dd21cd
-    sha256: 850e255997f538d5fb6ed651321141155a33bb781d43d326fc4ff62114dd2842
+    md5: 46621eae093570430d56aa6b4e298500
+    sha256: dbc7d0536b4e1fb2361ca90a80b52cde1c85e0b159fa001f795e7d40e99438b0
   category: main
   optional: false
 - name: libhwy
@@ -3888,15 +3888,15 @@ package:
   category: main
   optional: false
 - name: llvm-openmp
-  version: 20.1.7
+  version: 20.1.8
   manager: conda
   platform: linux-64
   dependencies:
     __glibc: '>=2.17,<3.0.a0'
-  url: https://repo.prefix.dev/conda-forge/linux-64/llvm-openmp-20.1.7-h024ca30_0.conda
+  url: https://repo.prefix.dev/conda-forge/linux-64/llvm-openmp-20.1.8-h4922eb0_0.conda
   hash:
-    md5: b9c9b2f494533250a9eb7ece830f4422
-    sha256: 10f2f6be8ba4c018e1fc741637a8d45c0e58bea96954c25e91fbe4238b7c9f60
+    md5: dda42855e1d9a0b59e071e28a820d0f5
+    sha256: 209050b372cf2103ac6a8fcaaf7f1b0d4dbb425395733b2e84f8949fa66b6ca7
   category: main
   optional: false
 - name: locket
@@ -7083,12 +7083,12 @@ package:
     scikit-image: ==0.24.*
     scipy: '>=1.14.0,<1.15.0'
     tqdm: '>=4.66.1,<5.0.0'
-  url: git+https://github.com/MiraGeoscience/curve-apps.git@f55b5dbff0a9d92b3194189217dac3bf8965ea52
+  url: git+https://github.com/MiraGeoscience/curve-apps.git@549ac806a7cc532deccdd261dc9315bcfe1f8031
   hash:
-    sha256: f55b5dbff0a9d92b3194189217dac3bf8965ea52
+    sha256: 549ac806a7cc532deccdd261dc9315bcfe1f8031
   source:
     type: url
-    url: git+https://github.com/MiraGeoscience/curve-apps.git@f55b5dbff0a9d92b3194189217dac3bf8965ea52
+    url: git+https://github.com/MiraGeoscience/curve-apps.git@549ac806a7cc532deccdd261dc9315bcfe1f8031
   category: main
   optional: false
 - name: curve-apps
@@ -7103,12 +7103,12 @@ package:
     scikit-image: ==0.24.*
     scipy: '>=1.14.0,<1.15.0'
     tqdm: '>=4.66.1,<5.0.0'
-  url: git+https://github.com/MiraGeoscience/curve-apps.git@f55b5dbff0a9d92b3194189217dac3bf8965ea52
+  url: git+https://github.com/MiraGeoscience/curve-apps.git@549ac806a7cc532deccdd261dc9315bcfe1f8031
   hash:
-    sha256: f55b5dbff0a9d92b3194189217dac3bf8965ea52
+    sha256: 549ac806a7cc532deccdd261dc9315bcfe1f8031
   source:
     type: url
-    url: git+https://github.com/MiraGeoscience/curve-apps.git@f55b5dbff0a9d92b3194189217dac3bf8965ea52
+    url: git+https://github.com/MiraGeoscience/curve-apps.git@549ac806a7cc532deccdd261dc9315bcfe1f8031
   category: main
   optional: false
 - name: geoapps-utils
@@ -7154,12 +7154,12 @@ package:
     numpy: '>=1.26.0,<1.27.0'
     pillow: '>=10.3.0,<10.4.0'
     pydantic: '>=2.5.2,<3.0.0'
-  url: git+https://github.com/MiraGeoscience/geoh5py.git@87f68c3a25cb3fac2a4c9de8c0d74ec4e58d0963
+  url: git+https://github.com/MiraGeoscience/geoh5py.git@a29cd93edd90cc7ad20c227104c58150a69c6c34
   hash:
-    sha256: 87f68c3a25cb3fac2a4c9de8c0d74ec4e58d0963
+    sha256: a29cd93edd90cc7ad20c227104c58150a69c6c34
   source:
     type: url
-    url: git+https://github.com/MiraGeoscience/geoh5py.git@87f68c3a25cb3fac2a4c9de8c0d74ec4e58d0963
+    url: git+https://github.com/MiraGeoscience/geoh5py.git@a29cd93edd90cc7ad20c227104c58150a69c6c34
   category: main
   optional: false
 - name: geoh5py
@@ -7171,11 +7171,11 @@ package:
     numpy: '>=1.26.0,<1.27.0'
     pillow: '>=10.3.0,<10.4.0'
     pydantic: '>=2.5.2,<3.0.0'
-  url: git+https://github.com/MiraGeoscience/geoh5py.git@87f68c3a25cb3fac2a4c9de8c0d74ec4e58d0963
+  url: git+https://github.com/MiraGeoscience/geoh5py.git@a29cd93edd90cc7ad20c227104c58150a69c6c34
   hash:
-    sha256: 87f68c3a25cb3fac2a4c9de8c0d74ec4e58d0963
+    sha256: a29cd93edd90cc7ad20c227104c58150a69c6c34
   source:
     type: url
-    url: git+https://github.com/MiraGeoscience/geoh5py.git@87f68c3a25cb3fac2a4c9de8c0d74ec4e58d0963
+    url: git+https://github.com/MiraGeoscience/geoh5py.git@a29cd93edd90cc7ad20c227104c58150a69c6c34
   category: main
   optional: false
