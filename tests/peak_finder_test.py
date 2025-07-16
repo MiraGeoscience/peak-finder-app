@@ -118,7 +118,7 @@ def test_peak_finder_app(tmp_path: Path):  # pylint: disable=too-many-locals
             "properties": [str(p) for p in group.properties],
         }
 
-    objects = "{" + str(curve.uid) + "}"
+    objects = curve
     smoothing = 6
     max_migration = 1.0
     min_channels = 1
