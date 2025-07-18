@@ -95,7 +95,6 @@ def test_peak_finder_app(tmp_path: Path):  # pylint: disable=too-many-locals
         name="middle + late",
         properties=[data_map["d1"], data_map["d2"], data_map["d3"], data_map["d4"]],
     )
-    
 
     param_names = string.ascii_lowercase[:6]
     property_groups = {}
@@ -239,7 +238,7 @@ def test_merging_peaks(tmp_path: Path):  # pylint: disable=too-many-locals
     )
     app.property_groups = property_groups
     app.workspace = temp_ws
-    
+
     # Test merging peaks
     n_groups_list = [2, 2, 2, 3, 2]
     max_separation_list = [1, 55, 65, 65, 90]
@@ -550,8 +549,6 @@ def test_trend_line(tmp_path: Path):  # pylint: disable=too-many-locals
             }
         }
     )
-
-    
 
     params = PeakFinderParams(
         geoh5=temp_ws,
