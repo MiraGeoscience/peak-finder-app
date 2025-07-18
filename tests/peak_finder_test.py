@@ -95,7 +95,7 @@ def test_peak_finder_app(tmp_path: Path):  # pylint: disable=too-many-locals
         name="middle + late",
         properties=[data_map["d1"], data_map["d2"], data_map["d3"], data_map["d4"]],
     )
-    temp_ws.close()
+    
 
     param_names = string.ascii_lowercase[:6]
     property_groups = {}
@@ -154,6 +154,7 @@ def test_peak_finder_app(tmp_path: Path):  # pylint: disable=too-many-locals
         selected_line=1,
         ga_group_name="peak_finder",
     )
+    temp_ws.close()
 
     with Workspace(h5file_path) as out_ws:
         anomalies_obj = out_ws.get_entity("Anomaly Groups")[0]
@@ -238,7 +239,7 @@ def test_merging_peaks(tmp_path: Path):  # pylint: disable=too-many-locals
     )
     app.property_groups = property_groups
     app.workspace = temp_ws
-    temp_ws.close()
+    
     # Test merging peaks
     n_groups_list = [2, 2, 2, 3, 2]
     max_separation_list = [1, 55, 65, 65, 90]
@@ -267,6 +268,7 @@ def test_merging_peaks(tmp_path: Path):  # pylint: disable=too-many-locals
             selected_line=1,
             ga_group_name="peak_finder_" + str(ind),
         )
+        temp_ws.close()
 
         with Workspace(h5file_path) as out_ws:
             group = out_ws.get_entity("peak_finder_" + str(ind))[0]
@@ -549,7 +551,7 @@ def test_trend_line(tmp_path: Path):  # pylint: disable=too-many-locals
         }
     )
 
-    temp_ws.close()
+    
 
     params = PeakFinderParams(
         geoh5=temp_ws,
@@ -561,7 +563,7 @@ def test_trend_line(tmp_path: Path):  # pylint: disable=too-many-locals
 
     params.input_file.write_ui_json("test_peak_trend", tmp_path)
     PeakFinderDriver(params).run()
-
+    temp_ws.close()
     with temp_ws.open():
         trend_lines = temp_ws.get_entity("Trend Lines")[0]
         anomalies = temp_ws.get_entity("Anomaly Groups")[0]
