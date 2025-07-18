@@ -1,13 +1,23 @@
-[tool.poetry]
+[build-system]
+requires = ["poetry-core>=1.0.0", "setuptools"]
+build-backend = "poetry.core.masonry.api"
+
+
+[project]
 name = "peak-finder-app"
 version = "0.3.0-alpha.1"
+
+dynamic = ["dependencies"]
+
+requires-python = ">=3.10,<3.13"
+
 license = "MIT"
 description = "Peak Finder App"
-authors = ["Mira Geoscience <support@mirageoscience.com>"]
-maintainers = ["Dominique Fournier <dominiquef@mirageoscience.com>"]
-repository = "https://github.com/MiraGeoscience/peak-finder-app"
-documentation = "https://mirageoscience-peak-finder-app.readthedocs-hosted.com/"
-homepage = "https://www.mirageoscience.com/mining-industry-software/python-integration/"
+authors = [
+    { name = "Mira Geoscience", email = "support@mirageoscience.com" }
+]
+maintainers = [{ name = "Dominique Fournier", email = "dominiquef@mirageoscience.com" }]
+
 
 readme = "package.rst"
 packages = [
@@ -35,6 +45,12 @@ classifiers = [
     "Operating System :: Unix",
     "Natural Language :: English",
 ]
+
+[project.urls]
+repository = "https://github.com/MiraGeoscience/peak-finder-app"
+documentation = "https://mirageoscience-peak-finder-app.readthedocs-hosted.com/"
+homepage = "https://www.mirageoscience.com/mining-industry-software/python-integration/"
+
 
 [tool.poetry.dependencies]
 python = ">=3.10, <3.13"
@@ -98,7 +114,7 @@ readthedocs-sphinx-ext = "*"
 sphinx = "^5.0"
 tomli = "*" # for tests only
 
-[tool.poetry.extras]
+[project.optional-dependencies]
 dash = [
     "dash",
     "dash-daq",
@@ -166,6 +182,3 @@ fail_under = 75
 skip_empty = true
 skip_covered = true
 
-[build-system]
-requires = ["poetry-core>=1.0.0", "setuptools"]
-build-backend = "poetry.core.masonry.api"
