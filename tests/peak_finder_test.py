@@ -208,7 +208,6 @@ def test_merging_peaks(tmp_path: Path):  # pylint: disable=too-many-locals
     prop_group = curve.find_or_create_property_group(
         name="prop group", properties=[data.uid]
     )
-    temp_ws.close()
 
     property_groups = {
         "obs": {
@@ -239,7 +238,7 @@ def test_merging_peaks(tmp_path: Path):  # pylint: disable=too-many-locals
     )
     app.property_groups = property_groups
     app.workspace = temp_ws
-
+    temp_ws.close()
     # Test merging peaks
     n_groups_list = [2, 2, 2, 3, 2]
     max_separation_list = [1, 55, 65, 65, 90]
