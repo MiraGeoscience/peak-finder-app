@@ -390,7 +390,7 @@ class PeakFinderDriver(BaseDriver):
                         "damping": 1,
                     }
 
-                    params = TrendLineParameters.build(**inputs)
+                    params = TrendLineParameters.build(inputs)
                     driver = TrendLinesDriver(params)
 
                     try:
