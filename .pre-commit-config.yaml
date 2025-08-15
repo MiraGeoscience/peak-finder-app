@@ -17,7 +17,7 @@ repos:
     -   id: pycln
         args: [--config=pyproject.toml]
 -   repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.9.1
+    rev: v0.9.9
     hooks:
     -   id: ruff
         args:
@@ -26,7 +26,7 @@ repos:
 #        -   --unsafe-fixes
     -   id: ruff-format
 -   repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.14.1
+    rev: v1.15.0
     hooks:
     -   id: mypy
         additional_dependencies: [
@@ -60,7 +60,7 @@ repos:
         types: [python]
         exclude: ^(devtools|docs|peak_finder-assets)/
 -   repo: https://github.com/codespell-project/codespell
-    rev: v2.3.0
+    rev: v2.4.1
     hooks:
     -   id: codespell
         exclude: (-lock\.ya?ml|\benvironments/.*\.ya?ml|\.ipynb|^THIRD_PARTY_SOFTWARE\.rst)$
@@ -74,7 +74,6 @@ repos:
         exclude_types: [jupyter]
     -   id: check-toml
     -   id: check-yaml
-        exclude: ^meta.yaml$
     -   id: check-added-large-files
     -   id: check-case-conflict
     -   id: check-merge-conflict
