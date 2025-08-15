@@ -16,7 +16,7 @@ import sys
 from typing import cast
 import numpy as np
 from curve_apps.trend_lines.driver import TrendLinesDriver
-from curve_apps.trend_lines.params import TrendLineParameters
+from curve_apps.trend_lines.options import TrendLineParameters
 from dask import compute, delayed, config
 from dask.diagnostics import ProgressBar
 from geoapps_utils.driver.driver import BaseDriver
