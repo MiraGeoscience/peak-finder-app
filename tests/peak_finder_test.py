@@ -127,7 +127,7 @@ def test_peak_finder_app(tmp_path: Path):  # pylint: disable=too-many-locals
     min_width = 1.0
     line_field = "{" + str(line.uid) + "}"
 
-    params = PeakFinderParams(geoh5=str(h5file_path))
+    params = PeakFinderParams(geoh5=str(h5file_path), validate=False)
     app = PeakFinder(
         params,
         ui_json_data={
@@ -229,7 +229,7 @@ def test_merging_peaks(tmp_path: Path):  # pylint: disable=too-many-locals
     min_width = 1.0
     line_field = "{" + str(line.uid) + "}"
 
-    params = PeakFinderParams(geoh5=str(h5file_path))
+    params = PeakFinderParams(geoh5=str(h5file_path), validate=False)
     app = PeakFinder(
         params,
         ui_json_data={
@@ -352,7 +352,7 @@ def test_masking_peaks(tmp_path: Path):  # pylint: disable=too-many-locals
     min_width = 1.0
     line_field = "{" + str(line.uid) + "}"
 
-    params = PeakFinderParams(geoh5=str(h5file_path))
+    params = PeakFinderParams(geoh5=str(h5file_path), validate=False)
     app = PeakFinder(
         params,
         ui_json_data={
@@ -438,7 +438,7 @@ def test_map_locations(tmp_path: Path):  # pylint: disable=too-many-locals
     min_width = 1.0
     line_field = "{" + str(line.uid) + "}"
 
-    params = PeakFinderParams(geoh5=str(h5file_path))
+    params = PeakFinderParams(geoh5=str(h5file_path), validate=False)
     app = PeakFinder(
         params,
         ui_json_data={
@@ -558,6 +558,7 @@ def test_trend_line(tmp_path: Path):  # pylint: disable=too-many-locals
         line_field=line,
         group_a_data=prop_group,
         trend_lines=True,
+        validate=False,
     )
 
     params.input_file.write_ui_json("test_peak_trend", tmp_path)

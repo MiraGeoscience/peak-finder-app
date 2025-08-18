@@ -1954,7 +1954,7 @@ class PeakFinder(BaseDashApplication):  # pylint: disable=too-many-public-method
                     param_dict[f"group_{value['param']}_color"] = value["color"]
 
         # Write output uijson.
-        new_params = PeakFinderParams(**param_dict)
+        new_params = PeakFinderParams(**param_dict, validate=False)
         name = workspace.h5file.stem.replace(".ui", "")
         new_params.write_input_file(
             name=name + ".ui.json",
