@@ -1,27 +1,41 @@
-[tool.poetry]
+[build-system]
+requires = ["poetry-core>=1.8.0"]
+build-backend = "poetry.core.masonry.api"
+
+[project]
 name = "peak-finder-app"
-version = "0.3.0-alpha.1"
-license = "MIT"
+version = "0.3.0a1"
+requires-python = '>=3.10,<4.0'
+
 description = "Peak Finder App"
-authors = ["Mira Geoscience <support@mirageoscience.com>"]
-maintainers = ["Dominique Fournier <dominiquef@mirageoscience.com>"]
+license = "MIT"
+readme = "package.rst"
+dynamic = ["dependencies", "classifiers"]
+authors = [{ name = "Mira Geoscience", email = "support@mirageoscience.com" }]
+maintainers = [{ name = "Dominique Fournier", email = "dominiquef@mirageoscience.com" }]
+
+[project.urls]
 repository = "https://github.com/MiraGeoscience/peak-finder-app"
 documentation = "https://mirageoscience-peak-finder-app.readthedocs-hosted.com/"
 homepage = "https://www.mirageoscience.com/mining-industry-software/python-integration/"
 
-readme = "package.rst"
-packages = [
-     { include = "peak_finder" },
-     { include = "peak_finder-assets" },
+[project.optional-dependencies]
+dash = [
+    "dash",
+    "dash-daq",
+    "flask",
+    "pyqt5-qt5",
+    "pyqtwebengine",
+    "pyqtwebengine-qt5",
+    "pyside2",
+    # Dash dependencies (needed here as they got explicitly listed for Conda)
+    "dash-core-components",
+    "dash-html-components",
+    "dash-table",
 ]
 
-include = [
-    { path = "COPYING" },
-    { path = "COPYING.LESSER" },
-    { path = "LICENSE" },
-    { path = "README.rst" },
-    { path = "docs/**/THIRD_PARTY_SOFTWARE.rst" },
-]
+[tool.poetry]
+requires-poetry = '>=2.0,<3.0'
 
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -36,9 +50,20 @@ classifiers = [
     "Natural Language :: English",
 ]
 
-[tool.poetry.dependencies]
-python = ">=3.10, <3.13"
+packages = [
+     { include = "peak_finder" },
+     { include = "peak_finder-assets" },
+]
 
+include = [
+    { path = "COPYING" },
+    { path = "COPYING.LESSER" },
+    { path = "LICENSE" },
+    { path = "README.rst" },
+    { path = "docs/**/THIRD_PARTY_SOFTWARE.rst" },
+]
+
+[tool.poetry.dependencies]
 dash = {version="^2.12", optional = true}
 dash-daq = {version="0.5.*", optional = true}
 
@@ -98,21 +123,6 @@ readthedocs-sphinx-ext = "*"
 sphinx = "^5.0"
 tomli = "*" # for tests only
 
-[tool.poetry.extras]
-dash = [
-    "dash",
-    "dash-daq",
-    "flask",
-    "pyqt5-qt5",
-    "pyqtwebengine",
-    "pyqtwebengine-qt5",
-    "pyside2",
-    # Dash dependencies (needed here as they got explicitly listed for Conda)
-    "dash-core-components",
-    "dash-html-components",
-    "dash-table",
-]
-
 [tool.conda-lock]
 platforms = ['win-64', 'linux-64']
 channels = ['conda-forge']
@@ -165,7 +175,3 @@ fail_under = 75
 [tool.coverage.html]
 skip_empty = true
 skip_covered = true
-
-[build-system]
-requires = ["poetry-core>=1.0.0", "setuptools"]
-build-backend = "poetry.core.masonry.api"
