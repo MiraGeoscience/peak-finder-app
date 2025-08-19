@@ -24,9 +24,7 @@ dash = [
     "dash",
     "dash-daq",
     "flask",
-    "pyqt5-qt5",
     "pyqtwebengine",
-    "pyqtwebengine-qt5",
     "pyside2",
     # Dash dependencies (needed here as they got explicitly listed for Conda)
     "dash-core-components",
