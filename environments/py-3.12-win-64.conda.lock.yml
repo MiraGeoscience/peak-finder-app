@@ -158,7 +158,7 @@ dependencies:
   - typing-inspection=0.4.1=pyhd8ed1ab_0
   - typing_extensions=4.15.0=pyhcf101f3_0
   - tzdata=2025b=h78e105d_0
-  - ucrt=10.0.22621.0=h57928b3_1
+  - ucrt=10.0.26100.0=h57928b3_0
   - urllib3=2.5.0=pyhd8ed1ab_0
   - vc=14.3=h41ae7f8_31
   - vc14_runtime=14.44.35208=h818238b_31
@@ -177,7 +177,7 @@ dependencies:
   - zstandard=0.23.0=py312he06e257_3
   - zstd=1.5.7=hbeecb71_2
   - pip:
-    - curve-apps @ git+https://github.com/MiraGeoscience/curve-apps.git@723eba5612d589e047076b0c69af3543d4e1bd10
+    - curve-apps @ git+https://github.com/MiraGeoscience/curve-apps.git@ee3f7146a2968109e2f8362dfb723ac855ad2657
     - geoapps-utils @ git+https://github.com/MiraGeoscience/geoapps-utils.git@111b167f8d9a185ff6f140f055297f0a6945de6e
     - geoh5py @ git+https://github.com/MiraGeoscience/geoh5py.git@fd5f8fb1dcd764c01eb4d43ab26201c5bceb34ef
 

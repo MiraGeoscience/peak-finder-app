@@ -153,7 +153,7 @@ dependencies:
   - zstandard=0.23.0=py312h4c3975b_3
   - zstd=1.5.7=hb8e6e7a_2
   - pip:
-    - curve-apps @ git+https://github.com/MiraGeoscience/curve-apps.git@723eba5612d589e047076b0c69af3543d4e1bd10
+    - curve-apps @ git+https://github.com/MiraGeoscience/curve-apps.git@ee3f7146a2968109e2f8362dfb723ac855ad2657
     - geoapps-utils @ git+https://github.com/MiraGeoscience/geoapps-utils.git@111b167f8d9a185ff6f140f055297f0a6945de6e
     - geoh5py @ git+https://github.com/MiraGeoscience/geoh5py.git@fd5f8fb1dcd764c01eb4d43ab26201c5bceb34ef
 
