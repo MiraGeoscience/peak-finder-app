@@ -6,7 +6,7 @@ channels:
   - conda-forge
   - nodefaults
 dependencies:
-  - _libavif_api=1.3.0=h57928b3_0
+  - _libavif_api=1.3.0=h57928b3_2
   - _openmp_mutex=4.5=2_gnu
   - annotated-types=0.7.0=pyhd8ed1ab_1
   - aom=3.9.1=he0c23c2_0
@@ -14,7 +14,7 @@ dependencies:
   - blosc=1.21.6=hfd34d9b_1
   - brotli-python=1.1.0=py311hda3d55a_3
   - bzip2=1.0.8=h2466b09_7
-  - c-blosc2=2.20.0=h3cf07e4_0
+  - c-blosc2=2.21.1=h3cf07e4_0
   - ca-certificates=2025.8.3=h4c7d964_0
   - cached-property=1.5.2=hd8ed1ab_1
   - cached_property=1.5.2=pyha770c72_1
@@ -34,7 +34,7 @@ dependencies:
   - dask-core=2025.3.0=pyhd8ed1ab_0
   - dav1d=1.2.1=hcfcfb64_0
   - distributed=2025.3.0=pyhd8ed1ab_0
-  - flask=3.1.1=pyhd8ed1ab_0
+  - flask=3.1.2=pyhd8ed1ab_0
   - freetype=2.13.3=h57928b3_1
   - fsspec=2025.7.0=pyhd8ed1ab_0
   - giflib=5.2.2=h64bf75a_0
@@ -42,14 +42,14 @@ dependencies:
   - glib-tools=2.84.3=he647baa_0
   - gst-plugins-base=1.24.11=h3fe0a9e_0
   - gstreamer=1.24.11=h233a61a_0
-  - h2=4.2.0=pyhd8ed1ab_0
+  - h2=4.3.0=pyhcf101f3_0
   - h5py=3.14.0=nompi_py311h97e6cc2_100
   - hdf5=1.14.6=nompi_he30205f_103
   - hpack=4.1.0=pyhd8ed1ab_0
   - hyperframe=6.1.0=pyhd8ed1ab_0
   - icu=75.1=he0c23c2_0
   - idna=3.10=pyhd8ed1ab_1
-  - imagecodecs=2025.8.2=py311hbb41d32_1
+  - imagecodecs=2025.8.2=py311hf488a8e_2
   - imageio=2.37.0=pyhfb79c49_0
   - importlib-metadata=8.7.0=pyhe01879c_1
   - itsdangerous=2.2.0=pyhd8ed1ab_1
@@ -61,7 +61,7 @@ dependencies:
   - lcms2=2.17=hbcf6048_0
   - lerc=4.0.0=h6470a55_1
   - libaec=1.1.4=h20038f6_0
-  - libavif16=1.3.0=hf2698fe_0
+  - libavif16=1.3.0=he916da2_2
   - libblas=3.9.0=34_h5709861_mkl
   - libbrotlicommon=1.1.0=h2466b09_3
   - libbrotlidec=1.1.0=h2466b09_3
@@ -100,7 +100,7 @@ dependencies:
   - libxslt=1.1.43=h25c3957_0
   - libzlib=1.3.1=h2466b09_2
   - libzopfli=1.0.3=h0e60522_0
-  - llvm-openmp=20.1.8=hfa2b4ca_1
+  - llvm-openmp=20.1.8=hfa2b4ca_2
   - locket=1.0.0=pyhd8ed1ab_0
   - lz4-c=1.10.0=h2466b09_1
   - markupsafe=3.0.2=py311h5082efb_1
@@ -118,7 +118,7 @@ dependencies:
   - pip=25.2=pyh8b19718_0
   - plotly=5.19.0=pyhd8ed1ab_0
   - ply=3.11=pyhd8ed1ab_3
-  - psutil=7.0.0=py311he736701_0
+  - psutil=7.0.0=py311h3485c13_1
   - pthread-stubs=0.4=h0e40799_1002
   - pycparser=2.22=pyh29332c3_1
   - pydantic=2.11.7=pyh3cfb1c2_0
@@ -132,7 +132,7 @@ dependencies:
   - python_abi=3.11=8_cp311
   - pywavelets=1.9.0=py311h17033d2_0
   - pyyaml=6.0.2=py311h5082efb_2
-  - qt-main=5.15.15=h9151539_4
+  - qt-main=5.15.15=hb098fff_5
   - qt-webengine=5.15.15=h087ee03_1
   - rav1e=0.7.1=ha073cba_3
   - requests=2.32.5=pyhd8ed1ab_0
@@ -143,22 +143,22 @@ dependencies:
   - sip=6.10.0=py311hda3d55a_0
   - snappy=1.2.2=h7fa0ca8_0
   - sortedcontainers=2.4.0=pyhd8ed1ab_1
-  - svt-av1=3.0.2=he0c23c2_0
-  - tbb=2021.13.0=h18a62a1_2
+  - svt-av1=3.1.2=hac47afa_0
+  - tbb=2021.13.0=h18a62a1_3
   - tblib=3.1.0=pyhd8ed1ab_0
   - tenacity=9.1.2=pyhd8ed1ab_0
-  - tifffile=2025.6.11=pyhd8ed1ab_0
+  - tifffile=2025.8.28=pyhd8ed1ab_0
   - tk=8.6.13=h2c6b04d_2
   - toml=0.10.2=pyhd8ed1ab_1
   - tomli=2.2.1=pyhe01879c_2
   - toolz=1.0.0=pyhd8ed1ab_1
   - tornado=6.5.2=py311h3485c13_0
   - tqdm=4.67.1=pyhd8ed1ab_1
-  - typing-extensions=4.14.1=h4440ef1_0
+  - typing-extensions=4.15.0=h396c80c_0
   - typing-inspection=0.4.1=pyhd8ed1ab_0
-  - typing_extensions=4.14.1=pyhe01879c_0
+  - typing_extensions=4.15.0=pyhcf101f3_0
   - tzdata=2025b=h78e105d_0
-  - ucrt=10.0.22621.0=h57928b3_1
+  - ucrt=10.0.26100.0=h57928b3_0
   - urllib3=2.5.0=pyhd8ed1ab_0
   - vc=14.3=h41ae7f8_31
   - vc14_runtime=14.44.35208=h818238b_31
@@ -174,12 +174,12 @@ dependencies:
   - zict=3.0.0=pyhd8ed1ab_1
   - zipp=3.23.0=pyhd8ed1ab_0
   - zlib-ng=2.2.5=h1608b31_0
-  - zstandard=0.23.0=py311he736701_2
+  - zstandard=0.23.0=py311h3485c13_3
   - zstd=1.5.7=hbeecb71_2
   - pip:
-    - curve-apps @ git+https://github.com/MiraGeoscience/curve-apps.git@26b9c6d444eac53199104cacfeea69964a8481dd
-    - geoapps-utils @ git+https://github.com/MiraGeoscience/geoapps-utils.git@4bb027706ed3726d42b75d349df087dcdf8450f9
-    - geoh5py @ git+https://github.com/MiraGeoscience/geoh5py.git@12bf67269934b26a307c69857c01dd3b4c4742e9
+    - curve-apps @ git+https://github.com/MiraGeoscience/curve-apps.git@ee3f7146a2968109e2f8362dfb723ac855ad2657
+    - geoapps-utils @ git+https://github.com/MiraGeoscience/geoapps-utils.git@111b167f8d9a185ff6f140f055297f0a6945de6e
+    - geoh5py @ git+https://github.com/MiraGeoscience/geoh5py.git@fd5f8fb1dcd764c01eb4d43ab26201c5bceb34ef
 
 variables:
   KMP_WARNINGS: 0

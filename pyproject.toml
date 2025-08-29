@@ -1,16 +1,24 @@
 [build-system]
-requires = ["poetry-core>=1.8.0"]
-build-backend = "poetry.core.masonry.api"
+requires = [
+  "poetry-core>=1.8.0",
+  "poetry-dynamic-versioning>=1.9.1,<2.0",
+  # list dependencies to work with PIP_NO_DEPS=1
+  "MarkupSafe>=2.0",
+  "dunamai>=1.25,<2.0",
+  "jinja2>=3.0,<4.0",
+  "packaging>=24.0",
+  "tomlkit>=0.13",
+]
+build-backend = "poetry_dynamic_versioning.backend"
 
 [project]
 name = "peak-finder-app"
-version = "0.3.0a1"
 requires-python = '>=3.10,<3.13'
 
 description = "Peak Finder App"
 license = "MIT"
 readme = "package.rst"
-dynamic = ["dependencies", "classifiers"]
+dynamic = ["version", "dependencies", "classifiers"]
 authors = [{ name = "Mira Geoscience", email = "support@mirageoscience.com" }]
 maintainers = [{ name = "Dominique Fournier", email = "dominiquef@mirageoscience.com" }]
 
@@ -60,6 +68,8 @@ include = [
     { path = "README.rst" },
     { path = "docs/**/THIRD_PARTY_SOFTWARE.rst" },
 ]
+version = "0.0.0.dev0"
+
 
 [tool.poetry.dependencies]
 dash = {version="^2.12", optional = true}
@@ -120,6 +130,39 @@ packaging = '*'
 readthedocs-sphinx-ext = "*"
 sphinx = "^5.0"
 tomli = "*" # for tests only
+
+[tool.poetry.requires-plugins]
+poetry-dynamic-versioning = { version = ">=1.9.1,<2.0.0", extras = ["plugin"] }
+
+[tool.poetry-dynamic-versioning]
+bump = true
+enable = true
+fix-shallow-repository = true
+strict = true
+style = "pep440"
+vcs = "git"
+
+[tool.poetry-dynamic-versioning.substitution]
+files = ["peak_finder/_version.py", "recipe.yaml"]
+patterns = [
+    { value = '''(^__version__\s*(?::.*?)?=\s*['"])[^'"]*(['"])''', mode = "str" },
+    { value = '''(^\s*version\s*(?::.*?)?:\s*['"])[^'"]*(['"])''', mode = "str" },
+]
+
+[tool.poetry-dynamic-versioning.files."peak_finder/_version.py"]
+persistent-substitution = true
+initial-content = """
+  # Version placeholder that will be replaced during substitution
+  __version__ = "0.0.0"
+"""
+
+[tool.poetry-dynamic-versioning.files."recipe.yaml"]
+persistent-substitution = true
+
+[tool.ruff.lint]
+ignore = [
+    "F401",  # unsused-import - covered by pycln
+]
 
 [tool.conda-lock]
 platforms = ['win-64', 'linux-64']

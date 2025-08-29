@@ -7,11 +7,17 @@
 #  (see LICENSE file at the root of this source code package).                      '
 # '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
-__version__ = "0.3.0a1"
-
 import os
 import warnings
 from pathlib import Path
+
+try:
+    from ._version import __version__
+except ModuleNotFoundError:
+    from datetime import datetime
+
+    __date_str = datetime.today().strftime("%Y%m%d")
+    __version__ = "0.0.0.dev0+" + __date_str
 
 
 def assets_path() -> Path:

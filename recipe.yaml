@@ -2,7 +2,7 @@ schema_version: 1
 
 context:
   name: peak-finder-app
-  version: 0.3.0a1
+  version: "0.0.0.dev0"  # This will be replaced by the actual version in the build process
   python_min: "3.10"
 
 package:
@@ -20,7 +20,8 @@ build:
 requirements:
   host:
     - python ${{python_min}}.*
-    - poetry-core >=1.0.0
+    - poetry-core >=1.8.0
+    - poetry-dynamic-versioning >=1.9, <2.0.dev
     - setuptools
     - pip
   run:
@@ -54,6 +55,7 @@ tests:
   - python:
       imports:
         - peak_finder
+        - peak_finder._version
         - geoh5py
         - dask
         - distributed
