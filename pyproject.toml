@@ -72,8 +72,8 @@ version = "0.0.0.dev0"
 
 
 [tool.poetry.dependencies]
-dash = {version="^2.12", optional = true}
-dash-daq = {version="0.5.*", optional = true}
+dash = {version="^3.0.4", optional = true}
+dash-daq = {version="*", optional = true}
 
 # note: py-deps-clock defines custom mapping from dask to dask-core
 dask = ">=2025.3, <2025.4.dev"  # also in simpeg[dask]
