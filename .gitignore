@@ -145,5 +145,15 @@ dmypy.json
 # tempory generated files
 pyproject-sha.toml
 
-#version ignore
+# auto-generated version file
 peak_finder/_version.py
+
+# not using poetry to lock, but pixi
+poetry.lock
+
+# pixi environments
+.pixi/*
+!.pixi/config.toml
+
+# generated conda env files by pixi
+*.pixi.conda.yml

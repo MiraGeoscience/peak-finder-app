@@ -1,0 +1,139 @@
+[workspace]
+requires-pixi = ">=0.54"
+channels = ["https://repo.prefix.dev/conda-forge"]
+platforms = ["win-64", "linux-64"]
+
+[dependencies]
+# dependencies resolved from conda
+## direct dependencies:
+#----------------------
+dask = "2025.3.*"
+distributed = "2025.3.*"
+numpy = "1.26.*"
+plotly = "5.19.*"
+scipy = "1.14.*"
+tqdm = ">=4.66.1, 4.*"
+libblas = "*=*mkl"
+
+## indirect dependencies from remaining pip packages:
+#----------------------------------------------------
+h5py = ">=3.2.1, 3.*"
+pillow = "10.3.*"
+pydantic = ">=2.5.2, 2.*"
+scikit-image = "0.24.*"
+
+[pypi-dependencies]
+peak-finder-app = {path = ".", editable = true}
+
+[environments]
+#prod-py310 = {features = ["py310", "mirageo"], solve-group = "prod-py310"}
+#prod-py311 = {features = ["py311", "mirageo"], solve-group = "prod-py311"}
+#prod-py312 = {features = ["py312", "mirageo"], solve-group = "prod-py312"}
+#test-prod-py310 = {features = ["py310", "mirageo", "test"], solve-group = "prod-py310"}
+#test-prod-py311 = {features = ["py311", "mirageo", "test"], solve-group = "prod-py311"}
+#test-prod-py312 = {features = ["py312", "mirageo", "test"], solve-group = "prod-py312"}
+
+py310 = {features = ["py310", "mirageo-git", "test"], solve-group = "default"}
+py311 = {features = ["py311", "mirageo-git", "test"]}
+py312 = {features = ["py312", "mirageo-git", "test"]}
+
+default = {features = ["py310", "mirageo-git", "test", "dev"], solve-group = "default"}
+mirageo-local = {features = ["py310", "mirageo-git"], solve-group = "default"}
+docs = {features = ["py310", "doc"], no-default-feature = true}
+
+[feature.py310.dependencies]
+python = "3.10.*"
+
+[feature.py311.dependencies]
+python = "3.11.*"
+
+[feature.py312.dependencies]
+python = "3.12.*"
+
+#[tool.pixi.feature.mirageo.dependencies]
+#geoh5py = ">=0.12.0a1, 0.12.*"
+#geoapps-utils = ">=0.6.0a, 0.6.*"
+#curve-apps = ">=0.3.0a, 0.3.*"
+
+[feature.mirageo-git.pypi-dependencies]
+geoh5py = { git = "https://github.com/MiraGeoscience/geoh5py.git", rev = "develop" }
+geoapps-utils = {git = "https://github.com/MiraGeoscience/geoapps-utils.git", rev = "develop"}
+curve-apps = {git = "https://github.com/MiraGeoscience/curve-apps.git", rev = "develop"}
+
+[feature.dev.dependencies]
+Pygments = "*"
+ipython = "*"
+
+[feature.dev.tasks]
+repl = "ipython"
+
+[feature.test.dependencies]
+packaging = "*"
+pylint = "*"
+pytest = "*"
+pytest-cov = "*"
+pyyaml = "*"
+jinja2 = "*"
+tomli = "*"
+
+[feature.test.tasks]
+test = "pytest --cov --cov-report=xml"
+
+[feature.test.tasks.test-local]
+args = [{ arg = "packages", default = "geoh5py geoapps-utils curve-apps" }]
+depends-on = [
+    {task = "use-local-deps", args = [ "{{ packages }}" ]},
+    {task = "show-pip-source", args =  [ "{{ packages }}" ]},
+    {task = "test"}
+]
+
+[feature.doc.dependencies]
+nbsphinx = "*"
+nbstripout = "*"
+numpydoc = "*"
+sphinx = "*"
+sphinx-autodoc-typehints = "*"
+sphinx-issues = "*"
+sphinx-rtd-theme = "*"
+sphinxcontrib-bibtex = "*"
+sphinxcontrib-googleanalytics = '*'
+readthedocs-sphinx-ext = "*"
+
+[feature.doc.tasks._install-no-deps]
+cmd = "uv pip install --no-deps ."
+
+[feature.doc.tasks.build-docs]
+args = [
+  { arg = "builder",   default = "html" },
+  { arg = "outputdir", default = "docs/_build" },
+]
+depends-on = ["_install-no-deps"]
+cmd = "sphinx-build -T -nW -b {{builder}} docs {{outputdir}}/{{builder}}"
+
+[tasks.show-pip-source]
+args = [{ arg = "packages", "default" = "geoh5py geoapps-utils curve-apps" }]
+cmd = "uv pip show {{packages}}"
+
+[tasks.use-local-deps]
+args = [{ arg = "packages", default = "geoh5py geoapps-utils curve-apps" }]
+cmd = """
+uv pip install --no-deps --force-reinstall \
+{% for package in packages | split %} -e ../{{ package | trim }}{% endfor %}
+"""
+
+[tasks.test-pyvers]
+depends-on = [
+    {task = "test", environment = "py310"},
+    {task = "test", environment = "py311"},
+    {task = "test", environment = "py312"},
+]
+
+[tasks.export-to-conda]
+args = ["env", {arg = "output_name", default = "exported"}]
+cmd = "pixi workspace export conda-environment -e {{ env }} {{ output_name }}.pixi.conda.yml"
+
+[tasks.analyst-install]
+args = [{arg = "output_name", default = "peak_finder"}]
+env = { MIRA_CMD_RUNNER_DIR = "$ProgramFiles/Mira Geoscience/Geoscience ANALYST/CmdRunner" }
+cmd = '"$MIRA_CMD_RUNNER_DIR/MambaEnvRunner.exe" --install "{{ output_name }}.pixi.conda.yml"'
+depends-on = [{task = "export-to-conda", args = ["mirageo-local", "{{ output_name }}"]}]
