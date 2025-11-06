@@ -34,6 +34,10 @@
 ..    :alt: Maintainability
 
 
+.. warning::
+    **DEPRECATED** - See instead https://github.com/MiraGeoscience/curve-apps
+
+
 Peak-Finder-App
 ===============
 **peak-finder-app** is a package for the detection and grouping of time-domain
